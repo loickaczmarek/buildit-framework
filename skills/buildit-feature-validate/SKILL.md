@@ -21,6 +21,10 @@ Determine your operating mode from your agent identity:
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
+**Migration note:** If `.buildit/guidelines/` does not exist but `.claude/guidelines/` or `.agents/guidelines/` does, warn the user:
+> "Guidelines found at [old-path] instead of `.buildit/guidelines/`. Run `/buildit-project-bootstrap` to migrate them before continuing."
+Then stop.
+
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 
 ---
@@ -92,10 +96,17 @@ Subagent instructions:
 > - `<guidelines-dir>/team-practices.md` → team conventions, test patterns
 > - `<guidelines-dir>/language-framework.md` → stack constraints, APIs, versions
 >
-> Only add rules that are absent. Do not rewrite existing content. Produce the updated content for each file that needs a change."
+> Only add rules that are absent from the files. For each rule to add, return it in this format:
+> FILE: <path>
+> SECTION: <section name to append to>
+> RULE: <rule text to insert>
+> Do not return the full file content — additions only.
 >
+> Issues to process:
 > [structured issue list]
-> [current file contents]
+>
+> Current file contents:
+> [current file contents]"
 
 Apply the subagent's output to the files.
 
@@ -118,7 +129,7 @@ Count the number of existing entries in the "Progress" section of the tracking f
 Add a new entry in the "Progress" section:
 
 ~~~markdown
-### NO-GO cycle [N] — [DD-MM-YYYY]
+### NO-GO cycle [N+1] — [DD-MM-YYYY]
 - Review: [GO / NO-GO — key blocking issues if NO-GO]
 - Acceptance: [PASS / FAIL — key failing criteria if FAIL]
 ~~~
@@ -128,6 +139,6 @@ Add a new entry in the "Progress" section:
 > "Configurations updated. Problems recorded in `.scratch/`.
 > Close this session and re-run `/buildit-feature-build [feature-name]`."
 
-If this is the **3rd build/fix cycle or more**, add:
+If N+1 >= 3 (i.e. this is the 3rd NO-GO or more), add:
 
 > "⚠ You are on cycle X of the build/fix loop for this feature. Accumulated context may introduce noise in the agent's reasoning — consider a completely fresh session (close everything, open Claude Code without any previous session context) before re-running `/buildit-feature-build`."

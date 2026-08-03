@@ -51,7 +51,10 @@ Check for the existence of the 4 workflow files:
 
 ---
 
-**Fast path:** If `<guidelines-dir>` already contains `team-practices.md` and `language-framework.md`, and only `<rules-file>` is absent → skip steps 3 and 4, go directly to step 5.
+**Fast path:** If `<guidelines-dir>` already contains `team-practices.md` and `language-framework.md`, and only `<rules-file>` is absent → ask:
+> "Guidelines already exist. Do you want to (1) just regenerate the rules file [fast], or (2) also re-scan the codebase for drift [full]?"
+- Fast → skip steps 3 and 4, go directly to step 5
+- Full → continue with all steps
 
 ---
 
@@ -303,10 +306,13 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 
 ### 9. Commit
 
+For Generic mode re-bootstrap: if `.agents/guidelines/team-practices.md` or `.agents/guidelines/language-framework.md` exist, remove them first (legacy format).
+
 ```bash
 # Claude mode:
 git add .claude/ .buildit/ .scratch/
 # Generic mode:
+git rm --ignore-unmatch .agents/guidelines/team-practices.md .agents/guidelines/language-framework.md
 git add .agents/guidelines/project-rules.md .buildit/ .scratch/
 git commit -m "chore(config): bootstrap project configuration from workflow v2"
 ```

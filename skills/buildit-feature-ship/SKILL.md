@@ -28,6 +28,10 @@ Determine your operating mode from your agent identity:
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
+**Migration note:** If `.buildit/guidelines/` does not exist but `.claude/guidelines/` or `.agents/guidelines/` does, warn the user:
+> "Guidelines found at [old-path] instead of `.buildit/guidelines/`. Run `/buildit-project-bootstrap` to migrate them before continuing."
+Then stop.
+
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 
 ---
@@ -125,7 +129,7 @@ If any answer above indicates that a configuration was missing or insufficient, 
 - `<guidelines-dir>/team-practices.md` → team conventions, test patterns, naming
 - `<guidelines-dir>/language-framework.md` → stack constraints, APIs, versions
 
-Include these changes in this feature's commit (same commit as step 2).
+Amend the feature commit to include these changes: `git add <files> && git commit --amend --no-edit`.
 
 ## End of skill
 
