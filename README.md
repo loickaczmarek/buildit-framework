@@ -107,12 +107,13 @@ This file must be empty between parallel sprints. Cleanup happens in each featur
 **When to use:** when starting a new project, or on an existing project to resynchronise configs and actual practices.
 
 **What it does:**
-1. Scans `.claude/guidelines/` to detect all files present — custom files (`figma.md`, `jira.md`…) are preserved without modification
-2. Asks whether a directory or document of existing practices exists, and if so proposes to **merge** it into the guidelines or **reference** it (link at the top of the guideline)
-3. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files — to detect actual practices in place
-4. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
-5. Creates or updates the workflow files integrating what was detected
-6. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
+1. Detects agent identity (Claude vs other agent) and asks for mode confirmation
+2. Scans `.buildit/guidelines/` to detect all files present — custom files (`figma.md`, `jira.md`…) are preserved without modification
+3. Asks whether a directory or document of existing practices exists, and if so proposes to **merge** it into the guidelines or **reference** it (link at the top of the guideline)
+4. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files — to detect actual practices in place
+5. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
+6. Creates or updates the workflow files integrating what was detected
+7. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
 
 **Use cases:**
 - New project: detects the stack from the code, generates the pre-filled kit with actual conventions
@@ -203,7 +204,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 - Instruction: close the session and run `/buildit-feature-ship [feature-name]`
 
 **If NO-GO or FAIL (in the same session, before closing):**
-1. Identifies which configurations would have prevented these issues — immediately updates `.claude/CLAUDE.md` or the relevant guidelines
+1. Launches a subagent with the structured issue list and current guideline files — subagent produces updated file content, main agent applies it
 2. Status → `to-fix`, writes the "Problems to fix" section with precise locations
 3. Counts build/fix cycles — warns if 3rd cycle or more (risk of contextual noise)
 4. Instruction: close the session and re-run `/buildit-feature-build [feature-name]`
@@ -238,7 +239,8 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 - "API & Contracts modified" → removes the section for this branch
 - "Constraints discovered" → decision tree:
   - Feature-specific → delete
-  - Durable → migrate into the appropriate guideline (`language-framework.md`, `team-practices.md`, dedicated guideline, or `.claude/CLAUDE.md`), then delete
+  - Durable → migrate into the appropriate guideline (`language-framework.md`, `team-practices.md`, dedicated guideline, or rules file), then delete
+- "Decisions & Conventions" → always durable, always migrate into the appropriate guideline, then delete
 
 **4. Light retro** — three questions: what slowed down the loop? would a configuration have prevented it? was the plan precise enough? If a configuration needs changing, the update is included in the commit.
 
@@ -264,6 +266,4 @@ Over time, `language-framework.md` and `team-practices.md` reflect the real cons
 
 ## References
 
-- Workflow design: `docs/superpowers/specs/2026-06-29-workflow-skills-design.md`
-- Multi-agent coordination design: `docs/superpowers/specs/2026-06-24-workflow-multi-agent-v2-design.md`
-- Skills implementation plan: `docs/superpowers/plans/2026-06-29-workflow-skills.md`
+- Bootstrap mode confirmation design: `docs/superpowers/specs/2026-08-03-bootstrap-mode-confirmation-design.md`
