@@ -113,7 +113,15 @@ Write a "Problems to fix" section in the tracking file with the precise list of 
 
 ### 5c. Count cycles and warn if needed
 
-Count the number of previous occurrences of the "Problems to fix" section in the "Progress" history of the file (note the current cycle in "Progress" to ease future counting).
+Count the number of existing entries in the "Progress" section of the tracking file to determine the current cycle number N.
+
+Add a new entry in the "Progress" section:
+
+~~~markdown
+### NO-GO cycle [N] — [DD-MM-YYYY]
+- Review: [GO / NO-GO — key blocking issues if NO-GO]
+- Acceptance: [PASS / FAIL — key failing criteria if FAIL]
+~~~
 
 ## End of skill (NO-GO / FAIL)
 

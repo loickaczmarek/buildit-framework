@@ -209,8 +209,8 @@ Project guidelines are shared across agents in `.buildit/guidelines/`:
 
 ## Agent workflow
 - Development loop: plan → self-critic → failing tests → execute → review → acceptance → commit
-- Tracking files in .scratch/ — format: DD-MM-YYYY-issue-name.md
-- Status in each tracking file: to-build → building → to-validate → to-fix → to-ship
+- Tracking files in .scratch/ — format: DD-MM-YYYY-feature-name.md
+- Status in each tracking file: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
 
 ## Parallel coordination
 - shared-context.md structured in 4 sections (API & Contracts, Constraints, Decisions & Conventions, Merge readiness)
@@ -251,8 +251,12 @@ The commit description explains the WHY, not the what.
 - chore/YYYY-MM-DD-short-name
 
 ## .scratch/
-File name format: DD-MM-YYYY-issue-name.md
+File name format: DD-MM-YYYY-feature-name.md
 Move to .scratch/done/ at the closing commit.
+
+Tracking file sections: Status · Goal · Acceptance Tests · Plan · Progress
+Status flow: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
+Progress: one entry per NO-GO cycle, added by feature-validate
 ~~~
 
 `<guidelines-dir>/language-framework.md` (fill Stack with collected information):
