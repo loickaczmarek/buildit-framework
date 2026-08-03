@@ -7,21 +7,21 @@ A set of 5 skills that drive the development loop feature by feature. Each skill
 ## Overview
 
 ```
-[project-bootstrap]          ← once per project, outside the feature flow
+[buildit-project-bootstrap]          ← once per project, outside the feature flow
         │
         ▼
-[feature-start]              ← plan + self-critic + init shared-context
+[buildit-feature-start]              ← plan + self-critic + init shared-context
         │
    🔄 CLEAR CONTEXT
         │
         ▼
-[feature-build]  ◄───────────────────────────────────┐
+[buildit-feature-build]  ◄───────────────────────────────────┐
    TDD + implementation                               │
         │                                             │
    🔄 CLEAR CONTEXT                                   │
         │                                             │
         ▼                                             │
-[feature-validate]                                    │
+[buildit-feature-validate]                                    │
    5-dimension review + acceptance tests              │
         │                                             │
    ┌────┴────┐                                        │
@@ -32,7 +32,7 @@ A set of 5 skills that drive the development loop feature by feature. Each skill
    │    🔄 CLEAR CONTEXT ──────────────────────────── ┘
    │
    ▼
-[feature-ship]
+[buildit-feature-ship]
    readiness + commit + shared-context cleanup + retro
    (push + PR are manual)
 ```
@@ -73,13 +73,13 @@ to-build | building | to-validate | validating | to-fix | to-ship
 
 | Skill | Transition |
 |-------|-----------|
-| `feature-start` (end) | → `to-build` |
-| `feature-build` (start) | `to-build` or `to-fix` → `building` |
-| `feature-build` (end) | → `to-validate` |
-| `feature-validate` (start) | → `validating` |
-| `feature-validate` GO + PASS | → `to-ship` |
-| `feature-validate` NO-GO or FAIL | → `to-fix` |
-| `feature-ship` | file moved to `.scratch/done/` |
+| `buildit-feature-start` (end) | → `to-build` |
+| `buildit-feature-build` (start) | `to-build` or `to-fix` → `building` |
+| `buildit-feature-build` (end) | → `to-validate` |
+| `buildit-feature-validate` (start) | → `validating` |
+| `buildit-feature-validate` GO + PASS | → `to-ship` |
+| `buildit-feature-validate` NO-GO or FAIL | → `to-fix` |
+| `buildit-feature-ship` | file moved to `.scratch/done/` |
 
 ---
 
@@ -94,15 +94,15 @@ to-build | building | to-validate | validating | to-fix | to-ship
 
 The distinction between "Constraints" and "Decisions" is intentional: constraints are reactive (discovered in response to a problem), decisions are proactive (deliberate choices). Both migrate into guidelines at ship time, but via different decision trees.
 
-This file must be empty between parallel sprints. Cleanup happens in each feature's closing commit (`feature-ship`).
+This file must be empty between parallel sprints. Cleanup happens in each feature's closing commit (`buildit-feature-ship`).
 
 ---
 
 ## Skills
 
-### `project-bootstrap`
+### `buildit-project-bootstrap`
 
-**Trigger:** `/project-bootstrap`
+**Trigger:** `/buildit-project-bootstrap`
 
 **When to use:** when starting a new project, or on an existing project to resynchronise configs and actual practices.
 
@@ -123,9 +123,9 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
 ---
 
-### `feature-start`
+### `buildit-feature-start`
 
-**Trigger:** `/feature-start [feature-name]`
+**Trigger:** `/buildit-feature-start [feature-name]`
 
 **When to use:** at the start of each new feature, from the main branch or a dedicated branch, before creating the implementation worktree.
 
@@ -138,7 +138,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 6. Updates the plan with the corrections
 7. Adds the branch in `shared-context.md` section "Merge readiness" (`IN_PROGRESS`)
 
-**Ends with:** instruction to close the session and run `/feature-build [feature-name]`.
+**Ends with:** instruction to close the session and run `/buildit-feature-build [feature-name]`.
 
 **Use cases:**
 - Starting a standard feature
@@ -146,13 +146,13 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
 ---
 
-### `feature-build`
+### `buildit-feature-build`
 
-**Trigger:** `/feature-build [feature-name]`
+**Trigger:** `/buildit-feature-build [feature-name]`
 
 **When to use:**
-- After `feature-start` for the first implementation (status `to-build`)
-- After `feature-validate` returned NO-GO or FAIL (status `to-fix`)
+- After `buildit-feature-start` for the first implementation (status `to-build`)
+- After `buildit-feature-validate` returned NO-GO or FAIL (status `to-fix`)
 
 **What it does:**
 
@@ -165,11 +165,11 @@ Automatically detects the mode based on the tracking file status. At the end of 
 4. Implements to make the tests pass, re-runs after each significant file
 
 **Fix mode** (status `to-fix`, "Problems to fix" section present):
-1. Reads the list of problems documented by `feature-validate`
+1. Reads the list of problems documented by `buildit-feature-validate`
 2. Fixes targeted at the listed problems
 3. Re-runs tests after each modification — no restructuring beyond what is necessary
 
-**Ends with:** instruction to close the session and run `/feature-validate [feature-name]`.
+**Ends with:** instruction to close the session and run `/buildit-feature-validate [feature-name]`.
 
 **Use cases:**
 - Initial implementation of a feature (TDD mode)
@@ -178,11 +178,11 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 ---
 
-### `feature-validate`
+### `buildit-feature-validate`
 
-**Trigger:** `/feature-validate [feature-name]`
+**Trigger:** `/buildit-feature-validate [feature-name]`
 
-**When to use:** after `feature-build` has finished (status `to-validate`).
+**When to use:** after `buildit-feature-build` has finished (status `to-validate`).
 
 **What it does:**
 
@@ -200,13 +200,13 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **If GO + PASS overall:**
 - Status → `to-ship`
-- Instruction: close the session and run `/feature-ship [feature-name]`
+- Instruction: close the session and run `/buildit-feature-ship [feature-name]`
 
 **If NO-GO or FAIL (in the same session, before closing):**
 1. Identifies which configurations would have prevented these issues — immediately updates `.claude/CLAUDE.md` or the relevant guidelines
 2. Status → `to-fix`, writes the "Problems to fix" section with precise locations
 3. Counts build/fix cycles — warns if 3rd cycle or more (risk of contextual noise)
-4. Instruction: close the session and re-run `/feature-build [feature-name]`
+4. Instruction: close the session and re-run `/buildit-feature-build [feature-name]`
 
 **Use cases:**
 - Systematic validation after each implementation
@@ -215,11 +215,11 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 ---
 
-### `feature-ship`
+### `buildit-feature-ship`
 
-**Trigger:** `/feature-ship [feature-name]`
+**Trigger:** `/buildit-feature-ship [feature-name]`
 
-**When to use:** after `feature-validate` returned GO + PASS overall (status `to-ship`).
+**When to use:** after `buildit-feature-validate` returned GO + PASS overall (status `to-ship`).
 
 **What it does:**
 
@@ -255,8 +255,8 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 
 Guidelines are automatically enriched with each feature, without a dedicated step:
 
-- **`feature-validate` NO-GO** → updates configs in the same session (before closing)
-- **`feature-ship`** → migrates durable constraints from `shared-context.md` into the appropriate guidelines
+- **`buildit-feature-validate` NO-GO** → updates configs in the same session (before closing)
+- **`buildit-feature-ship`** → migrates durable constraints from `shared-context.md` into the appropriate guidelines
 
 Over time, `language-framework.md` and `team-practices.md` reflect the real constraints of the project — not anticipations, but accumulated real work.
 

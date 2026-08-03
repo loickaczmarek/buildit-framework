@@ -1,6 +1,6 @@
 ---
-name: feature-build
-description: Use when implementing a feature or applying fixes after a validate NO-GO — runs TDD cycle (status to-build) or fix cycle (status to-fix). Accepts optional feature name: /feature-build [feature-name].
+name: buildit-feature-build
+description: Use when implementing a feature or applying fixes after a buildit-feature-validate NO-GO — runs TDD cycle (status to-build) or fix cycle (status to-fix). Accepts optional feature name: /buildit-feature-build [feature-name].
 ---
 
 # Feature Build
@@ -9,8 +9,8 @@ Implements the feature (TDD mode) or fixes issues identified by feature-validate
 
 ## When to use
 
-- First implementation: after `feature-start` and creation of the isolated worktree
-- Fix: after `feature-validate` returned NO-GO or FAIL and documented the issues in `.scratch/`
+- First implementation: after `buildit-feature-start` and creation of the isolated worktree
+- Fix: after `buildit-feature-validate` returned NO-GO or FAIL and documented the issues in `.scratch/`
 
 ## Steps
 
@@ -86,6 +86,6 @@ If no, move to the next step without modifying `shared-context.md`.
 ## End of skill
 
 > "Implementation complete, tests passing. Status set to `to-validate`.
-> Close this session and run `/feature-validate [feature-name]`."
+> Close this session and run `/buildit-feature-validate [feature-name]`."
 
 > If a new practice was documented in `shared-context.md`: "Note: I added an entry in 'Decisions & Conventions' — it will be migrated into the guidelines at ship time."

@@ -1,6 +1,6 @@
 ---
-name: feature-ship
-description: Use when validation passed (status to-ship) — checks shared-context readiness, commits, cleans shared-context, migrates durable constraints to guidelines, runs retro. Does NOT push or create the PR. Accepts optional feature name: /feature-ship [feature-name].
+name: buildit-feature-ship
+description: Use when validation passed (status to-ship) — checks shared-context readiness, commits, cleans shared-context, migrates durable constraints to guidelines, runs retro. Does NOT push or create the PR. Accepts optional feature name: /buildit-feature-ship [feature-name].
 ---
 
 # Feature Ship
@@ -9,7 +9,7 @@ Readiness checklist, commit, shared-context cleanup, constraint migration, retro
 
 ## When to use
 
-After `feature-validate` returned GO + PASS overall (status `to-ship` in the tracking file).
+After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in the tracking file).
 
 ## Steps
 

@@ -1,5 +1,5 @@
 ---
-name: project-bootstrap
+name: buildit-project-bootstrap
 description: Use when starting a new project or auditing an existing one — scans guidelines, existing practices, and does a light coring of the codebase before generating or updating the configuration kit.
 ---
 
@@ -294,4 +294,4 @@ git commit -m "chore(config): bootstrap project configuration from workflow v2"
 
 ## End of skill
 
-> "Bootstrap complete. You can now run `/feature-start` for your first feature."
+> "Bootstrap complete. You can now run `/buildit-feature-start` for your first feature."

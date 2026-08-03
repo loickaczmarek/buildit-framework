@@ -1,6 +1,6 @@
 ---
-name: feature-validate
-description: Use when implementation is complete (status to-validate) — reviews code on 5 dimensions, validates each acceptance test, updates configs on failure. Routes to feature-ship (GO) or feature-build with documented fixes (NO-GO/FAIL). Accepts optional feature name: /feature-validate [feature-name].
+name: buildit-feature-validate
+description: Use when implementation is complete (status to-validate) — reviews code on 5 dimensions, validates each acceptance test, updates configs on failure. Routes to buildit-feature-ship (GO) or buildit-feature-build with documented fixes (NO-GO/FAIL). Accepts optional feature name: /buildit-feature-validate [feature-name].
 ---
 
 # Feature Validate
@@ -9,7 +9,7 @@ Code review and acceptance test validation. Routes to the build/fix loop or open
 
 ## When to use
 
-After `feature-build` has completed its cycle (status `to-validate` in the tracking file).
+After `buildit-feature-build` has completed its cycle (status `to-validate` in the tracking file).
 
 ## Steps
 
@@ -25,7 +25,7 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 ### 1. Identify the tracking file
 
-- If a `feature-name` was provided as argument (`/feature-validate feature-name`) → look for `.scratch/*feature-name*.md`
+- If a `feature-name` was provided as argument (`/buildit-feature-validate feature-name`) → look for `.scratch/*feature-name*.md`
 - Otherwise → scan `.scratch/` and take the most recent `.md` outside of `done/`
 
 Set the status to `validating`.
@@ -67,7 +67,7 @@ Conclude with **PASS overall** or **FAIL** with the list of unsatisfied criteria
 Set the status to `to-ship`.
 
 > "Validation successful. Status set to `to-ship`.
-> Close this session and run `/feature-ship [feature-name]`."
+> Close this session and run `/buildit-feature-ship [feature-name]`."
 
 ---
 
@@ -101,8 +101,8 @@ Count the number of previous occurrences of the "Problems to fix" section in the
 ## End of skill (NO-GO / FAIL)
 
 > "Configurations updated. Problems recorded in `.scratch/`.
-> Close this session and re-run `/feature-build [feature-name]`."
+> Close this session and re-run `/buildit-feature-build [feature-name]`."
 
 If this is the **3rd build/fix cycle or more**, add:
 
-> "⚠ You are on cycle X of the build/fix loop for this feature. Accumulated context may introduce noise in the agent's reasoning — consider a completely fresh session (close everything, open Claude Code without any previous session context) before re-running `/feature-build`."
+> "⚠ You are on cycle X of the build/fix loop for this feature. Accumulated context may introduce noise in the agent's reasoning — consider a completely fresh session (close everything, open Claude Code without any previous session context) before re-running `/buildit-feature-build`."

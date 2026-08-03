@@ -1,6 +1,6 @@
 ---
-name: feature-start
-description: Use when starting a new feature — creates the .scratch/ tracking file with plan and self-critique, initialises shared-context entry. Accepts optional feature name: /feature-start [feature-name].
+name: buildit-feature-start
+description: Use when starting a new feature — creates the .scratch/ tracking file with plan and self-critique, initialises shared-context entry. Accepts optional feature name: /buildit-feature-start [feature-name].
 ---
 
 # Feature Start
@@ -87,4 +87,4 @@ Add a line in the "Merge readiness" section of `.scratch/shared-context.md`:
 
 > "Plan validated and recorded in `.scratch/DD-MM-YYYY-[feature-name].md`.
 >
-> Close this session and run `/feature-build [feature-name]`."
+> Close this session and run `/buildit-feature-build [feature-name]`."
