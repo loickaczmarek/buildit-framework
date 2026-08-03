@@ -51,6 +51,10 @@ Check for the existence of the 4 workflow files:
 
 ---
 
+**Fast path:** If `<guidelines-dir>` already contains `team-practices.md` and `language-framework.md`, and only `<rules-file>` is absent → skip steps 3 and 4, go directly to step 5.
+
+---
+
 ### 3. Ask whether a practices directory exists
 
 > "Is there a directory or document that lists the existing practices of the project? (e.g. `docs/`, `adr/`, `CONTRIBUTING.md`, Confluence, Notion, other)"
