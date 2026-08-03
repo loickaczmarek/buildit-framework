@@ -15,9 +15,11 @@ After `buildit-feature-build` has completed its cycle (status `to-validate` in t
 
 ### 0. Detect environment paths
 
-Check whether `.claude/` exists at the project root:
-- If yes → **Claude mode**: rules file = `.claude/CLAUDE.md`, guidelines directory = `.claude/guidelines/`
-- If no → **Generic mode**: rules file = `.agents/guidelines/project-rules.md`, guidelines directory = `.agents/guidelines/`
+Determine your operating mode from your agent identity:
+- You are a **Claude / Claude Code** agent → **Claude mode**: `<rules-file>` = `.claude/CLAUDE.md`
+- You are any **other agent** (Copilot, generic) → **Generic mode**: `<rules-file>` = `.agents/guidelines/project-rules.md`
+
+In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 
@@ -75,12 +77,27 @@ Set the status to `to-ship`.
 
 Act within the same context, before closing the session.
 
-### 5a. Update configurations
+### 5a. Update configurations via subagent
 
-Identify which configurations would have prevented these issues had they existed. Update immediately:
-- `<rules-file>` → cross-cutting rules (security, global behaviour)
-- `<guidelines-dir>/team-practices.md` → team conventions, test patterns
-- `<guidelines-dir>/language-framework.md` → stack constraints, APIs, versions
+Before documenting problems, produce a structured list of the issues found — this is the subagent's input.
+
+Launch a subagent with the following context:
+- The structured list of issues (from the review and acceptance phases above)
+- The paths `<rules-file>`, `<guidelines-dir>/team-practices.md`, `<guidelines-dir>/language-framework.md`
+- The current content of each of those files
+
+Subagent instructions:
+> "You are updating project configuration files. For each issue in the list below, identify which configuration would have prevented it and add the corresponding rule to the appropriate file:
+> - `<rules-file>` → cross-cutting rules (security, global behaviour)
+> - `<guidelines-dir>/team-practices.md` → team conventions, test patterns
+> - `<guidelines-dir>/language-framework.md` → stack constraints, APIs, versions
+>
+> Only add rules that are absent. Do not rewrite existing content. Produce the updated content for each file that needs a change."
+>
+> [structured issue list]
+> [current file contents]
+
+Apply the subagent's output to the files.
 
 ### 5b. Document the problems
 

@@ -22,9 +22,11 @@ If the most recent file does not have status `to-ship`, warn: "The most recent f
 
 ### 0b. Detect environment paths
 
-Check whether `.claude/` exists at the project root:
-- If yes → **Claude mode**: rules file = `.claude/CLAUDE.md`, guidelines directory = `.claude/guidelines/`
-- If no → **Generic mode**: rules file = `.agents/guidelines/project-rules.md`, guidelines directory = `.agents/guidelines/`
+Determine your operating mode from your agent identity:
+- You are a **Claude / Claude Code** agent → **Claude mode**: `<rules-file>` = `.claude/CLAUDE.md`
+- You are any **other agent** (Copilot, generic) → **Generic mode**: `<rules-file>` = `.agents/guidelines/project-rules.md`
+
+In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 

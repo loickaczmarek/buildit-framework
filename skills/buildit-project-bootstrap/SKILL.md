@@ -16,9 +16,11 @@ Scans the actual state of the project (guidelines, existing practices, source co
 
 ### 0. Detect environment paths
 
-Check whether `.claude/` exists at the project root:
-- If yes → detected mode: **Claude** (rules file = `.claude/CLAUDE.md`, guidelines directory = `.claude/guidelines/`)
-- If no → detected mode: **Generic** (rules file = `.agents/guidelines/project-rules.md`, guidelines directory = `.agents/guidelines/`)
+Determine your operating mode from your agent identity:
+- You are a **Claude / Claude Code** agent → **Claude mode**: `<rules-file>` = `.claude/CLAUDE.md`
+- You are any **other agent** (Copilot, generic) → **Generic mode**: `<rules-file>` = `.agents/guidelines/project-rules.md`
+
+In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
 Then ask:
 > "Detected mode: **[mode]**. Confirm? (or type `claude` / `generic` to switch)"
@@ -195,6 +197,12 @@ Apply the actions announced in the diagnostic. All paths below use `<rules-file>
 ~~~markdown
 # Project Rules
 
+## Guidelines
+
+Project guidelines are shared across agents in `.buildit/guidelines/`:
+- `.buildit/guidelines/team-practices.md` — team conventions, test patterns, naming
+- `.buildit/guidelines/language-framework.md` — stack constraints, APIs, versions
+
 ## Agent workflow
 - Development loop: plan → self-critic → failing tests → execute → review → acceptance → commit
 - Tracking files in .scratch/ — format: DD-MM-YYYY-issue-name.md
@@ -289,9 +297,9 @@ Move to .scratch/done/ at the closing commit.
 
 ```bash
 # Claude mode:
-git add .claude/ .scratch/
+git add .claude/ .buildit/ .scratch/
 # Generic mode:
-git add .agents/guidelines/ .scratch/
+git add .agents/guidelines/project-rules.md .buildit/ .scratch/
 git commit -m "chore(config): bootstrap project configuration from workflow v2"
 ```
 
