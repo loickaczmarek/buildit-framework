@@ -17,10 +17,13 @@ Scans the actual state of the project (guidelines, existing practices, source co
 ### 0. Detect environment paths
 
 Check whether `.claude/` exists at the project root:
-- If yes → **Claude mode**: rules file = `.claude/CLAUDE.md`, guidelines directory = `.claude/guidelines/`
-- If no → **Generic mode**: rules file = `.agents/guidelines/project-rules.md`, guidelines directory = `.agents/guidelines/`
+- If yes → detected mode: **Claude** (rules file = `.claude/CLAUDE.md`, guidelines directory = `.claude/guidelines/`)
+- If no → detected mode: **Generic** (rules file = `.agents/guidelines/project-rules.md`, guidelines directory = `.agents/guidelines/`)
 
-Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
+Then ask:
+> "Detected mode: **[mode]**. Confirm? (or type `claude` / `generic` to switch)"
+
+Use the confirmed mode for `<rules-file>` and `<guidelines-dir>` as shorthand in all steps below.
 
 ---
 
