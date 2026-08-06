@@ -50,9 +50,9 @@ require_regex "AT-2: scans project structure (ls skills)" "$SKILL_SRC" '(ls|scan
 require_regex "AT-3: asks about external documentation" "$SKILL_SRC" '(documentation|specs|user stories|design doc)'
 
 # AT-4: Questions target functional understanding (problem, users, expected behaviour, success criteria)
-require_regex "AT-4: functional questions — problem" "$SKILL_SRC" 'probl[eè]m'
-require_regex "AT-4: functional questions — users" "$SKILL_SRC" '(utilisateur|user)'
-require_regex "AT-4: functional questions — success criteria" "$SKILL_SRC" '(crit[eè]re|success|succès)'
+require_regex "AT-4: functional questions — problem" "$SKILL_SRC" 'problem'
+require_regex "AT-4: functional questions — users" "$SKILL_SRC" 'user'
+require_regex "AT-4: functional questions — success criteria" "$SKILL_SRC" 'success'
 
 # AT-5: Synthesis translates functional to technical, anchored in project conventions
 require_regex "AT-5: anchors description in conventions" "$SKILL_SRC" '(convention|guideline|pattern)'

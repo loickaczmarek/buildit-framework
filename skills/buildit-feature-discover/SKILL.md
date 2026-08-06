@@ -15,7 +15,7 @@ Before `/buildit-feature-start`, when the feature idea is vague or needs validat
 
 ### 0. Short-circuit if brief is already clear
 
-If a `feature-name` was provided as argument and the user has also supplied a description and acceptance tests, skip to Phase 4 — Brief generation.
+If a `feature-name` was provided as argument and the user has also supplied a description and acceptance tests, exit this skill and invoke `/buildit-feature-start [feature-name]` directly.
 
 Otherwise, continue with Phase 1.
 
@@ -23,11 +23,8 @@ Otherwise, continue with Phase 1.
 
 ### Phase 1 — Project context analysis
 
-Determine your operating mode from your agent identity:
-- You are a **Claude / Claude Code** agent → `<skills-dir>` = `.claude/skills/`
-- You are any **other agent** (Copilot, generic) → `<skills-dir>` = `.agents/skills/`
-
-Use `<skills-dir>` as shorthand for this path in all steps below.
+Detect your operating mode:
+- Run `ls .claude/ 2>/dev/null` — if the directory exists, use `.claude/skills/` as `SKILLS_DIR`; otherwise use `.agents/skills/`.
 
 1. Read `.scratch/shared-context.md`:
    - Note active constraints and architecture decisions that could impact the new feature.
@@ -35,7 +32,7 @@ Use `<skills-dir>` as shorthand for this path in all steps below.
 2. Read `.buildit/guidelines/team-practices.md` and `.buildit/guidelines/language-framework.md`:
    - Extract naming conventions, skill file format, expected patterns.
 
-3. Scan existing skills: `ls <skills-dir>` and read the first few lines (name, description) of each `SKILL.md`:
+3. Scan existing skills: `ls $SKILLS_DIR` and read the first few lines (name, description) of each `SKILL.md`:
    - Identify potential overlaps with the feature being explored.
    - Note dominant patterns to carry into the brief.
 
@@ -50,10 +47,10 @@ Use `<skills-dir>` as shorthand for this path in all steps below.
 
 Based on what Phase 1 revealed, ask the user targeted questions. Cover at minimum:
 
-- **Problem**: what problem does this skill solve? What friction disappears with this skill?
-- **Users**: who invokes this skill and in what context?
-- **Expected behaviour**: what happens step by step when the skill is successfully invoked?
-- **Success criteria**: how will you know the skill is working correctly?
+1. **Problem**: what problem does this skill solve? What friction disappears with this skill?
+2. **Users**: who invokes this skill and in what context?
+3. **Expected behaviour**: what happens step by step when the skill is successfully invoked?
+4. **Success criteria**: how will you know the skill is working correctly?
 
 Add contextual questions based on Phase 1 findings:
 - If a similar skill exists → "How does this skill differ from `[skill-name]`?"
@@ -107,6 +104,3 @@ Present the brief to the user for review.
 
 > "Run `/buildit-feature-start [feature-name]` — the brief above is your input for the information-gathering step of the start skill."
 
-## End of skill
-
-> "Brief validated. Run `/buildit-feature-start [feature-name]` to start the implementation."
