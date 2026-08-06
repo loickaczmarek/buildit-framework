@@ -8,6 +8,8 @@ Skills are markdown files defining agent workflows. Each skill lives in its own 
 
 Both files must be kept in sync at every commit. Changes to a skill are always made in `skills/` first, then mirrored to `.claude/skills/`.
 
+All skill files must be authored in English. User-facing messages, field labels, step descriptions, and inline comments must not contain strings in any other language.
+
 ## Naming conventions
 
 - Skill directory names: kebab-case (e.g. `buildit-feature-start`)
@@ -20,6 +22,8 @@ Both files must be kept in sync at every commit. Changes to a skill are always m
 No automated test framework. Skills are validated by:
 1. Manual invocation in a real Claude Code session
 2. Reviewing agent behaviour against acceptance tests defined in the tracking file
+
+For skills whose acceptance criteria are content-checkable, structural bash scripts (`tests/test-*.sh`) serve as the TDD "failing test" artefact. Each script maps one-to-one to an acceptance criterion and uses `grep` against the `SKILL.md` content. This makes criteria machine-verifiable without introducing a test runner dependency.
 
 ## Review
 

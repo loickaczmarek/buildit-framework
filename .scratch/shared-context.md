@@ -7,7 +7,6 @@
 <!-- Fill when you discover a technical limitation or unexpected behaviour -->
 
 ## Decisions & Conventions
-<!-- Fill when you intentionally introduce a new practice: architecture, naming, code pattern -->
 
 ## Merge readiness
 

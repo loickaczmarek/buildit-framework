@@ -58,7 +58,8 @@ Coordination goes through `.scratch/shared-context.md` (4 fixed sections):
 
 ## Patterns to avoid
 
-[enriched as features are shipped]
+- **Hardcoding agent-specific paths in skill instructions.** Do not reference `.claude/skills/` directly inside a skill file. When listing or referencing skills, use the canonical `skills/` directory. If agent identity is relevant, detect it first (e.g. check for a `.claude/` directory) and store the result in a variable; never embed agent-specific paths directly in skill instructions. This preserves compatibility with the dual-location deployment model.
+- **Appending duplicate rules to guideline files.** Before writing any rule to a guideline file, read the target file and check whether the exact text (or a semantically equivalent rule) is already present. Do not append a rule that already exists — even if it was just generated in the current fix cycle. Deduplicate before writing; never rely on downstream cleanup.
 
 ## Known behaviours / constraints
 
