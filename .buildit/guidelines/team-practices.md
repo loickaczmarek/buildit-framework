@@ -17,6 +17,16 @@ All skill files must be authored in English. User-facing messages, field labels,
 - Design spec docs: `docs/<domain>/specs/YYYY-MM-DD-kebab-name.md`
 - Tracking files: `.scratch/DD-MM-YYYY-feature-name.md`
 
+## Setup
+
+After cloning the repository, install the git hooks to enable pre-push test validation:
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+This copies `scripts/hooks/pre-push` into `.git/hooks/pre-push`. The hook runs `tests/run-all.sh` before every `git push` and aborts the push if any test fails. Use `git push --no-verify` to bypass in exceptional cases.
+
 ## Testing
 
 No automated test framework. Skills are validated by:
