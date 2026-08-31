@@ -19,13 +19,13 @@ All skill files must be authored in English. User-facing messages, field labels,
 
 ## Setup
 
-After cloning the repository, install the git hooks to enable pre-push test validation:
+After cloning the repository, configure git to use the repo's tracked hooks:
 
 ```bash
 bash scripts/install-hooks.sh
 ```
 
-This copies `scripts/hooks/pre-push` into `.git/hooks/pre-push`. The hook runs `tests/run-all.sh` before every `git push` and aborts the push if any test fails. Use `git push --no-verify` to bypass in exceptional cases.
+This sets `core.hooksPath` to `scripts/hooks/` in the local git config, so git picks up hooks directly from the tracked directory — no file copying needed. The pre-push hook runs `tests/run-all.sh` before every `git push` and aborts the push if any test fails. Use `git push --no-verify` to bypass in exceptional cases.
 
 ## Testing
 

@@ -23,8 +23,8 @@ if [[ -x "$INSTALLER" ]]; then ok "AT-5: installer is executable"; else fail "AT
 # AT-5: installer references pre-push
 require_text "AT-5: installer references pre-push" "$INSTALLER" "pre-push"
 
-# AT-6: installer uses cp (idempotent overwrite)
-require_text "AT-6: installer uses cp for idempotent install" "$INSTALLER" "cp "
+# AT-6: installer uses core.hooksPath (idempotent, no file copy)
+require_text "AT-6: installer sets core.hooksPath" "$INSTALLER" "core.hooksPath"
 
 # AT-7: team-practices.md documents install-hooks.sh
 require_text "AT-7: team-practices.md mentions install-hooks.sh" "$PRACTICES" "install-hooks.sh"
