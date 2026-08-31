@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Git pre-push hook — runs the full test suite before any push.
+# Install via: bash scripts/install-hooks.sh
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+if bash "$REPO_ROOT/tests/run-all.sh"; then
+  exit 0
+else
+  echo ""
+  echo "Tests failed — push aborted. Fix tests or use --no-verify to bypass."
+  exit 1
+fi

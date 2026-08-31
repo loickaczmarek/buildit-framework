@@ -2,6 +2,16 @@
 
 A set of 6 skills that drive the development loop feature by feature. Each skill ends by instructing the next one; mandatory clear-context steps are handled by explicit instructions to the developer.
 
+## Setup
+
+After cloning, activate the pre-push test guard:
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+This configures git to use `scripts/hooks/` as the hooks directory. Every `git push` will run the full test suite and abort on failure.
+
 ---
 
 ## Overview

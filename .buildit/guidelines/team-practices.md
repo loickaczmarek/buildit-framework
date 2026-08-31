@@ -17,6 +17,16 @@ All skill files must be authored in English. User-facing messages, field labels,
 - Design spec docs: `docs/<domain>/specs/YYYY-MM-DD-kebab-name.md`
 - Tracking files: `.scratch/DD-MM-YYYY-feature-name.md`
 
+## Setup
+
+After cloning the repository, configure git to use the repo's tracked hooks:
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+This sets `core.hooksPath` to `scripts/hooks/` in the local git config, so git picks up hooks directly from the tracked directory — no file copying needed. The pre-push hook runs `tests/run-all.sh` before every `git push` and aborts the push if any test fails. Use `git push --no-verify` to bypass in exceptional cases.
+
 ## Testing
 
 No automated test framework. Skills are validated by:
@@ -24,6 +34,20 @@ No automated test framework. Skills are validated by:
 2. Reviewing agent behaviour against acceptance tests defined in the tracking file
 
 For skills whose acceptance criteria are content-checkable, structural bash scripts (`tests/test-*.sh`) serve as the TDD "failing test" artefact. Each script maps one-to-one to an acceptance criterion and uses `grep` against the `SKILL.md` content. This makes criteria machine-verifiable without introducing a test runner dependency.
+
+### Test harness conventions
+
+Shared assertion helpers live in `tests/lib/assertions.sh` and must be sourced at the top of every `tests/test-*.sh` file:
+
+```bash
+source "$(dirname "$0")/lib/assertions.sh"
+```
+
+The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_regex`. Each test file initialises `PASS`/`FAIL` counters via that source — never inline. This avoids duplicating helper definitions across test files while keeping zero external dependencies.
+
+`tests/run-all.sh` is the single entry point: runs all `test-*.sh` files and exits non-zero if any file fails, printing a combined `Total: X passed, Y failed` summary.
+
+New test files follow the naming pattern `tests/test-<skill-name>.sh`.
 
 ## Review
 

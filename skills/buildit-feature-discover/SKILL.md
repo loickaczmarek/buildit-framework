@@ -104,3 +104,5 @@ Present the brief to the user for review.
 
 > "Run `/buildit-feature-start [feature-name]` — the brief above is your input for the information-gathering step of the start skill."
 
+## End of skill
+
