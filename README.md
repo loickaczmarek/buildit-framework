@@ -1,6 +1,6 @@
 # Skills — Multi-Agent Workflow v2
 
-A set of 5 skills that drive the development loop feature by feature. Each skill ends by instructing the next one; mandatory clear-context steps are handled by explicit instructions to the developer.
+A set of 6 skills that drive the development loop feature by feature. Each skill ends by instructing the next one; mandatory clear-context steps are handled by explicit instructions to the developer.
 
 ---
 
@@ -8,6 +8,9 @@ A set of 5 skills that drive the development loop feature by feature. Each skill
 
 ```
 [buildit-project-bootstrap]          ← once per project, outside the feature flow
+        │
+        ▼
+[buildit-feature-discover]  (optional) ← scope vague feature → structured brief
         │
         ▼
 [buildit-feature-start]              ← plan + self-critic + init shared-context
@@ -121,6 +124,25 @@ This file must be empty between parallel sprints. Cleanup happens in each featur
 - Integration of external practices: merge or reference of an existing doc (Confluence, `docs/`, ADR…)
 
 For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
+
+---
+
+### `buildit-feature-discover`
+
+**Trigger:** `/buildit-feature-discover [feature-name]`
+
+**When to use:** before `buildit-feature-start`, when the feature idea is vague or needs validation against project conventions. If the brief is already clear (name + description + acceptance tests), skip this skill and invoke `/buildit-feature-start` directly.
+
+**What it does:**
+1. Short-circuits if a complete brief is already provided as argument
+2. Reads `shared-context.md`, guidelines, and scans existing skills to extract constraints, conventions and potential overlaps
+3. Asks whether external documentation is available (specs, user stories, design doc)
+4. Poses targeted functional questions (problem, users, expected behaviour, success criteria) — adapted to what Phase 1 revealed
+5. Translates functional answers into a technical description anchored in project conventions, and surfaces actionable risks
+6. Produces a structured brief: kebab-case name, technical description, acceptance tests, risks & constraints
+7. Presents the brief for user validation; iterates on contested sections only
+
+**Ends with:** instruction to run `/buildit-feature-start [feature-name]` with the validated brief as input.
 
 ---
 
