@@ -1,0 +1,125 @@
+---
+name: buildit-feature-run
+description: Use to orchestrate the full buildit cycle (start → build → validate → ship) in a single session — each phase runs in a fresh subagent for context isolation. Accepts optional feature name and --max-cycles N (default 3). /buildit-feature-run [feature-name] [--max-cycles N].
+---
+
+# Feature Run (Orchestrator)
+
+Orchestrates the full buildit cycle — start → build → validate → ship — by delegating each phase to a fresh subagent. Reads the tracking file status between phases to route GO/NO-GO decisions. Keeps the orchestrator context clean; all implementation noise stays in phase subagents.
+
+## When to use
+
+When you want the full cycle to run unattended in a single session, rather than running each skill manually with a clear-context step between them. Most useful for straightforward features; prefer the manual flow for complex features where mid-cycle human judgement is needed.
+
+## Arguments
+
+```
+/buildit-feature-run [feature-name] [--max-cycles N]
+```
+
+- `feature-name` — optional kebab-case name; passed to each subagent as argument
+- `--max-cycles N` — maximum number of build/fix cycles before stopping (default 3, must be a positive integer; if N < 1, warn and use default)
+
+## Steps
+
+### 0. Parse arguments
+
+Extract `feature-name` (if present) and `--max-cycles N` (if present, default N=3).
+
+Validate N: if N < 1, warn: "Invalid --max-cycles value — using default N=3." and set N=3.
+
+### 1. Collect inputs before subagents
+
+Before launching any subagent, collect the following from the user (worktree, name, description, acceptance tests) if not already provided via arguments:
+
+- **Worktree:** "Do you want to work in an isolated worktree for this feature?"
+- **Name:** kebab-case slug (skip if provided as argument)
+- **Description:** short functional description
+- **Acceptance tests:** exhaustive list — being precise here determines the quality of all phases
+
+Ask these questions in order. Do not launch the start subagent until all four are confirmed.
+
+Store: `feature-name`, `description`, `acceptance-tests`, `use-worktree` (yes/no).
+
+### 2. Subagent: buildit-feature-start
+
+Launch a fresh subagent with the following prompt:
+
+> "Run /buildit-feature-start [feature-name].
+> Use worktree: [yes/no].
+> Description: [description].
+> Acceptance tests: [acceptance-tests list]."
+
+Wait for the subagent to complete.
+
+### 3. Detect tracking file and worktree path after start
+
+Read the tracking file: scan `.scratch/` for `*[feature-name]*.md` outside of `done/`.
+
+If the tracking file is not found after start: stop and warn the user:
+> "Tracking file not found after buildit-feature-start — possible subagent failure. Inspect `.scratch/` and re-run manually."
+
+If `use-worktree` is yes: run `git worktree list` and extract the worktree path for this branch (the newly created branch name follows the convention `feature/YYYY-MM-DD-[feature-name]`). Pass this path to subsequent subagents.
+
+### 4. Build/fix loop (max N cycles)
+
+Initialise: `cycle = 0`.
+
+**Loop:**
+
+1. Increment `cycle`. If `cycle > N`: stop with message:
+   > "Max cycles (N=[N]) reached without a GO. Loop aborted after [N] cycles. Inspect `.scratch/[tracking-file]` and run `/buildit-feature-build [feature-name]` manually to continue."
+
+2. **Subagent: buildit-feature-build**
+
+   Launch a fresh subagent:
+   > "Run /buildit-feature-build [feature-name]."
+   > (Include worktree path if applicable.)
+
+   Wait for completion.
+
+3. **Check status after build**
+
+   Read the tracking file status.
+
+   If status has not changed from before the subagent ran: stop with message:
+   > "Tracking file status unchanged after buildit-feature-build — possible subagent failure. Manual inspection required."
+
+   If status ≠ `to-validate`: stop with message:
+   > "Unexpected status '[status]' after buildit-feature-build — manual inspection required."
+
+4. **Subagent: buildit-feature-validate**
+
+   Launch a fresh subagent:
+   > "Run /buildit-feature-validate [feature-name]."
+   > (Include worktree path if applicable.)
+
+   Wait for completion.
+
+5. **Check status after validate**
+
+   Read the tracking file status.
+
+   If status has not changed from `to-validate`: stop with message:
+   > "Tracking file status unchanged after buildit-feature-validate — possible subagent failure. Manual inspection required."
+
+   - `to-ship` → break the loop (GO)
+   - `to-fix` → continue loop (increment cycle, repeat)
+   - Anything else → stop with message:
+     > "Unexpected status '[status]' after buildit-feature-validate — manual inspection required."
+
+### 5. On GO: subagent buildit-feature-ship + manual reminder
+
+**Subagent: buildit-feature-ship**
+
+Launch a fresh subagent:
+> "Run /buildit-feature-ship [feature-name]."
+> (Include worktree path if applicable.)
+
+Wait for completion. Once the ship subagent completes, inform the user:
+
+> "Feature '[feature-name]' shipped successfully after [cycle] cycle(s).
+>
+> Push and PR creation remain manual — run `git push` and open a PR when ready."
+
+## End of skill
