@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /home/loic-kaczmarek/mission/build-it-framework*)",
+      "Bash(cd .*)",
+      "Bash(bash tests/*)",
+      "Bash(python3 tests/*)",
+      "Bash(git *)",
+      "Bash(grep *)",
+      "Bash(find . *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(chmod +x *)",
+      "Bash(python3 -m json.tool)"
+    ]
+  }
+}
