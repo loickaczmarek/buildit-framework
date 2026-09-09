@@ -1,6 +1,6 @@
-# Skills — Multi-Agent Workflow v2
+# buildit — Multi-Agent Development Workflow
 
-A set of 6 skills that drive the development loop feature by feature. Each skill ends by instructing the next one; mandatory clear-context steps are handled by explicit instructions to the developer.
+A framework of 6 skills that drive the development loop feature by feature. Two paths available: the automated `buildit-feature-run` for unattended cycles, and the manual sequence (start → build → validate → ship) for features needing mid-cycle human judgement.
 
 ## Setup
 
@@ -14,15 +14,29 @@ This configures git to use `scripts/hooks/` as the hooks directory. Every `git p
 
 ---
 
-## Overview
+## Quick start
+
+The fastest path for most features — runs the full cycle unattended:
 
 ```
-[buildit-project-bootstrap]          ← once per project, outside the feature flow
+[buildit-project-bootstrap]  ← once per project
         │
         ▼
 [buildit-feature-discover]  (optional) ← scope vague feature → structured brief
         │
         ▼
+[buildit-feature-run]  ← full cycle unattended (start → build → validate → ship)
+   supports --max-cycles N (default 3)
+   (push + PR remain manual)
+```
+
+For complex features where mid-cycle human judgement is needed, use the manual flow below.
+
+---
+
+## Manual flow
+
+```
 [buildit-feature-start]              ← plan + self-critic + init shared-context
         │
    🔄 CLEAR CONTEXT
@@ -48,16 +62,6 @@ This configures git to use `scripts/hooks/` as the hooks directory. Every `git p
 [buildit-feature-ship]
    readiness + commit + shared-context cleanup + retro
    (push + PR are manual)
-```
-
-**Automated alternative — `buildit-feature-run`:**
-
-```
-[buildit-feature-run]  ← orchestrates start→build→validate→ship in one session
-   collects inputs, then delegates each phase to a fresh subagent
-   reads tracking file status to route GO/NO-GO
-   supports --max-cycles N (default 3)
-   (push + PR remain manual)
 ```
 
 **Why clear-context?** Each session accumulates contextual noise. Cutting between phases keeps reasoning clean, especially across build/fix cycles.
@@ -118,6 +122,56 @@ to-build | building | to-validate | validating | to-fix | to-ship
 The distinction between "Constraints" and "Decisions" is intentional: constraints are reactive (discovered in response to a problem), decisions are proactive (deliberate choices). Both migrate into guidelines at ship time, but via different decision trees.
 
 This file must be empty between parallel sprints. Cleanup happens in each feature's closing commit (`buildit-feature-ship`).
+
+---
+
+## Autonomy configuration
+
+`buildit-feature-run` passes an autonomy instruction to each phase subagent so it can execute commands without prompting for permission at every step.
+
+### Subagent autonomy instruction
+
+Each subagent receives this block in its prompt (with `[PROJECT_ROOT]` and `[MODE]` substituted at runtime):
+
+```
+Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]).
+Execute bash, python3, and cd commands freely within this directory and its subdirectories.
+Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
+```
+
+- **`PROJECT_ROOT`** — absolute path detected via `pwd` at orchestrator start
+- **`MODE`** — `claude` if `.claude/` directory exists at project root, `generic` otherwise
+
+### settings.json permission file (Claude mode only)
+
+In Claude mode, a `.claude/settings.json` allowlist reduces per-command permission prompts during automated runs. Run `/buildit-project-bootstrap` to auto-generate this file if absent.
+
+Template (substitute `<project-root>` with the absolute project path):
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd <project-root>*)",
+      "Bash(cd ./*)",
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(yarn *)",
+      "Bash(pnpm *)",
+      "Bash(python3 *)",
+      "Bash(make *)",
+      "Bash(docker *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(chmod *)"
+    ]
+  }
+}
+```
+
+Two `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths scoped to the project root, and `Bash(cd ./*)` for relative subdirectory navigation. Neither allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
 
 ---
 
@@ -323,6 +377,20 @@ Over time, `language-framework.md` and `team-practices.md` reflect the real cons
 - Stops if the status is unchanged after any phase (stale state detection)
 - Stops with an explanation after N cycles without a GO
 
+### Configuration — `--max-cycles`
+
+| Setting | Value |
+|---------|-------|
+| Default | `--max-cycles 3` — mirrors the warning threshold in `buildit-feature-validate` |
+| Override | Pass `--max-cycles N` as argument (e.g. `--max-cycles 5` for complex features, `--max-cycles 1` for quick iterations) |
+| Validation | N < 1 → orchestrator warns and resets to 3 |
+| On exhaustion | Orchestrator stops with an explanation; user resumes manually with `/buildit-feature-build` then `/buildit-feature-validate` |
+
+**Guidance:**
+- Simple features with narrow acceptance tests → 1–2 cycles expected
+- Complex features with broad acceptance tests → allow 3–5 cycles
+- If cycles are regularly exhausted, consider splitting the feature into smaller deliverables
+
 **Ends with:** push and PR creation are manual.
 
 **Design spec:** `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
@@ -331,5 +399,4 @@ Over time, `language-framework.md` and `team-practices.md` reflect the real cons
 
 ## References
 
-- Bootstrap mode confirmation design: `docs/superpowers/specs/2026-08-03-bootstrap-mode-confirmation-design.md`
 - buildit-feature-run design: `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
