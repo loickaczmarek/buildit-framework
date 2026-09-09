@@ -17,6 +17,22 @@ require_regex "AT-2: detects generic mode" "$SKILL" '[Gg]eneric.*mode|mode.*[Gg]
 # AT-3: Produces a bootstrap commit
 require_regex "AT-3: produces a bootstrap commit" "$SKILL" 'git commit'
 
+# AT-4: Path guard present — mentions "project root" and "web tool"
+require_regex "AT-4: path guard mentions 'project root'" "$SKILL" 'project root'
+require_regex "AT-4: path guard mentions 'web tool'" "$SKILL" 'web tool'
+
+# AT-5: Step 2b present
+require_regex "AT-5: step 2b present" "$SKILL" '2b'
+
+# AT-6: Claude-mode .claude/settings.json check present
+require_text "AT-6: .claude/settings.json check present" "$SKILL" '.claude/settings.json'
+
+# AT-7: Offer-to-create prompt present
+require_text "AT-7: offer-to-create prompt present" "$SKILL" 'Autonomy settings missing'
+
+# AT-8: Broad Bash(cd *) absent from the template
+require_absent "AT-8: broad Bash(cd *) absent from template" "$SKILL" 'Bash\(cd \\\*\)'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

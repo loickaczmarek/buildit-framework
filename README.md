@@ -50,6 +50,16 @@ This configures git to use `scripts/hooks/` as the hooks directory. Every `git p
    (push + PR are manual)
 ```
 
+**Automated alternative — `buildit-feature-run`:**
+
+```
+[buildit-feature-run]  ← orchestrates start→build→validate→ship in one session
+   collects inputs, then delegates each phase to a fresh subagent
+   reads tracking file status to route GO/NO-GO
+   supports --max-cycles N (default 3)
+   (push + PR remain manual)
+```
+
 **Why clear-context?** Each session accumulates contextual noise. Cutting between phases keeps reasoning clean, especially across build/fix cycles.
 
 **Parallelisation:** multiple features can run simultaneously on separate worktrees. Coordination goes through `.scratch/shared-context.md`.
@@ -296,6 +306,30 @@ Over time, `language-framework.md` and `team-practices.md` reflect the real cons
 
 ---
 
+### `buildit-feature-run`
+
+**Trigger:** `/buildit-feature-run [feature-name] [--max-cycles N]`
+
+**When to use:** when you want the full cycle (start → build → validate → ship) to run unattended in a single session. Each phase runs in a fresh subagent for context isolation. Most useful for straightforward features; prefer the manual flow when mid-cycle human judgement is needed.
+
+**What it does:**
+1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent
+2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
+3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
+4. On GO + PASS: delegates `buildit-feature-ship`, then reminds the user that push and PR creation are manual
+
+**Guards:**
+- Stops if the tracking file is not found after start (possible subagent failure)
+- Stops if the status is unchanged after any phase (stale state detection)
+- Stops with an explanation after N cycles without a GO
+
+**Ends with:** push and PR creation are manual.
+
+**Design spec:** `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
+
+---
+
 ## References
 
 - Bootstrap mode confirmation design: `docs/superpowers/specs/2026-08-03-bootstrap-mode-confirmation-design.md`
+- buildit-feature-run design: `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`

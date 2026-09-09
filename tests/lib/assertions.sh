@@ -14,7 +14,7 @@ require_file() {
 
 require_text() {
   local label="$1" file="$2" pattern="$3"
-  if grep -qF "$pattern" "$file" 2>/dev/null; then
+  if grep -qF -- "$pattern" "$file" 2>/dev/null; then
     ok "$label"
   else
     fail "$label — pattern not found: '$pattern'"
@@ -23,9 +23,18 @@ require_text() {
 
 require_regex() {
   local label="$1" file="$2" pattern="$3"
-  if grep -qE "$pattern" "$file" 2>/dev/null; then
+  if grep -qE -- "$pattern" "$file" 2>/dev/null; then
     ok "$label"
   else
     fail "$label — regex not found: '$pattern'"
+  fi
+}
+
+require_absent() {
+  local label="$1" file="$2" pattern="$3"
+  if grep -qE -- "$pattern" "$file" 2>/dev/null; then
+    fail "$label — pattern must be absent but was found: '$pattern'"
+  else
+    ok "$label"
   fi
 }

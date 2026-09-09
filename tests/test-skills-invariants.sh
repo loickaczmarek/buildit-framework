@@ -13,6 +13,7 @@ SKILLS=(
   buildit-feature-validate
   buildit-feature-ship
   buildit-project-bootstrap
+  buildit-feature-run
 )
 
 for skill in "${SKILLS[@]}"; do

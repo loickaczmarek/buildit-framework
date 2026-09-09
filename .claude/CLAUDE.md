@@ -10,6 +10,7 @@ Project guidelines are shared across agents in `.buildit/guidelines/`:
 - Development loop: plan → self-critic → failing tests → execute → review → acceptance → commit
 - Tracking files in `.scratch/` — format: `DD-MM-YYYY-feature-name.md`
 - Status in each tracking file: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
+- Before setting status to `to-validate`, run `git status` and confirm that every file created or modified during the build phase is tracked and staged — no relevant untracked or unstaged files may remain. If any are found, stage them before the transition.
 
 ## Parallel coordination
 - `shared-context.md` structured in 4 sections (API & Contracts, Constraints, Decisions & Conventions, Merge readiness)

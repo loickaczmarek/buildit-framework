@@ -102,7 +102,9 @@ Present the brief to the user for review.
 - On correction → iterate only on the contested sections.
 - On validation → display:
 
-> "Run `/buildit-feature-start [feature-name]` — the brief above is your input for the information-gathering step of the start skill."
+> "Brief validated. Choose your next step:
+> - `/buildit-feature-start [feature-name]` — to continue the cycle manually, session by session
+> - `/buildit-feature-run [feature-name]` — to execute the full cycle autonomously (start → build → validate → ship)"
 
 ## End of skill
 

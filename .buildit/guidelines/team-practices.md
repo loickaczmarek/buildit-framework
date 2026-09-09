@@ -10,6 +10,35 @@ Both files must be kept in sync at every commit. Changes to a skill are always m
 
 All skill files must be authored in English. User-facing messages, field labels, step descriptions, and inline comments must not contain strings in any other language.
 
+### Path and mode conventions
+
+**No hardcoded absolute paths.** Skills must never embed machine-specific or project-specific absolute paths. Use `pwd` to detect the project root at runtime and store it as `PROJECT_ROOT`.
+
+**Operating mode detection.** Skills that reference agent-specific directories (skills dir, rules file, permissions config) must detect their mode at step 0:
+- Run `ls .claude/ 2>/dev/null` — if the directory exists → **Claude mode**, use `.claude/` paths
+- Otherwise → **Generic mode**, use `.agents/` paths
+
+| Resource | Claude mode | Generic mode |
+|----------|-------------|--------------|
+| Rules file | `.claude/CLAUDE.md` | `.agents/guidelines/project-rules.md` |
+| Skills directory | `.claude/skills/` | `.agents/skills/` |
+| Autonomy settings | `.claude/settings.json` | Copilot permissions config |
+
+Skills that do not reference any mode-specific paths (e.g. pure orchestrators that invoke other skills by name) still must not hardcode absolute paths.
+
+## Documentation requirements
+
+For each feature, the agent must derive documentation acceptance tests from the table below during `buildit-feature-start`.
+
+| Change type | README.md | Design spec (`docs/<domain>/specs/YYYY-MM-DD-name.md`) |
+|-------------|-----------|--------------------------------------------------------|
+| New skill | Required — add to overview diagram and skills list | Required if non-obvious design choices (isolation, state, signal-passing, workaround) |
+| Skill modification | Required if the interface or trigger changes | Required if a new non-obvious pattern is introduced |
+| Framework change (guidelines, test harness, hooks, scripts) | Required if the workflow or setup steps change | Not required |
+| Bugfix | Not required | Not required |
+
+When in doubt about whether a design spec is warranted, write it. A short spec is better than a missing one.
+
 ## Naming conventions
 
 - Skill directory names: kebab-case (e.g. `buildit-feature-start`)
