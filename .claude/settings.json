@@ -1,8 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd /home/loic-kaczmarek/mission/build-it-framework*)",
-      "Bash(cd .*)",
+      "Bash(cd *build-it-framework*)",
+      "Bash(cd ./*)",
       "Bash(bash tests/*)",
       "Bash(python3 tests/*)",
       "Bash(git *)",

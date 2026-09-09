@@ -22,11 +22,23 @@ When you want the full cycle to run unattended in a single session, rather than 
 
 ## Steps
 
-### 0. Parse arguments
+### 0. Initialise
+
+**Parse arguments**
 
 Extract `feature-name` (if present) and `--max-cycles N` (if present, default N=3).
 
 Validate N: if N < 1, warn: "Invalid --max-cycles value — using default N=3." and set N=3.
+
+**Detect project root**
+
+Run `pwd` and store the result as `PROJECT_ROOT`. Never hardcode this path — it varies per machine and project.
+
+**Detect operating mode**
+
+Run `ls .claude/ 2>/dev/null`. If the directory exists → **Claude mode**; otherwise → **Generic mode**. Store as `MODE`.
+
+Use `PROJECT_ROOT` and `MODE` in all subsequent subagent autonomy instructions.
 
 ### 1. Collect inputs before subagents
 
@@ -49,7 +61,7 @@ Launch a fresh subagent with the following prompt:
 > Use worktree: [yes/no].
 > Description: [description].
 > Acceptance tests: [acceptance-tests list].
-> Autonomy: you are operating within the project directory `/home/loic-kaczmarek/mission/build-it-framework`. Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (e.g. `bash tests/…`). Do not cd outside the project root — paths outside require explicit user permission."
+> Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (e.g. `bash tests/…`). Do not cd outside the project root — paths outside require explicit user permission."
 
 Wait for the subagent to complete.
 
@@ -76,7 +88,7 @@ Initialise: `cycle = 0`.
    Launch a fresh subagent:
    > "Run /buildit-feature-build [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `/home/loic-kaczmarek/mission/build-it-framework`. Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
+   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
 
    Wait for completion.
 
@@ -95,7 +107,7 @@ Initialise: `cycle = 0`.
    Launch a fresh subagent:
    > "Run /buildit-feature-validate [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `/home/loic-kaczmarek/mission/build-it-framework`. Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
+   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
 
    Wait for completion.
 
@@ -118,7 +130,7 @@ Initialise: `cycle = 0`.
 Launch a fresh subagent:
 > "Run /buildit-feature-ship [feature-name]."
 > (Include worktree path if applicable.)
-> "Autonomy: you are operating within the project directory `/home/loic-kaczmarek/mission/build-it-framework`. Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
+> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
 
 Wait for completion. Once the ship subagent completes, inform the user:
 

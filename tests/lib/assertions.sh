@@ -29,3 +29,12 @@ require_regex() {
     fail "$label — regex not found: '$pattern'"
   fi
 }
+
+require_absent() {
+  local label="$1" file="$2" pattern="$3"
+  if grep -qE -- "$pattern" "$file" 2>/dev/null; then
+    fail "$label — pattern must be absent but was found: '$pattern'"
+  else
+    ok "$label"
+  fi
+}

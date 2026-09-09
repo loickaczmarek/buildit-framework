@@ -7,6 +7,12 @@ description: Use when starting a new project or auditing an existing one — sca
 
 Scans the actual state of the project (guidelines, existing practices, source code) before generating or updating the multi-agent workflow v2 configuration kit.
 
+## Instruction-layer constraints
+
+> **Path guard — mandatory for all steps:**
+> All file reads, writes, and shell commands must execute within the project root (the directory containing this skill's CLAUDE.md or `.buildit/`). Do not navigate outside the project root.
+> External practices (Confluence pages, Notion docs, URLs) must be fetched via web tools (WebFetch / WebSearch), never via filesystem access.
+
 ## When to use
 
 - When starting a new project, before the first feature
@@ -48,6 +54,57 @@ Check for the existence of the 4 workflow files:
 - `<guidelines-dir>/team-practices.md`
 - `<guidelines-dir>/language-framework.md`
 - `.scratch/shared-context.md`
+
+---
+
+### 2b. Detect autonomy settings
+
+Run `pwd` to detect the absolute project root path. Never hardcode it.
+
+**Claude mode:**
+
+Check whether `.claude/settings.json` exists in the project root.
+
+- **Found** → report: "Autonomy settings: found (`/.claude/settings.json`)" — do NOT modify the existing file.
+- **Absent** → ask the user:
+
+> "Autonomy settings missing — do you want to create `.claude/settings.json` with project-scoped defaults?"
+
+  If the user confirms, create `.claude/settings.json` using the template below, substituting `<project-root>` with the absolute path detected via `pwd`:
+
+~~~json
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd <project-root>*)",
+      "Bash(cd ./*)",
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(yarn *)",
+      "Bash(pnpm *)",
+      "Bash(python3 *)",
+      "Bash(make *)",
+      "Bash(docker *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(chmod *)"
+    ]
+  }
+}
+~~~
+
+  Note: two `cd` patterns work together — absolute paths scoped to the project root, and `Bash(cd ./*)` for relative subdirectory navigation. Neither allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
+
+**Generic / Copilot mode:**
+
+Read `~/.config/github-copilot/cli/permissions-config.json`. Check whether an entry matching the current project path exists.
+
+- **Found** → report: "Autonomy settings: found (Copilot config)".
+- **Absent or file missing** → report: "Autonomy settings: absent (Copilot config — no entry for this project path)".
+
+Generate no file in Generic mode.
 
 ---
 
@@ -125,6 +182,7 @@ Cross-reference the information collected in steps 1 to 4 and present a diagnost
 - Mode: Claude / Generic
 - Rules file: <rules-file>
 - Guidelines directory: <guidelines-dir>
+- Autonomy settings: [found / absent / skipped]
 
 **Existing guidelines**
 - Workflow template files: [list]
