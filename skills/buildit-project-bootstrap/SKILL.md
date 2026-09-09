@@ -61,11 +61,12 @@ Check for the existence of the 4 workflow files:
 
 Run `pwd` to detect the absolute project root path. Never hardcode it.
 
+> ⚠️ **Worktree constraint:** `settings.local.json` is gitignored and is NOT present in git worktrees. All permissions needed by subagents running inside worktrees MUST be in `settings.json` (tracked by git). Never rely on `settings.local.json` for worktree permissions.
+
 **Claude mode:**
 
 Check whether `.claude/settings.json` exists in the project root.
 
-- **Found** → report: "Autonomy settings: found (`/.claude/settings.json`)" — do NOT modify the existing file.
 - **Absent** → ask the user:
 
 > "Autonomy settings missing — do you want to create `.claude/settings.json` with project-scoped defaults?"
@@ -95,7 +96,19 @@ Check whether `.claude/settings.json` exists in the project root.
 }
 ~~~
 
-  Note: two `cd` patterns work together — absolute paths scoped to the project root, and `Bash(cd ./*)` for relative subdirectory navigation. Neither allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
+  Note: two `cd` patterns work together — absolute paths scoped to the project root (including `.worktrees/`), and `Bash(cd ./*)` for relative subdirectory navigation. Neither allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
+
+- **Found** → Read the file and audit the `permissions.allow` array for these essential rules:
+  - `"Bash(cd <project-root>*)"` — covers `cd /abs/path && git ...` in the project and its worktrees
+  - `"Bash(cd ./*)"` — covers relative navigation
+  - `"Bash(git *)"` — covers bare git commands
+
+  - **All present** → report: "Autonomy settings: complete (`.claude/settings.json`)." — do NOT modify.
+  - **Some missing** → report which rules are absent, then ask:
+
+    > "Autonomy settings: `.claude/settings.json` found but missing [X, Y] rules. Add them? (worktree subagents need these to run without prompts)"
+
+    If the user confirms, merge the missing rules into `permissions.allow` in the existing file — preserve all other content and existing rules.
 
 **Generic / Copilot mode:**
 
