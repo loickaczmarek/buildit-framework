@@ -44,6 +44,14 @@ require_text "AT-9: README diagram includes buildit-feature-run" "README.md" 'bu
 # AT-10: Design spec documenting non-obvious choices exists
 require_file "$DESIGN_SPEC"
 
+# AT-11: Each subagent prompt block contains autonomy instruction (project directory scope + relative paths)
+require_regex "AT-11: autonomy instruction present in subagent prompts" "$SKILL" \
+  'project directory.*relative paths|relative paths.*project directory|[Aa]utonomy.*project'
+
+# AT-12: Path-scoping restriction (do not cd outside project root) present in skill
+require_regex "AT-12: path-scoping restriction present" "$SKILL" \
+  '[Dd]o not cd outside|outside.*project.*permission|paths outside.*require'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

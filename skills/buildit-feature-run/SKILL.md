@@ -48,7 +48,8 @@ Launch a fresh subagent with the following prompt:
 > "Run /buildit-feature-start [feature-name].
 > Use worktree: [yes/no].
 > Description: [description].
-> Acceptance tests: [acceptance-tests list]."
+> Acceptance tests: [acceptance-tests list].
+> Autonomy: you are operating within the project directory `/home/loic-kaczmarek/mission/build-it-framework`. Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (e.g. `bash tests/…`). Do not cd outside the project root — paths outside require explicit user permission."
 
 Wait for the subagent to complete.
 
@@ -75,6 +76,7 @@ Initialise: `cycle = 0`.
    Launch a fresh subagent:
    > "Run /buildit-feature-build [feature-name]."
    > (Include worktree path if applicable.)
+   > "Autonomy: you are operating within the project directory `/home/loic-kaczmarek/mission/build-it-framework`. Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
 
    Wait for completion.
 
@@ -93,6 +95,7 @@ Initialise: `cycle = 0`.
    Launch a fresh subagent:
    > "Run /buildit-feature-validate [feature-name]."
    > (Include worktree path if applicable.)
+   > "Autonomy: you are operating within the project directory `/home/loic-kaczmarek/mission/build-it-framework`. Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
 
    Wait for completion.
 
@@ -115,6 +118,7 @@ Initialise: `cycle = 0`.
 Launch a fresh subagent:
 > "Run /buildit-feature-ship [feature-name]."
 > (Include worktree path if applicable.)
+> "Autonomy: you are operating within the project directory `/home/loic-kaczmarek/mission/build-it-framework`. Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
 
 Wait for completion. Once the ship subagent completes, inform the user:
 
