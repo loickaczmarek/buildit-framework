@@ -2,6 +2,10 @@
 
 ## Skill authoring
 
+### Worktree management
+
+Worktree management is handled internally by the `buildit-worktree` skill. Skills and orchestrators must **not** reference `superpowers:using-git-worktrees` or any external worktree tooling. The framework must remain self-contained; an external dependency on `superpowers:using-git-worktrees` creates a fragile coupling that silently breaks worktree isolation when the skill is absent or changes.
+
 Skills are markdown files defining agent workflows. Each skill lives in its own directory:
 - Canonical source: `skills/<skill-name>/SKILL.md`
 - Deployed copy: `.claude/skills/<skill-name>/SKILL.md`
