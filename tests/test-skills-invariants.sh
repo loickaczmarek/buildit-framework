@@ -14,6 +14,7 @@ SKILLS=(
   buildit-feature-ship
   buildit-project-bootstrap
   buildit-feature-run
+  buildit-worktree
 )
 
 for skill in "${SKILLS[@]}"; do

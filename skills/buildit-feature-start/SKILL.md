@@ -19,8 +19,8 @@ Ask the user:
 
 > "Do you want to work in an isolated worktree for this feature? (recommended for non-trivial features or parallel work)"
 
-- **Yes** → invoke `using-git-worktrees` now, then continue the following steps inside the created worktree
-- **No** → retrieve the current branch (`git branch --show-current`) and inform the user: "You will work directly on `[branch]`." then continue to step 1
+- **Yes** → invoke `buildit-worktree [feature-name]` now. Capture the returned "Worktree created at: <path>" line and store the absolute path as `WORKTREE_PATH`. Continue the following steps inside the created worktree.
+- **No** → retrieve the current branch (`git branch --show-current`) and inform the user: "You will work directly on `[branch]`." Set `WORKTREE_PATH=none`. Then continue to step 1.
 
 ### 1. Read shared-context.md
 
@@ -49,6 +49,9 @@ Create `.scratch/DD-MM-YYYY-[feature-name].md`:
 
 ## Status
 to-build
+
+## Worktree path
+[WORKTREE_PATH — absolute path, or "none" if no worktree]
 
 ## Goal
 [feature description]

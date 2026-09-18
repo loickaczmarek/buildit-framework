@@ -72,7 +72,7 @@ Read the tracking file: scan `.scratch/` for `*[feature-name]*.md` outside of `d
 If the tracking file is not found after start: stop and warn the user:
 > "Tracking file not found after buildit-feature-start — possible subagent failure. Inspect `.scratch/` and re-run manually."
 
-If `use-worktree` is yes: run `git worktree list` and extract the worktree path for this branch (the newly created branch name follows the convention `feature/YYYY-MM-DD-[feature-name]`). Pass this path to subsequent subagents.
+If `use-worktree` is yes: read the `## Worktree path` field from the tracking file as the primary source of the worktree path. As secondary verification, run `git worktree list` and confirm the path appears. Pass this path to subsequent subagents.
 
 ### 4. Build/fix loop (max N cycles)
 
@@ -88,7 +88,8 @@ Initialise: `cycle = 0`.
    Launch a fresh subagent:
    > "Run /buildit-feature-build [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
+   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
+   > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
 
    Wait for completion.
 
@@ -107,7 +108,8 @@ Initialise: `cycle = 0`.
    Launch a fresh subagent:
    > "Run /buildit-feature-validate [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
+   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
+   > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
 
    Wait for completion.
 
@@ -130,7 +132,8 @@ Initialise: `cycle = 0`.
 Launch a fresh subagent:
 > "Run /buildit-feature-ship [feature-name]."
 > (Include worktree path if applicable.)
-> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission."
+> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
+> [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
 
 Wait for completion. Once the ship subagent completes, inform the user:
 

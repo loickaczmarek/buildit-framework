@@ -79,6 +79,7 @@ Check whether `.claude/settings.json` exists in the project root.
     "allow": [
       "Bash(cd <project-root>*)",
       "Bash(cd ./*)",
+      "Bash(cd */.worktrees/*)",
       "Bash(git *)",
       "Bash(npm *)",
       "Bash(yarn *)",
@@ -96,11 +97,12 @@ Check whether `.claude/settings.json` exists in the project root.
 }
 ~~~
 
-  Note: two `cd` patterns work together — absolute paths scoped to the project root (including `.worktrees/`), and `Bash(cd ./*)` for relative subdirectory navigation. Neither allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
+  Note: three `cd` patterns work together — absolute paths scoped to the project root, `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. None allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
 
 - **Found** → Read the file and audit the `permissions.allow` array for these essential rules:
   - `"Bash(cd <project-root>*)"` — covers `cd /abs/path && git ...` in the project and its worktrees
   - `"Bash(cd ./*)"` — covers relative navigation
+  - `"Bash(cd */.worktrees/*)"` — covers subagents running inside git worktrees (required for worktree isolation)
   - `"Bash(git *)"` — covers bare git commands
 
   - **All present** → report: "Autonomy settings: complete (`.claude/settings.json`)." — do NOT modify.
