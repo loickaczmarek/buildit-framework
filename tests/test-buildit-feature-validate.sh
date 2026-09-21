@@ -20,6 +20,14 @@ require_text "AT-2: routes to /buildit-feature-build on NO-GO" "$SKILL" '/buildi
 # AT-3: Reads shared-context constraints before reviewing
 require_text "AT-3: reads shared-context Constraints section" "$SKILL" 'Constraints discovered'
 
+# AT-4: Craft-principles dimension includes DRY, KISS, YAGNI
+require_text "AT-4: validate dimension references DRY" "$SKILL" 'DRY'
+require_text "AT-4: validate dimension references KISS" "$SKILL" 'KISS'
+require_text "AT-4: validate dimension references YAGNI" "$SKILL" 'YAGNI'
+
+# AT-5: Craft-principles dimension references the guideline file
+require_text "AT-5: validate references craft-principles.md" "$SKILL" 'craft-principles.md'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

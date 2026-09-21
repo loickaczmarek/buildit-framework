@@ -47,6 +47,16 @@ For each acceptance test, write the corresponding test. Tests must fail. Verify 
 
 Write the minimal implementation to make the tests pass. Follow the plan step by step. After each significant file modified, re-run the tests and verify progress.
 
+### 3c. Craft-principles self-review
+
+Before moving to step 4, verify the implementation against the three craft principles defined in `<guidelines-dir>/craft-principles.md`:
+
+- **DRY** — Is any logic or knowledge duplicated? If so, extract it.
+- **KISS** — Is any part unnecessarily complex? If so, simplify.
+- **YAGNI** — Does the code implement anything not required by the acceptance tests? If so, remove it.
+
+If a violation is found, fix it before proceeding. Do not move to step 4 with a known violation.
+
 ---
 
 ## Fix mode
@@ -58,6 +68,8 @@ Read the "Problems to fix" section in the tracking file.
 ### 3b. Fix
 
 Fix the code, targeted on the listed problems. Re-run tests after each modification. Do not restructure beyond what the fixes require.
+
+After the fixes pass, apply the same craft-principles self-review as in normal mode (DRY, KISS, YAGNI — see `<guidelines-dir>/craft-principles.md`) before proceeding to step 4.
 
 ---
 

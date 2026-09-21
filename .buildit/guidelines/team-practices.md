@@ -12,6 +12,8 @@ Skills are markdown files defining agent workflows. Each skill lives in its own 
 
 Both files must be kept in sync at every commit. Changes to a skill are always made in `skills/` first, then mirrored to `.claude/skills/`.
 
+**Single source of truth for guideline references.** When a skill needs to document a concept or definition (e.g. craft principles, naming conventions), the canonical text lives in the appropriate guideline file under `.buildit/guidelines/`. The skill file references that guideline by path — it does not copy the content. This avoids DRY violations (diverging definitions) and ensures a single edit point when definitions evolve.
+
 All skill files must be authored in English. User-facing messages, field labels, step descriptions, and inline comments must not contain strings in any other language.
 
 ### Path and mode conventions
@@ -90,6 +92,7 @@ Mandatory evaluation dimensions:
 - Security: injection vectors, data exposure?
 - Style: naming and format conventions respected?
 - Coverage: edge cases addressed in acceptance tests?
+- Craft principles: does the implementation respect DRY, KISS, and YAGNI? (see `.buildit/guidelines/craft-principles.md` for canonical definitions and failure modes)
 
 ## Commits
 
