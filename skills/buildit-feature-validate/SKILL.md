@@ -1,6 +1,6 @@
 ---
 name: buildit-feature-validate
-description: Use when implementation is complete (status to-validate) — reviews code on 5 dimensions, validates each acceptance test, updates configs on failure. Routes to buildit-feature-ship (GO) or buildit-feature-build with documented fixes (NO-GO/FAIL). Accepts optional feature name: /buildit-feature-validate [feature-name].
+description: Use when implementation is complete (status to-validate) — reviews code on 6 dimensions, validates each acceptance test, updates configs on failure. Routes to buildit-feature-ship (GO) or buildit-feature-build with documented fixes (NO-GO/FAIL). Accepts optional feature name: /buildit-feature-validate [feature-name].
 ---
 
 # Feature Validate
@@ -46,7 +46,7 @@ Read the changes: `git diff main...HEAD`
 
 **Do not read the plan** — the review is about what was done, not what was intended. The absence of bias is what gives value to this step.
 
-Evaluate on these 5 dimensions:
+Evaluate on these 6 dimensions:
 
 | Dimension | Question |
 |-----------|----------|
@@ -55,6 +55,7 @@ Evaluate on these 5 dimensions:
 | **Security** | Are there injection vectors, data exposure, obvious vulnerabilities? |
 | **Style** | Does the code follow project conventions (`<guidelines-dir>`)? |
 | **Test coverage** | Are edge cases tested? |
+| **Craft principles** | Does the code respect DRY, KISS, and YAGNI? (see `<guidelines-dir>/craft-principles.md`) |
 
 Conclude with **GO** or **NO-GO** with the list of blocking issues if NO-GO.
 
