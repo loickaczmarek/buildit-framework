@@ -38,6 +38,19 @@ for skill in "${SKILLS[@]}"; do
   require_text "$skill: ## End of skill section present" "$src" "## End of skill"
 done
 
+# Cross-skill invariant: skills that write to shared-context.md mention sequential access
+WRITERS=(
+  buildit-feature-start
+  buildit-feature-build
+  buildit-feature-run
+  buildit-feature-ship
+)
+
+for skill in "${WRITERS[@]}"; do
+  src="skills/$skill/SKILL.md"
+  require_regex "$skill: shared-context writer mentions sequential access" "$src" '[Ss]equential access'
+done
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

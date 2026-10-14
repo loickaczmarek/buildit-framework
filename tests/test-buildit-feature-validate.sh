@@ -28,6 +28,15 @@ require_text "AT-4: validate dimension references YAGNI" "$SKILL" 'YAGNI'
 # AT-5: Craft-principles dimension references the guideline file
 require_text "AT-5: validate references craft-principles.md" "$SKILL" 'craft-principles.md'
 
+# AT-6: Validate runs the test suite before the review phase
+require_regex "AT-6: mentions running test suite" "$SKILL" '[Tt]est suite|[Rr]un.*tests'
+
+# AT-7: On test failure, status is set to to-fix and review does not proceed
+require_text "AT-7: sets status to to-fix on test failure" "$SKILL" 'to-fix'
+
+# AT-8: Does not proceed to review if tests fail
+require_regex "AT-8: skips review on test failure" "$SKILL" '([Dd]o not proceed|[Ss]kip.*review|[Ss]top)'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

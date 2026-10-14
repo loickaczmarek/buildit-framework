@@ -78,6 +78,8 @@ Update the "Plan" section with the corrections.
 
 ### 5. Update shared-context.md
 
+> **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
+
 Retrieve the current branch: `git branch --show-current`
 
 Add a line in the "Merge readiness" section of `.scratch/shared-context.md`:

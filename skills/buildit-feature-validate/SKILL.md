@@ -40,6 +40,17 @@ Set the status to `validating`.
 
 Read `.scratch/shared-context.md` section "Constraints discovered": are there documented constraints that apply to the scope of this feature?
 
+### 2b. Run test suite
+
+Run the project's test suite before the review phase. Detection order:
+1. `bash tests/run-all.sh` if `tests/run-all.sh` exists
+2. `npm test` if `package.json` exists
+3. Warn "No test runner detected" and proceed to the review phase
+
+If any test fails: set status to `to-fix`, write a "Problems to fix" section in the tracking file with the test failure details, and stop — do not proceed to the review phase.
+
+If all tests pass: proceed to step 3 (review phase).
+
 ### 3. Review phase
 
 Read the changes: `git diff main...HEAD`
