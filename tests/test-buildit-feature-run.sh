@@ -52,6 +52,39 @@ require_regex "AT-11: autonomy instruction present in subagent prompts" "$SKILL"
 require_regex "AT-12: path-scoping restriction present" "$SKILL" \
   '[Dd]o not cd outside|outside.*project.*permission|paths outside.*require'
 
+# --- Early permission trigger (acceptance tests) ---
+
+# AT-13: The first file-write operation happens before any subagent is launched.
+# The early write step must appear between "Collect inputs" (step 1) and the start subagent.
+# We verify the skill contains a step that writes to shared-context.md BEFORE the start subagent step.
+require_regex "AT-13: early write step exists before start subagent" "$SKILL" \
+  '[Ee]arly.*[Ww]rite|[Tt]rigger.*[Ww]rite.*[Pp]ermission|[Pp]ermission.*[Tt]rigger'
+
+# Verify that the early write step references shared-context.md
+require_regex "AT-13b: early write targets shared-context.md" "$SKILL" \
+  'shared-context\.md'
+
+# Verify structural ordering: the early write step number is between collect inputs and start subagent
+# The early write step must be numbered lower than the start subagent step.
+# We check that a step heading with "permission" or "early write" appears before the start subagent heading.
+EARLY_WRITE_LINE=$(grep -n -iE '###.*([Ee]arly.*[Ww]rite|[Pp]ermission.*[Tt]rigger|[Tt]rigger.*[Pp]ermission)' "$SKILL" 2>/dev/null | head -1 | cut -d: -f1 || true)
+START_SUBAGENT_LINE=$(grep -n -iE '###.*[Ss]ubagent.*start|###.*start.*[Ss]ubagent' "$SKILL" 2>/dev/null | head -1 | cut -d: -f1 || true)
+if [[ -n "$EARLY_WRITE_LINE" && -n "$START_SUBAGENT_LINE" && "$EARLY_WRITE_LINE" -lt "$START_SUBAGENT_LINE" ]]; then
+  ok "AT-13c: early write step appears before start subagent step"
+else
+  fail "AT-13c: early write step must appear before start subagent step (early=$EARLY_WRITE_LINE, start=$START_SUBAGENT_LINE)"
+fi
+
+# AT-14: The early write does not create orphan files (writes to existing file, not a new file)
+# The step must explicitly write to an existing file (shared-context.md), not create a new one.
+require_regex "AT-14: no orphan files — writes to existing shared-context.md" "$SKILL" \
+  '[Rr]ead.*shared-context|shared-context.*[Ee]xist|[Ww]rite.*shared-context|[Mm]erge readiness'
+
+# AT-15: The start subagent prompt includes instruction to skip step 5 (shared-context update)
+# to avoid duplicate merge readiness entries.
+require_regex "AT-15: start subagent told to skip step 5" "$SKILL" \
+  '[Ss]kip.*step 5|[Ss]kip.*shared-context|[Ss]hared-context.*already done|[Ss]tep 5.*skip'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
