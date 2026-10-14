@@ -1,6 +1,6 @@
 # buildit — Multi-Agent Development Workflow
 
-A framework of 6 skills that drive the development loop feature by feature. Two paths available: the automated `buildit-feature-run` for unattended cycles, and the manual sequence (start → build → validate → ship) for features needing mid-cycle human judgement.
+A framework of 7 skills that drive the development loop feature by feature. The default path is `buildit-feature-run` — it orchestrates the full cycle unattended. A manual sequence (start → build → validate → ship) is available for features needing mid-cycle human judgement.
 
 ## Setup
 
@@ -14,27 +14,37 @@ This configures git to use `scripts/hooks/` as the hooks directory. Every `git p
 
 ---
 
-## Quick start
+## Default flow — `buildit-feature-run`
 
-The fastest path for most features — runs the full cycle unattended:
+The recommended path for most features — runs the full cycle unattended:
 
 ```
-[buildit-project-bootstrap]  ← once per project
+[buildit-project-bootstrap]  ← new project or resync
         │
         ▼
 [buildit-feature-discover]  (optional) ← scope vague feature → structured brief
         │
         ▼
-[buildit-feature-run]  ← full cycle unattended (start → build → validate → ship)
-   supports --max-cycles N (default 3)
-   (push + PR remain manual)
+[buildit-feature-run]  ← full cycle unattended
+        │
+        ├─ start    → plan + self-critic + init shared-context
+        ├─ build    → TDD + implementation + craft-principles self-review
+        ├─ validate → 6-dimension review + acceptance tests
+        │    ├─ GO     → ship
+        │    └─ NO-GO  → loop back to build (max N cycles, default 3)
+        └─ ship     → readiness check + commit + shared-context cleanup + retro
+                      (push + PR remain manual)
 ```
 
-For complex features where mid-cycle human judgement is needed, use the manual flow below.
+Each phase runs in a fresh subagent for context isolation — no manual clear-context needed. The orchestrator reads the tracking file status between phases to route GO/NO-GO decisions automatically.
+
+**Parallelisation:** multiple features can run simultaneously on separate worktrees. Worktree management is handled internally by the framework via the `buildit-worktree` skill — no external tooling needed. Coordination goes through `.scratch/shared-context.md`.
 
 ---
 
-## Manual flow
+## Manual flow (advanced)
+
+For complex features where mid-cycle human judgement is needed, run each skill separately with a context-clear between phases:
 
 ```
 [buildit-feature-start]              ← plan + self-critic + init shared-context
@@ -49,7 +59,7 @@ For complex features where mid-cycle human judgement is needed, use the manual f
         │                                             │
         ▼                                             │
 [buildit-feature-validate]                                    │
-   5-dimension review + acceptance tests              │
+   6-dimension review + acceptance tests              │
         │                                             │
    ┌────┴────┐                                        │
   GO        NO-GO / FAIL                              │
@@ -66,8 +76,6 @@ For complex features where mid-cycle human judgement is needed, use the manual f
 
 **Why clear-context?** Each session accumulates contextual noise. Cutting between phases keeps reasoning clean, especially across build/fix cycles.
 
-**Parallelisation:** multiple features can run simultaneously on separate worktrees. Worktree management is handled internally by the framework via the `buildit-worktree` skill — no external tooling needed. Coordination goes through `.scratch/shared-context.md`.
-
 ---
 
 ## Tracking file structure
@@ -79,6 +87,9 @@ Each feature creates `.scratch/DD-MM-YYYY-[feature-name].md`:
 
 ## Status
 to-build | building | to-validate | validating | to-fix | to-ship
+
+## Worktree path
+[absolute path, or "none" if no worktree]
 
 ## Goal
 [short description]
@@ -182,21 +193,23 @@ Three `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths
 
 **Trigger:** `/buildit-project-bootstrap`
 
-**When to use:** when starting a new project, or on an existing project to resynchronise configs and actual practices.
+**When to use:** at three distinct moments in a project's lifecycle:
+
+| Use case | When | What happens |
+|----------|------|-------------|
+| **New project** | Before the first feature | Detects the stack from the code, generates the pre-filled configuration kit with actual conventions |
+| **Audit / resync** | When guidelines have drifted from actual practices | Cross-references configs and code to find drift, proposes resynchronisation |
+| **External practices integration** | When adopting practices from an existing doc (Confluence, `docs/`, ADR…) | Merges content into guidelines or adds a reference link |
 
 **What it does:**
 1. Detects agent identity (Claude vs other agent) and asks for mode confirmation
 2. Scans `.buildit/guidelines/` to detect all files present — custom files (`figma.md`, `jira.md`…) are preserved without modification
-3. Asks whether a directory or document of existing practices exists, and if so proposes to **merge** it into the guidelines or **reference** it (link at the top of the guideline)
-4. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files — to detect actual practices in place
-5. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
-6. Creates or updates the workflow files integrating what was detected
-7. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
-
-**Use cases:**
-- New project: detects the stack from the code, generates the pre-filled kit with actual conventions
-- Existing project: cross-references configs and code to find drift, proposes resynchronisation
-- Integration of external practices: merge or reference of an existing doc (Confluence, `docs/`, ADR…)
+3. Checks autonomy settings (`.claude/settings.json` in Claude mode) — creates or audits the permission allowlist for worktree subagents
+4. Asks whether a directory or document of existing practices exists, and if so proposes to **merge** it into the guidelines or **reference** it (link at the top of the guideline)
+5. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files — to detect actual practices in place
+6. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
+7. Creates or updates the workflow files integrating what was detected
+8. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
 
 For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
@@ -217,9 +230,50 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 6. Produces a structured brief: kebab-case name, technical description, acceptance tests, risks & constraints
 7. Presents the brief for user validation; iterates on contested sections only
 
-**Ends with:** instruction to run `/buildit-feature-start [feature-name]` with the validated brief as input.
+**Ends with:** the user chooses between `/buildit-feature-run [feature-name]` (full cycle unattended, recommended) or `/buildit-feature-start [feature-name]` (manual cycle, session by session).
 
 ---
+
+### `buildit-feature-run`
+
+**Trigger:** `/buildit-feature-run [feature-name] [--max-cycles N]`
+
+**When to use:** the default path for most features. Runs the full cycle (start → build → validate → ship) unattended in a single session. Each phase runs in a fresh subagent for context isolation. Fall back to the manual flow only when mid-cycle human judgement is needed.
+
+**What it does:**
+1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent
+2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
+3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
+4. On GO + PASS: delegates `buildit-feature-ship`, then reminds the user that push and PR creation are manual
+
+**Guards:**
+- Stops if the tracking file is not found after start (possible subagent failure)
+- Stops if the status is unchanged after any phase (stale state detection)
+- Stops with an explanation after N cycles without a GO
+
+#### Configuration — `--max-cycles`
+
+| Setting | Value |
+|---------|-------|
+| Default | `--max-cycles 3` — mirrors the warning threshold in `buildit-feature-validate` |
+| Override | Pass `--max-cycles N` as argument (e.g. `--max-cycles 5` for complex features, `--max-cycles 1` for quick iterations) |
+| Validation | N < 1 → orchestrator warns and resets to 3 |
+| On exhaustion | Orchestrator stops with an explanation; user resumes manually with `/buildit-feature-build` then `/buildit-feature-validate` |
+
+**Guidance:**
+- Simple features with narrow acceptance tests → 1–2 cycles expected
+- Complex features with broad acceptance tests → allow 3–5 cycles
+- If cycles are regularly exhausted, consider splitting the feature into smaller deliverables
+
+**Ends with:** push and PR creation are manual.
+
+**Design spec:** `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
+
+---
+
+### Manual flow skills
+
+The following skills are used individually in the manual flow, or invoked internally by `buildit-feature-run`:
 
 ### `buildit-feature-start`
 
@@ -261,6 +315,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 2. Checks API changes in `shared-context.md`
 3. Writes tests — they must fail for the right reasons
 4. Implements to make the tests pass, re-runs after each significant file
+5. Craft-principles self-review (DRY, KISS, YAGNI — see `.buildit/guidelines/craft-principles.md`) before transitioning to `to-validate`
 
 **Fix mode** (status `to-fix`, "Problems to fix" section present):
 1. Reads the list of problems documented by `buildit-feature-validate`
@@ -284,7 +339,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **What it does:**
 
-**Review phase** — evaluates the diff (`git diff main...HEAD`) on 5 dimensions without reading the plan (unbiased review):
+**Review phase** — evaluates the diff (`git diff main...HEAD`) on 6 dimensions without reading the plan (unbiased review):
 
 | Dimension | Question |
 |-----------|----------|
@@ -293,6 +348,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 | Security | Injection vectors, data exposure? |
 | Style | Project conventions respected? |
 | Test coverage | Edge cases tested? |
+| Craft principles | DRY, KISS, YAGNI respected? |
 
 **Acceptance phase** — for each acceptance test: PASS or FAIL with justification.
 
@@ -357,46 +413,7 @@ Guidelines are automatically enriched with each feature, without a dedicated ste
 - **`buildit-feature-validate` NO-GO** → updates configs in the same session (before closing)
 - **`buildit-feature-ship`** → migrates durable constraints from `shared-context.md` into the appropriate guidelines
 
-Over time, `language-framework.md` and `team-practices.md` reflect the real constraints of the project — not anticipations, but accumulated real work.
-
----
-
-### `buildit-feature-run`
-
-**Trigger:** `/buildit-feature-run [feature-name] [--max-cycles N]`
-
-**When to use:** when you want the full cycle (start → build → validate → ship) to run unattended in a single session. Each phase runs in a fresh subagent for context isolation. Most useful for straightforward features; prefer the manual flow when mid-cycle human judgement is needed.
-
-**What it does:**
-1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent
-2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
-3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
-4. On GO + PASS: delegates `buildit-feature-ship`, then reminds the user that push and PR creation are manual
-
-**Guards:**
-- Stops if the tracking file is not found after start (possible subagent failure)
-- Stops if the status is unchanged after any phase (stale state detection)
-- Stops with an explanation after N cycles without a GO
-
-### Configuration — `--max-cycles`
-
-| Setting | Value |
-|---------|-------|
-| Default | `--max-cycles 3` — mirrors the warning threshold in `buildit-feature-validate` |
-| Override | Pass `--max-cycles N` as argument (e.g. `--max-cycles 5` for complex features, `--max-cycles 1` for quick iterations) |
-| Validation | N < 1 → orchestrator warns and resets to 3 |
-| On exhaustion | Orchestrator stops with an explanation; user resumes manually with `/buildit-feature-build` then `/buildit-feature-validate` |
-
-**Guidance:**
-- Simple features with narrow acceptance tests → 1–2 cycles expected
-- Complex features with broad acceptance tests → allow 3–5 cycles
-- If cycles are regularly exhausted, consider splitting the feature into smaller deliverables
-
-**Ends with:** push and PR creation are manual.
-
-**Design spec:** `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
-
----
+Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md` reflect the real constraints of the project — not anticipations, but accumulated real work.
 
 ---
 
