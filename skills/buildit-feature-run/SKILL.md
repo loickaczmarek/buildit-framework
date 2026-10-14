@@ -53,7 +53,27 @@ Ask these questions in order. Do not launch the start subagent until all four ar
 
 Store: `feature-name`, `description`, `acceptance-tests`, `use-worktree` (yes/no).
 
-### 2. Subagent: buildit-feature-start
+### 2. Trigger early write permission
+
+<!-- WHY: The first Write operation in the full run cycle normally happens inside the
+     start subagent (step 5 of buildit-feature-start) when it updates shared-context.md.
+     If the user has not pre-allowed Write permissions, the permission prompt appears
+     midway through the start phase, which is jarring. Moving a real, meaningful Write
+     here — before any subagent is launched — ensures the permission prompt fires
+     immediately at the start of the session. Users who have pre-allowed Write see no
+     prompt at all. -->
+
+Read `.scratch/shared-context.md`. Retrieve the current branch name via `git branch --show-current`.
+
+Write back to `.scratch/shared-context.md`, appending the merge readiness entry for the current branch:
+
+```markdown
+| [branch-name] | IN_PROGRESS | — | — |
+```
+
+This writes to an existing file — no new files are created, so cancelling after this step leaves no orphan files.
+
+### 3. Subagent: buildit-feature-start
 
 Launch a fresh subagent with the following prompt:
 
@@ -61,11 +81,12 @@ Launch a fresh subagent with the following prompt:
 > Use worktree: [yes/no].
 > Description: [description].
 > Acceptance tests: [acceptance-tests list].
+> Skip step 5 (shared-context update) — the merge readiness entry has already been written by the orchestrator.
 > Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (e.g. `bash tests/…`). Do not cd outside the project root — paths outside require explicit user permission."
 
 Wait for the subagent to complete.
 
-### 3. Detect tracking file and worktree path after start
+### 4. Detect tracking file and worktree path after start
 
 Read the tracking file: scan `.scratch/` for `*[feature-name]*.md` outside of `done/`.
 
@@ -74,7 +95,7 @@ If the tracking file is not found after start: stop and warn the user:
 
 If `use-worktree` is yes: read the `## Worktree path` field from the tracking file as the primary source of the worktree path. As secondary verification, run `git worktree list` and confirm the path appears. Pass this path to subsequent subagents.
 
-### 4. Build/fix loop (max N cycles)
+### 5. Build/fix loop (max N cycles)
 
 Initialise: `cycle = 0`.
 
@@ -125,7 +146,7 @@ Initialise: `cycle = 0`.
    - Anything else → stop with message:
      > "Unexpected status '[status]' after buildit-feature-validate — manual inspection required."
 
-### 5. On GO: subagent buildit-feature-ship + manual reminder
+### 6. On GO: subagent buildit-feature-ship + manual reminder
 
 **Subagent: buildit-feature-ship**
 

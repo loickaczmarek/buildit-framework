@@ -2,6 +2,10 @@
 
 ## Skill authoring
 
+### Orchestrator-level permission trigger
+
+When a skill orchestrates subagents and the first tool-permission-gated operation would otherwise occur inside a subagent, move a real write to an existing coordination file (e.g. `shared-context.md`) into the orchestrator before launching subagents, and pass a "skip" instruction to the subagent to avoid duplication. This surfaces the permission prompt immediately at session start rather than midway through a subagent, improving UX for users who have not pre-allowed permissions.
+
 ### Worktree management
 
 Worktree management is handled internally by the `buildit-worktree` skill. Skills and orchestrators must **not** reference `superpowers:using-git-worktrees` or any external worktree tooling. The framework must remain self-contained; an external dependency on `superpowers:using-git-worktrees` creates a fragile coupling that silently breaks worktree isolation when the skill is absent or changes.
