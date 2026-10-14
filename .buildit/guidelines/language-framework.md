@@ -35,6 +35,14 @@ description: <one-line trigger description>
 Dual-location: canonical source in `skills/`, deployed copy in `.claude/skills/`.
 The harness reads from `.claude/skills/` — `skills/` is the source of truth for development and review.
 
+## Project configuration
+
+`.buildit/config.md` is the project-level configuration file. Convention: values are the first non-empty, non-comment line after a `## Section` heading. No YAML/JSON dependency — stays consistent with the framework's markdown-first approach.
+
+Skills that need configuration (e.g. a test command) read from this file first and fall back to auto-detection heuristics when no configured value is found.
+
+`buildit-project-bootstrap` is responsible for creating and populating this file during project setup: it auto-detects settings, proposes them to the user for confirmation, and writes the confirmed values.
+
 ## Design decisions
 
 Design specs live in `docs/<domain>/specs/YYYY-MM-DD-kebab-name.md`.

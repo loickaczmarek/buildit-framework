@@ -178,11 +178,33 @@ Read one main source file and one test file. Observe:
 - Internal organisation (imports, exports, structure)
 - Visible recurring patterns
 
-**Coring summary:** at the end of 4a–4d, write a short summary of detected practices, organised as:
+**4e. Test command detection**
+
+Detect the project's test command by checking ecosystem markers in priority order:
+
+1. `tests/run-all.sh` exists -> `bash tests/run-all.sh`
+2. `package.json` exists -> `npm test`
+3. `pom.xml` exists -> `mvn test`
+4. `build.gradle` or `build.gradle.kts` exists -> `gradle test`
+5. `pyproject.toml` exists -> `pytest`
+6. `Makefile` exists and contains a `test` target (`grep -q '^test:' Makefile`) -> `make test`
+
+If a marker is detected, propose the command for confirmation:
+> "Detected test command: `[command]`. Confirm or provide the correct command:"
+
+If no ecosystem marker is detected, ask the user:
+> "No test runner detected. Please provide the test command (or type `skip` to leave unconfigured):"
+
+Store the confirmed command in `.buildit/config.md` under `## Test command` (see step 8 for the file template).
+
+---
+
+**Coring summary:** at the end of 4a–4e, write a short summary of detected practices, organised as:
 - Architecture / organisation
 - Naming conventions
 - Confirmed stack
 - Test signals
+- Test command (detected or user-provided)
 
 ---
 
@@ -374,6 +396,18 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 | Branch | Status | Main files touched | Waiting for |
 |--------|--------|--------------------|-------------|
 ~~~
+
+`.buildit/config.md` (create with the test command detected in step 4e):
+
+~~~markdown
+# Project Configuration
+
+## Test command
+<!-- Auto-detected by bootstrap, confirmed by user -->
+[confirmed test command here, or empty if skipped]
+~~~
+
+The test command is the raw shell command on a single line after the `## Test command` heading. Convention: first non-empty, non-comment line after the heading is the command.
 
 ---
 
