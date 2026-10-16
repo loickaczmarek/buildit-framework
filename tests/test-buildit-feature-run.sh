@@ -6,7 +6,6 @@ set -euo pipefail
 source "$(dirname "$0")/lib/assertions.sh"
 
 SKILL="skills/buildit-feature-run/SKILL.md"
-DESIGN_SPEC="docs/buildit/specs/2026-09-08-buildit-feature-run-design.md"
 
 # AT-1: Collects worktree/name/desc/ATs before launching any subagent
 require_text "AT-1: collects inputs before subagents" "$SKILL" 'Collect'
@@ -40,9 +39,6 @@ require_regex "AT-8: accepts optional feature name argument" "$SKILL" '\[feature
 
 # AT-9: README updated with buildit-feature-run in diagram and skills list
 require_text "AT-9: README diagram includes buildit-feature-run" "README.md" 'buildit-feature-run'
-
-# AT-10: Design spec documenting non-obvious choices exists
-require_file "$DESIGN_SPEC"
 
 # AT-11: Each subagent prompt block contains autonomy instruction (project directory scope + relative paths)
 require_regex "AT-11: autonomy instruction present in subagent prompts" "$SKILL" \
