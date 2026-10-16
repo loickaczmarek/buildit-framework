@@ -14,12 +14,20 @@ Implements the feature (TDD mode) or fixes issues identified by feature-validate
 
 ## Steps
 
+### 0. Prerequisite check
+
+If `.scratch/shared-context.md` does not exist, stop with:
+> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
+
 ### 1. Identify the tracking file and detect the mode
 
 - If a `feature-name` was provided as argument (`/feature-build feature-name`) → look for `.scratch/*feature-name*.md`
 - Otherwise → scan `.scratch/` and take the most recent `.md` outside of `done/`
 
-**Before modifying the status**, read the file and detect the mode:
+**Before modifying the status**, read the file and check the current status:
+- If the current status is not `to-build` or `to-fix`, warn: "Current status is `[status]` — buildit-feature-build expects `to-build` or `to-fix`. Continue anyway?" and wait for user confirmation before proceeding.
+
+Then detect the mode:
 - Presence of a "Problems to fix" section → **fix mode**
 - Absence of this section → **normal TDD mode**
 

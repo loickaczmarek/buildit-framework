@@ -30,6 +30,15 @@ require_text "AT-6: references YAGNI" "$SKILL" 'YAGNI'
 # AT-7: Craft-principles self-review references the guideline file
 require_text "AT-7: references craft-principles.md" "$SKILL" 'craft-principles.md'
 
+# AT-8: Status guard — rejects unexpected status with warning and confirmation
+require_regex "AT-8: guard mentions to-build and to-fix as expected statuses" "$SKILL" 'to-build.*to-fix|to-fix.*to-build'
+require_regex "AT-8: guard warns about current status" "$SKILL" '[Cc]urrent status|[Uu]nexpected status|status is'
+require_regex "AT-8: guard asks for confirmation" "$SKILL" '[Cc]onfirm|[Cc]ontinue anyway'
+
+# AT-9: Shared-context existence check — stops if shared-context.md missing
+require_regex "AT-9: checks shared-context.md existence" "$SKILL" 'shared-context\.md.*(not exist|does not exist|missing)|exist.*shared-context\.md'
+require_text "AT-9: tells user to run /buildit-project-bootstrap" "$SKILL" '/buildit-project-bootstrap'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

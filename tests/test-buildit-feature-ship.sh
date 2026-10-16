@@ -23,6 +23,14 @@ require_regex "AT-4: per-branch overlap via git diff" "$SKILL" 'git diff main\.\
 # AT-5: Ship instructs to compare touched files between branches dynamically
 require_regex "AT-5: dynamic overlap for IN_PROGRESS branches" "$SKILL" 'IN_PROGRESS.*diff|diff.*IN_PROGRESS|each.*branch.*--name-only'
 
+# AT-6: Shared-context existence check — stops if shared-context.md missing
+require_regex "AT-6: checks shared-context.md existence" "$SKILL" 'shared-context\.md.*(not exist|does not exist|missing)|exist.*shared-context\.md'
+require_text "AT-6: tells user to run /buildit-project-bootstrap" "$SKILL" '/buildit-project-bootstrap'
+
+# AT-7: Worktree cleanup — removes worktree after commit
+require_text "AT-7: reads Worktree path from tracking file" "$SKILL" 'Worktree path'
+require_text "AT-7: uses git worktree remove" "$SKILL" 'git worktree remove'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

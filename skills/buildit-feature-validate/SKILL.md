@@ -29,6 +29,11 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 ---
 
+### 0b. Prerequisite check
+
+If `.scratch/shared-context.md` does not exist, stop with:
+> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
+
 ### 1. Identify the tracking file
 
 - If a `feature-name` was provided as argument (`/buildit-feature-validate feature-name`) → look for `.scratch/*feature-name*.md`
