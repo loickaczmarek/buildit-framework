@@ -33,6 +33,20 @@ require_text "AT-7: offer-to-create prompt present" "$SKILL" 'Autonomy settings 
 # AT-8: Broad Bash(cd *) absent from the template
 require_absent "AT-8: broad Bash(cd *) absent from template" "$SKILL" 'Bash\(cd \\\*\)'
 
+# AT-9: Ecosystem detection covers all 6 markers
+require_text "AT-9: ecosystem detection — tests/run-all.sh" "$SKILL" 'tests/run-all.sh'
+require_text "AT-9: ecosystem detection — package.json" "$SKILL" 'package.json'
+require_text "AT-9: ecosystem detection — pom.xml" "$SKILL" 'pom.xml'
+require_regex "AT-9: ecosystem detection — build.gradle" "$SKILL" 'build\.gradle'
+require_text "AT-9: ecosystem detection — pyproject.toml" "$SKILL" 'pyproject.toml'
+require_text "AT-9: ecosystem detection — Makefile" "$SKILL" 'Makefile'
+
+# AT-10: User confirmation prompt for detected test command
+require_regex "AT-10: user confirmation prompt for test command" "$SKILL" '[Cc]onfirm|[Cc]orrect'
+
+# AT-11: Stores test command in .buildit/config.md
+require_text "AT-11: stores test command in .buildit/config.md" "$SKILL" '.buildit/config.md'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

@@ -36,6 +36,10 @@ All skill files must be authored in English. User-facing messages, field labels,
 
 Skills that do not reference any mode-specific paths (e.g. pure orchestrators that invoke other skills by name) still must not hardcode absolute paths.
 
+## Shared-context coordination
+
+`shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites. Each skill that writes to `shared-context.md` includes a sequential access warning before the write operation.
+
 ## Documentation requirements
 
 For each feature, the agent must derive documentation acceptance tests from the table below during `buildit-feature-start`.

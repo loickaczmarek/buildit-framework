@@ -75,6 +75,8 @@ After the fixes pass, apply the same craft-principles self-review as in normal m
 
 ### 4. Capture new practices
 
+> **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
+
 Before closing the session, ask:
 
 > "Have I intentionally introduced a new practice in this implementation — architecture, naming convention, code pattern, file organisation?"

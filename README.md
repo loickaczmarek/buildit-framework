@@ -206,9 +206,9 @@ Three `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths
 2. Scans `.buildit/guidelines/` to detect all files present — custom files (`figma.md`, `jira.md`…) are preserved without modification
 3. Checks autonomy settings (`.claude/settings.json` in Claude mode) — creates or audits the permission allowlist for worktree subagents
 4. Asks whether a directory or document of existing practices exists, and if so proposes to **merge** it into the guidelines or **reference** it (link at the top of the guideline)
-5. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files — to detect actual practices in place
+5. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files, and **test command detection** — auto-detects the project's test runner from ecosystem markers (`tests/run-all.sh`, `package.json`, `pom.xml`, `build.gradle`, `pyproject.toml`, `Makefile`), proposes the command for user confirmation, and stores it in `.buildit/config.md`
 6. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
-7. Creates or updates the workflow files integrating what was detected
+7. Creates or updates the workflow files integrating what was detected — including `.buildit/config.md` with the confirmed test command
 8. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
 
 For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
@@ -339,6 +339,8 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **What it does:**
 
+**Test suite** — runs the project's tests before the review using a two-tier detection: first reads the configured command from `.buildit/config.md` (set by bootstrap); if absent, falls back to ecosystem marker heuristic (same 6 ecosystems as bootstrap). If no test runner is detected, warns and proceeds.
+
 **Review phase** — evaluates the diff (`git diff main...HEAD`) on 6 dimensions without reading the plan (unbiased review):
 
 | Dimension | Question |
@@ -437,3 +439,4 @@ Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md
 ## References
 
 - buildit-feature-run design: `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
+- Generic test runner detection: `docs/buildit/specs/2026-10-14-generic-test-runner-detection.md`

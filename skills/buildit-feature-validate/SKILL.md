@@ -40,6 +40,26 @@ Set the status to `validating`.
 
 Read `.scratch/shared-context.md` section "Constraints discovered": are there documented constraints that apply to the scope of this feature?
 
+### 2b. Run test suite
+
+Run the project's test suite before the review phase using a two-tier detection:
+
+**Tier 1 — Configured command:** Read `.buildit/config.md`, extract the first non-empty, non-comment line after the `## Test command` heading. If found and non-empty, use it.
+
+**Tier 2 — Ecosystem fallback heuristic:** If no configured command is found (file absent, heading missing, or no command under it), detect the test runner from ecosystem markers in priority order:
+1. `tests/run-all.sh` exists -> `bash tests/run-all.sh`
+2. `package.json` exists -> `npm test`
+3. `pom.xml` exists -> `mvn test`
+4. `build.gradle` or `build.gradle.kts` exists -> `gradle test`
+5. `pyproject.toml` exists -> `pytest`
+6. `Makefile` exists and contains a `test` target (`grep -q '^test:' Makefile`) -> `make test`
+
+**No detection:** If no configured command and no ecosystem marker is found, warn: "No test runner detected — no configured command in `.buildit/config.md` and no ecosystem markers found. Proceeding to review phase without running tests." and continue to step 3.
+
+If any test fails: set status to `to-fix`, write a "Problems to fix" section in the tracking file with the test failure details, and stop — do not proceed to the review phase.
+
+If all tests pass: proceed to step 3 (review phase).
+
 ### 3. Review phase
 
 Read the changes: `git diff main...HEAD`

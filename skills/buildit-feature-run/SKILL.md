@@ -63,6 +63,8 @@ Store: `feature-name`, `description`, `acceptance-tests`, `use-worktree` (yes/no
      immediately at the start of the session. Users who have pre-allowed Write see no
      prompt at all. -->
 
+> **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
+
 Read `.scratch/shared-context.md`. Retrieve the current branch name via `git branch --show-current`.
 
 Write back to `.scratch/shared-context.md`, appending the merge readiness entry for the current branch:

@@ -42,8 +42,8 @@ Read `.scratch/shared-context.md` in full.
 
 Retrieve the files touched by this feature: `git diff main...HEAD --name-only`
 
-**File overlap:**
-Are there `IN_PROGRESS` branches in "Merge readiness" whose touched files overlap with this feature's files?
+**File overlap — dynamic computation:**
+For each `IN_PROGRESS` branch listed in "Merge readiness", compute its touched files dynamically: `git diff main...<branch> --name-only`. Compare the two file lists. If any files overlap, report the overlapping files as a warning. If a branch cannot be resolved locally, warn and skip it rather than failing.
 
 **Declared dependencies:**
 Are there branches that declare `Waiting for: [this branch]` in "Merge readiness"?
@@ -69,6 +69,8 @@ Move `.scratch/DD-MM-YYYY-[feature-name].md` to `.scratch/done/`.
 The shared-context.md cleanup (step 3) is included in this same commit.
 
 ### 3. Clean shared-context.md
+
+> **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
 
 **"Merge readiness" section** → remove the line for this branch.
 
