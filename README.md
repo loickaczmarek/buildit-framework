@@ -1,6 +1,6 @@
 # buildit — Multi-Agent Development Workflow
 
-A framework of 7 skills that drive the development loop feature by feature. The default path is `buildit-feature-run` — it orchestrates the full cycle unattended. A manual sequence (start → build → validate → ship) is available for features needing mid-cycle human judgement.
+A framework of 8 skills that drive the development loop feature by feature. The default path is `buildit-feature-run` — it orchestrates the full cycle unattended. A manual sequence (start → build → validate → ship) is available for features needing mid-cycle human judgement.
 
 ## Setup
 
@@ -212,6 +212,24 @@ Three `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths
 8. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
 
 For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
+
+---
+
+### `buildit-project-audit`
+
+**Trigger:** `/buildit-project-audit [scope]`
+
+**When to use:** for periodic health checks, before major refactoring, after shipping a batch of features, or to assess a specific file/directory/concern area on demand. Not for project setup — use `buildit-project-bootstrap` for that.
+
+**What it does:**
+1. Detects agent identity (Claude vs other agent) and checks for `.scratch/shared-context.md`
+2. Determines audit scope: uses the provided argument (file, directory, keyword) or launches a subagent for hotspot analysis (git churn + complexity heuristics, capped at top 10 files)
+3. Evaluates the scoped area against 9 dimensions in 3 categories: code quality (Correctness, Performance, Security, Style, Test coverage, Craft principles), architecture health (Coupling & cohesion), and project health (Documentation gaps, Config/setup health)
+4. Generates a draft report in `.scratch/DD-MM-YYYY-audit-issues.md`
+5. Launches an independent critique subagent that challenges severity ratings, checks for false positives, and identifies missed issues
+6. Incorporates critique findings into the final report with a "Critique integration" section
+
+**Ends with:** the final report path and summary. This is a standalone assessment — no status transition. Use findings to plan fixes via `/buildit-feature-start` or `/buildit-feature-run`.
 
 ---
 
