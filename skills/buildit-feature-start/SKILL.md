@@ -22,6 +22,11 @@ Ask the user:
 - **Yes** → invoke `buildit-worktree [feature-name]` now. Capture the returned "Worktree created at: <path>" line and store the absolute path as `WORKTREE_PATH`. Continue the following steps inside the created worktree.
 - **No** → retrieve the current branch (`git branch --show-current`) and inform the user: "You will work directly on `[branch]`." Set `WORKTREE_PATH=none`. Then continue to step 1.
 
+### 0b. Prerequisite check
+
+If `.scratch/shared-context.md` does not exist, stop with:
+> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
+
 ### 1. Read shared-context.md
 
 Read `.scratch/shared-context.md` and check:

@@ -20,6 +20,11 @@ After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in
 
 If the most recent file does not have status `to-ship`, warn: "The most recent file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing.
 
+### 0a. Prerequisite check
+
+If `.scratch/shared-context.md` does not exist, stop with:
+> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
+
 ### 0b. Detect environment paths
 
 Determine your operating mode from your agent identity:
@@ -116,6 +121,16 @@ Nature of the decision?
 
 → Migrate to the destination, then delete from shared-context.md
 ```
+
+### 3b. Worktree cleanup
+
+Read the `## Worktree path` value from the tracking file. If the value is not `none`, remove the worktree:
+
+```
+git worktree remove <path>
+```
+
+If the removal fails (e.g. uncommitted changes or worktree already removed), warn the user but do not block the ship process.
 
 ### 4. Light retro
 

@@ -51,6 +51,10 @@ require_text "AT-10: fallback — Makefile" "$SKILL" 'Makefile'
 # AT-11: Warns when no test runner and no config detected
 require_regex "AT-11: warns when no detection" "$SKILL" '[Nn]o test runner detected|[Nn]o configured command'
 
+# AT-12: Shared-context existence check — stops if shared-context.md missing
+require_regex "AT-12: checks shared-context.md existence" "$SKILL" 'shared-context\.md.*(not exist|does not exist|missing)|exist.*shared-context\.md'
+require_text "AT-12: tells user to run /buildit-project-bootstrap" "$SKILL" '/buildit-project-bootstrap'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
