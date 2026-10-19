@@ -225,11 +225,16 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 1. Detects agent identity (Claude vs other agent) and checks for `.scratch/shared-context.md`
 2. Determines audit scope: uses the provided argument (file, directory, keyword) or launches a subagent for hotspot analysis (git churn + complexity heuristics, capped at top 10 files)
 3. Writes a placeholder to `.scratch/DD-MM-YYYY-audit-issues.md` to trigger file-write permission early (before subagent work begins)
-4. Launches 3 parallel category subagents — code quality (6 dimensions), architecture health, and project health — each returning structured findings
-5. As each category completes, launches a per-category critique subagent (receives only that category's findings) and presents the critiqued results progressively to the user
-6. Compiles all findings into the final report grouped by severity, with a per-category "Critique integration" section
+4. Defines severity criteria (Critical/High/Medium/Low) with evidence requirements — all downstream subagents enforce these
+5. Launches 3 parallel category subagents — code quality (6 dimensions), architecture health, and project health — each returning structured findings
+6. As each category completes, launches a per-category critique subagent (receives only that category's findings, enforces evidence-based downgrading) and presents the critiqued results progressively
+7. Runs a cross-cutting execution trace subagent to catch cross-file interaction bugs (implicit dependencies, order-of-operations, mock-masked bugs) that parallel categories miss
+8. Runs a calibration subagent that normalizes severity across all findings — can downgrade/escalate but cannot add new findings
+9. Compiles all findings into the final report grouped by severity, with "Critique integration" and "Calibration" sections
 
 **Ends with:** the final report path and summary. This is a standalone assessment — no status transition. Use findings to plan fixes via `/buildit-feature-start` or `/buildit-feature-run`.
+
+**Design specs:** `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`, `docs/buildit/specs/2026-10-19-audit-calibration.md`
 
 ---
 
@@ -458,3 +463,5 @@ Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md
 
 - buildit-feature-run design: `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
 - Generic test runner detection: `docs/buildit/specs/2026-10-14-generic-test-runner-detection.md`
+- Audit parallel pipeline: `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`
+- Audit calibration: `docs/buildit/specs/2026-10-19-audit-calibration.md`

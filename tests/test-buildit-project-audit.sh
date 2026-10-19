@@ -80,6 +80,64 @@ require_regex "AT-P8: frontmatter description mentions parallel" "$SKILL" '^desc
 
 # AT-P9: Existing assertions still pass (covered by AT-1 through AT-13 above)
 
+# --- Calibration assertions ---
+
+# AT-C1: Severity criteria defined (Critical/High/Medium/Low) with evidence requirements
+require_text "AT-C1: severity level — Critical" "$SKILL" "Critical"
+require_text "AT-C1: severity level — High" "$SKILL" "High"
+require_text "AT-C1: severity level — Medium" "$SKILL" "Medium"
+require_text "AT-C1: severity level — Low" "$SKILL" "Low"
+require_regex "AT-C1: severity criteria section" "$SKILL" '[Ss]everity [Cc]riteria'
+require_regex "AT-C1: evidence requirements" "$SKILL" '[Ee]vidence.*require|require.*[Ee]vidence'
+
+# AT-C2: Critical requires execution trace; High requires file:line — downgrade without evidence
+require_regex "AT-C2: critical requires execution trace" "$SKILL" '[Cc]ritical.*execution trace|execution trace.*[Cc]ritical'
+require_regex "AT-C2: high requires file:line" "$SKILL" '[Hh]igh.*file:line|file:line.*[Hh]igh'
+require_regex "AT-C2: downgrade findings lacking evidence" "$SKILL" '[Dd]owngrade.*lack.*evidence|lack.*evidence.*[Dd]owngrade|downgrade.*without.*evidence'
+
+# AT-C3: Cross-cutting execution trace subagent after category subagents
+require_regex "AT-C3: execution trace subagent" "$SKILL" '[Ee]xecution [Tt]race.*subagent|subagent.*[Ee]xecution [Tt]race'
+require_regex "AT-C3: cross-file interaction focus" "$SKILL" '[Cc]ross-file|implicit dependenc|order-of-operations|mock-masked'
+
+# AT-C4: Execution trace receives already-found findings
+require_regex "AT-C4: receives existing findings" "$SKILL" 'already-found|already.found findings|existing findings|avoid duplication'
+
+# AT-C5: Calibration subagent normalizes severity, cannot add findings
+require_regex "AT-C5: calibration subagent" "$SKILL" '[Cc]alibration.*subagent|subagent.*[Cc]alibration'
+require_regex "AT-C5: receives all findings" "$SKILL" 'receives.*[Aa][Ll][Ll].*findings|ALL findings|all findings'
+require_regex "AT-C5: cannot add new findings" "$SKILL" '[Cc]annot add|CANNOT add|must not add|cannot introduce'
+require_regex "AT-C5: can downgrade or escalate" "$SKILL" '[Dd]owngrade.*escalat|escalat.*[Dd]owngrade|downgrade or escalate|escalate or downgrade'
+
+# AT-C6: Calibration section in report template
+require_regex "AT-C6: calibration section in report" "$SKILL" '## Calibration|Calibration.*section'
+
+# AT-C7: Frontmatter description reflects calibration/execution trace
+require_regex "AT-C7: frontmatter mentions calibration" "$SKILL" '^description:.*calibration'
+require_regex "AT-C7: frontmatter mentions execution trace" "$SKILL" '^description:.*execution.trace|^description:.*cross-cutting'
+
+# AT-C8: Both copies in sync
+SKILL_CLAUDE=".claude/skills/buildit-project-audit/SKILL.md"
+if [[ -f "$SKILL_CLAUDE" ]]; then
+  if diff -q "$SKILL" "$SKILL_CLAUDE" >/dev/null 2>&1; then
+    ok "AT-C8: skills/ and .claude/skills/ copies are in sync"
+  else
+    fail "AT-C8: skills/ and .claude/skills/ copies differ"
+  fi
+else
+  fail "AT-C8: .claude/skills/ copy missing"
+fi
+
+# AT-C9: Design spec exists
+SPEC="docs/buildit/specs/2026-10-19-audit-calibration.md"
+if [[ -f "$SPEC" ]]; then
+  ok "AT-C9: design spec exists"
+  require_regex "AT-C9: spec covers severity criteria" "$SPEC" '[Ss]everity.*criteria|criteria.*[Ss]everity'
+  require_regex "AT-C9: spec covers execution trace" "$SPEC" '[Ee]xecution [Tt]race'
+  require_regex "AT-C9: spec covers calibration" "$SPEC" '[Cc]alibration'
+else
+  fail "AT-C9: design spec missing — docs/buildit/specs/2026-10-19-audit-calibration.md"
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

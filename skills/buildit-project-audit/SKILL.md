@@ -1,11 +1,11 @@
 ---
 name: buildit-project-audit
-description: Use when auditing codebase health — evaluates code quality, architecture, and documentation across 9 dimensions via parallel category subagents with per-category critique. Accepts optional scope argument.
+description: Use when auditing codebase health — evaluates code quality, architecture, and documentation across 9 dimensions via parallel category subagents with per-category critique, cross-cutting execution trace, and calibration pass. Accepts optional scope argument.
 ---
 
 # Project Audit
 
-Audits the codebase for code quality, architecture health, guideline compliance, and documentation gaps. Scope is determined either by an explicit argument or via hotspot analysis in a subagent. The audit runs as 3 parallel category subagents (code quality, architecture health, project health). Each category is critiqued independently by a dedicated critique subagent upon completion. Findings are presented progressively to the user as each category+critique pair finishes, then compiled into the final report. Output is a `.scratch/DD-MM-YYYY-audit-issues.md` file.
+Audits the codebase for code quality, architecture health, guideline compliance, and documentation gaps. Scope is determined either by an explicit argument or via hotspot analysis in a subagent. The audit runs as 3 parallel category subagents (code quality, architecture health, project health). Each category is critiqued independently by a dedicated critique subagent upon completion, with findings presented progressively. After all categories complete, a cross-cutting execution trace subagent catches cross-file interaction bugs, then a calibration subagent normalizes severity ratings across the full report. Output is a `.scratch/DD-MM-YYYY-audit-issues.md` file.
 
 **Boundary with `buildit-project-bootstrap`:** bootstrap handles project setup and configuration scaffolding (generating workflow files, detecting the stack, creating `.buildit/config.md`). This skill handles ongoing code health assessment — it reads the existing codebase and guidelines, evaluates quality, and produces actionable findings. Bootstrap sets up the project; audit examines it.
 
@@ -65,7 +65,22 @@ This surfaces the file-write permission prompt early at session start rather tha
 
 ---
 
-### 3. Launch 3 parallel category subagents
+### 3. Severity Criteria
+
+All subagents (category, critique, execution trace, calibration) use these severity levels and evidence requirements. Findings that lack the required evidence for their claimed severity level must be downgraded.
+
+| Level | Definition | Evidence required |
+|-------|-----------|-------------------|
+| **Critical** | Breaks core functionality or creates a security/data-loss risk in production | Execution trace showing the failure path |
+| **High** | Significant bug or design flaw that will cause problems under normal use | file:line reference with concrete scenario |
+| **Medium** | Quality issue that degrades maintainability or developer experience | file:line reference |
+| **Low** | Cosmetic, stylistic, or minor improvement opportunity | Description sufficient |
+
+**Enforcement rule:** critique subagents and the calibration subagent must downgrade findings that lack the required evidence. A Critical finding without an execution trace is downgraded to High. A High finding without a file:line reference is downgraded to Medium.
+
+---
+
+### 4. Launch 3 parallel category subagents
 
 Launch all 3 category subagents in a single message with multiple Agent tool calls. Each subagent receives `AUDIT_SCOPE` and returns structured findings (severity, dimension, location, description, proposed fix).
 
@@ -97,7 +112,7 @@ Receives `AUDIT_SCOPE` and `<rules-file>`. Evaluates:
 
 ---
 
-### 4. Per-category critique + progressive presentation
+### 5. Per-category critique + progressive presentation
 
 As each category subagent returns, process it immediately:
 
@@ -105,7 +120,7 @@ As each category subagent returns, process it immediately:
 
 The critique prompt must be adversarial: require the subagent to challenge at least the severity rating of each finding and explicitly look for missed issues in that category's scope. A rubber-stamp critique has no value.
 
-For each finding, the critique subagent challenges: false positive risk, severity accuracy, actionability, completeness. It identifies at least one gap in coverage (areas in scope not covered by any finding in this category). Returns a structured critique with verdict per finding (agree / challenge / escalate / downgrade) and any new findings.
+For each finding, the critique subagent challenges: false positive risk, severity accuracy, actionability, completeness. It enforces the severity criteria (see step 3): any finding that lacks the required evidence for its claimed severity level must be downgraded — a Critical without an execution trace becomes High, a High without a file:line reference becomes Medium. It identifies at least one gap in coverage (areas in scope not covered by any finding in this category). Returns a structured critique with verdict per finding (agree / challenge / escalate / downgrade) and any new findings.
 
 The critique subagent must NOT be the same agent that authored the findings — this is enforced by launching it as a fresh subagent with only the category findings and file access.
 
@@ -124,9 +139,47 @@ This step repeats for each of the 3 categories as they complete. Order of comple
 
 ---
 
-### 5. Compile final report
+### 6. Cross-cutting execution trace subagent
 
-After all 3 category+critique pairs are complete, merge all findings into `.scratch/DD-MM-YYYY-audit-issues.md`. Group by severity (Critical > High > Medium > Low), not by category. Follow this format:
+After all 3 category+critique pairs have completed, launch a cross-cutting execution trace subagent. This subagent catches cross-file interaction bugs that parallel category subagents miss because each category examines files in isolation.
+
+The execution trace subagent receives:
+- `AUDIT_SCOPE`
+- The list of all already-found findings (from steps 4–5) to avoid duplication
+
+**Focus areas:**
+- Implicit dependencies between files (file A assumes file B provides X, but B changed)
+- Order-of-operations issues (initialization sequences, lifecycle hooks)
+- Mock-masked bugs (tests pass because mocks hide a broken integration)
+- Cross-file type mismatches (interface contract violations not caught by types)
+
+Returns structured findings in the same format as category subagents (severity, dimension, location, description, proposed fix). Severity must comply with the severity criteria in step 3.
+
+**Error handling:** if the execution trace subagent fails or returns no findings, report "No cross-cutting issues found" and continue.
+
+---
+
+### 7. Calibration subagent
+
+After the execution trace subagent returns, launch a calibration subagent. This subagent normalizes severity ratings across the full set of findings.
+
+The calibration subagent receives ALL findings — from the 3 categories (after critique) plus the execution trace pass.
+
+**Rules:**
+- Can downgrade or escalate severity ratings
+- **CANNOT add new findings** — the audit phase is closed; calibration is normalization only
+- Must apply the severity criteria (step 3) uniformly across categories
+- Must compare findings cross-category: a "High" in Category A should meet the same evidence bar as a "High" in Category C
+
+Returns a list of severity adjustments, each with: finding reference, original severity, new severity, rationale.
+
+**Error handling:** if the calibration subagent fails, use the uncalibrated findings and note "Calibration skipped" in the report.
+
+---
+
+### 8. Compile final report
+
+After all category+critique pairs, execution trace, and calibration are complete, merge all findings into `.scratch/DD-MM-YYYY-audit-issues.md`. Apply calibration severity adjustments before grouping. Group by severity (Critical > High > Medium > Low), not by category. Follow this format:
 
 ```markdown
 # Audit — DD-MM-YYYY
@@ -164,13 +217,18 @@ After all 3 category+critique pairs are complete, merge all findings into `.scra
 
 ### Category C — Project health
 - ...
+
+## Calibration
+| Finding | Original severity | Adjusted severity | Rationale |
+|---------|------------------|-------------------|-----------|
+| Finding N | High | Medium | Lacks file:line evidence |
 ```
 
 This follows the pattern established by `docs/buildit/reviews/`.
 
 ---
 
-### 6. Present results
+### 9. Present results
 
 Present the final report path and a summary table.
 
