@@ -224,10 +224,10 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **What it does:**
 1. Detects agent identity (Claude vs other agent) and checks for `.scratch/shared-context.md`
 2. Determines audit scope: uses the provided argument (file, directory, keyword) or launches a subagent for hotspot analysis (git churn + complexity heuristics, capped at top 10 files)
-3. Evaluates the scoped area against 9 dimensions in 3 categories: code quality (Correctness, Performance, Security, Style, Test coverage, Craft principles), architecture health (Coupling & cohesion), and project health (Documentation gaps, Config/setup health)
-4. Generates a draft report in `.scratch/DD-MM-YYYY-audit-issues.md`
-5. Launches an independent critique subagent that challenges severity ratings, checks for false positives, and identifies missed issues
-6. Incorporates critique findings into the final report with a "Critique integration" section
+3. Writes a placeholder to `.scratch/DD-MM-YYYY-audit-issues.md` to trigger file-write permission early (before subagent work begins)
+4. Launches 3 parallel category subagents — code quality (6 dimensions), architecture health, and project health — each returning structured findings
+5. As each category completes, launches a per-category critique subagent (receives only that category's findings) and presents the critiqued results progressively to the user
+6. Compiles all findings into the final report grouped by severity, with a per-category "Critique integration" section
 
 **Ends with:** the final report path and summary. This is a standalone assessment — no status transition. Use findings to plan fixes via `/buildit-feature-start` or `/buildit-feature-run`.
 

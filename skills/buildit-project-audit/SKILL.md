@@ -1,11 +1,11 @@
 ---
 name: buildit-project-audit
-description: Use when auditing codebase health — evaluates code quality, architecture, and documentation across 9 dimensions with independent critique. Accepts optional scope argument.
+description: Use when auditing codebase health — evaluates code quality, architecture, and documentation across 9 dimensions via parallel category subagents with per-category critique. Accepts optional scope argument.
 ---
 
 # Project Audit
 
-Audits the codebase for code quality, architecture health, guideline compliance, and documentation gaps. Scope is determined either by an explicit argument or via hotspot analysis in a subagent. Findings are critiqued by an independent subagent before the report is finalized. Output is a `.scratch/DD-MM-YYYY-audit-issues.md` file.
+Audits the codebase for code quality, architecture health, guideline compliance, and documentation gaps. Scope is determined either by an explicit argument or via hotspot analysis in a subagent. The audit runs as 3 parallel category subagents (code quality, architecture health, project health). Each category is critiqued independently by a dedicated critique subagent upon completion. Findings are presented progressively to the user as each category+critique pair finishes, then compiled into the final report. Output is a `.scratch/DD-MM-YYYY-audit-issues.md` file.
 
 **Boundary with `buildit-project-bootstrap`:** bootstrap handles project setup and configuration scaffolding (generating workflow files, detecting the stack, creating `.buildit/config.md`). This skill handles ongoing code health assessment — it reads the existing codebase and guidelines, evaluates quality, and produces actionable findings. Bootstrap sets up the project; audit examines it.
 
@@ -50,11 +50,28 @@ If `.scratch/shared-context.md` does not exist, stop with:
 
 ---
 
-### 2. Run the audit
+### 2. Early write permission trigger
 
-Evaluate the scoped files/area against 9 dimensions organized in 3 categories:
+Before launching any subagent, write a placeholder header to `.scratch/DD-MM-YYYY-audit-issues.md`:
 
-**Category A — Code quality (the 6 validate dimensions):**
+```markdown
+# Audit — DD-MM-YYYY
+
+## Scope
+[pending — audit in progress]
+```
+
+This surfaces the file-write permission prompt early at session start rather than midway through a subagent (per team-practices guideline on orchestrator-level permission trigger).
+
+---
+
+### 3. Launch 3 parallel category subagents
+
+Launch all 3 category subagents in a single message with multiple Agent tool calls. Each subagent receives `AUDIT_SCOPE` and returns structured findings (severity, dimension, location, description, proposed fix).
+
+**Category A subagent — Code quality (the 6 validate dimensions):**
+
+Receives `AUDIT_SCOPE` and `<guidelines-dir>` paths. Evaluates:
 
 1. **Correctness** — does the code do what its name/docs claim?
 2. **Performance** — unnecessary costly operations?
@@ -63,22 +80,53 @@ Evaluate the scoped files/area against 9 dimensions organized in 3 categories:
 5. **Test coverage** — edge cases tested? Missing test files?
 6. **Craft principles** — DRY, KISS, YAGNI respected? (see `<guidelines-dir>/craft-principles.md` — do NOT duplicate definitions, reference by path only)
 
-**Category B — Architecture health:**
+**Category B subagent — Architecture health:**
+
+Receives `AUDIT_SCOPE`. Evaluates:
 
 7. **Coupling & cohesion** — are modules appropriately independent? Dependency structure healthy?
 
-**Category C — Project health:**
+**Category C subagent — Project health:**
+
+Receives `AUDIT_SCOPE` and `<rules-file>`. Evaluates:
 
 8. **Documentation gaps** — missing or outdated docs, README sections, design specs for non-obvious choices
 9. **Config/setup health** — build configs, CI setup, dependency freshness, gitignore completeness
 
-For each finding: severity (Critical / High / Medium / Low), dimension, location (file:line when applicable), description, proposed fix.
+**Error handling:** if a category subagent fails or returns no findings, report "No issues found in [Category X]" and continue — do not block the other categories.
 
 ---
 
-### 3. Generate draft report
+### 4. Per-category critique + progressive presentation
 
-Write findings to `.scratch/DD-MM-YYYY-audit-issues.md` following this format:
+As each category subagent returns, process it immediately:
+
+**a. Launch a critique subagent for that category.** The critique subagent receives ONLY the findings from that category — not findings from other categories, not the audit reasoning context. You are critiquing ONLY the findings from [Category X].
+
+The critique prompt must be adversarial: require the subagent to challenge at least the severity rating of each finding and explicitly look for missed issues in that category's scope. A rubber-stamp critique has no value.
+
+For each finding, the critique subagent challenges: false positive risk, severity accuracy, actionability, completeness. It identifies at least one gap in coverage (areas in scope not covered by any finding in this category). Returns a structured critique with verdict per finding (agree / challenge / escalate / downgrade) and any new findings.
+
+The critique subagent must NOT be the same agent that authored the findings — this is enforced by launching it as a fresh subagent with only the category findings and file access.
+
+**b. Incorporate the critique.** For each critique item:
+- **Accept** — modify the finding (adjust severity, reword, add detail)
+- **Reject** — keep the original finding, add rationale for rejection
+- **Add** — new finding surfaced by the critique
+
+**c. Present the critiqued findings to the user immediately** (progressive output). Use a consistent template:
+
+> **Category [A/B/C] — [name]: N findings (X critical, Y high, Z medium, W low)**
+
+Followed by the finding details for that category.
+
+This step repeats for each of the 3 categories as they complete. Order of completion is non-deterministic — do not wait for all categories before presenting results from a completed one.
+
+---
+
+### 5. Compile final report
+
+After all 3 category+critique pairs are complete, merge all findings into `.scratch/DD-MM-YYYY-audit-issues.md`. Group by severity (Critical > High > Medium > Low), not by category. Follow this format:
 
 ```markdown
 # Audit — DD-MM-YYYY
@@ -105,43 +153,20 @@ Write findings to `.scratch/DD-MM-YYYY-audit-issues.md` following this format:
 ## Summary
 | Priority | Count | Key themes |
 |----------|-------|-----------|
+
+## Critique integration
+### Category A — Code quality
+- Finding N: [accepted/rejected] — [reason]
+- New finding added: [title] — surfaced by critique
+
+### Category B — Architecture health
+- ...
+
+### Category C — Project health
+- ...
 ```
 
 This follows the pattern established by `docs/buildit/reviews/`.
-
----
-
-### 4. Independent critique (subagent)
-
-Launch a separate subagent that:
-- Receives the draft report content
-- Receives access to the same source files listed in `AUDIT_SCOPE`
-- For each finding, challenges: false positive risk, severity accuracy, actionability, completeness
-- Identifies at least one gap in coverage (areas in scope not covered by any finding)
-- Returns a structured critique with verdict per finding (agree / challenge / escalate / downgrade) and any new findings
-
-The critique subagent must NOT be the same agent that authored the draft — this is enforced by launching it as a fresh subagent with only the report and file access, not the audit reasoning context.
-
-The critique prompt must be adversarial: require the subagent to challenge at least the severity rating of each finding and explicitly look for missed issues. A rubber-stamp critique has no value.
-
----
-
-### 5. Incorporate critique and finalize
-
-For each critique item:
-- **Accept** — modify the finding (adjust severity, reword, add detail)
-- **Reject** — keep the original finding, add rationale for rejection
-- **Add** — new finding surfaced by the critique
-
-Update `.scratch/DD-MM-YYYY-audit-issues.md` with the final version.
-
-Add a "Critique integration" section at the bottom documenting what changed:
-
-```markdown
-## Critique integration
-- Finding N: [accepted/rejected] — [reason]
-- New finding added: [title] — surfaced by critique
-```
 
 ---
 

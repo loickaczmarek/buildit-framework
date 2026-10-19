@@ -57,6 +57,29 @@ require_regex "AT-12: Generic mode detection" "$SKILL" '[Gg]eneric.*mode|mode.*[
 require_text "AT-13: prerequisite check for shared-context.md" "$SKILL" "shared-context.md"
 require_regex "AT-13: guard for missing shared-context" "$SKILL" 'not found|does not exist|not exist'
 
+# --- Pipeline restructure assertions ---
+
+# AT-P1: 3 parallel category subagents
+require_regex "AT-P1: launches 3 parallel category subagents" "$SKILL" '[Ll]aunch.*3.*parallel|3.*parallel.*subagent|parallel.*category.*subagent'
+require_regex "AT-P1: single message with multiple Agent tool calls" "$SKILL" 'single message.*Agent|multiple Agent tool'
+
+# AT-P2: Per-category critique subagent
+require_regex "AT-P2: critique runs per category" "$SKILL" '[Cc]ritique.*subagent.*category|per-category.*critique|critique.*for that category'
+
+# AT-P3: Critique receives only its category findings
+require_regex "AT-P3: critique scoped to category findings only" "$SKILL" '[Oo]nly.*findings.*from.*category|ONLY.*findings.*from|only.*that category'
+
+# AT-P4: Progressive presentation
+require_regex "AT-P4: progressive presentation of findings" "$SKILL" '[Pp]rogressive|present.*as each.*categor|present.*immediately'
+
+# AT-P6: Early write permission trigger before subagents
+require_regex "AT-P6: early write permission before subagents" "$SKILL" '[Ww]rite.*permission|permission.*prompt.*early|placeholder.*header.*before.*launch|early.*permission'
+
+# AT-P8: Frontmatter description reflects parallel pipeline
+require_regex "AT-P8: frontmatter description mentions parallel" "$SKILL" '^description:.*parallel'
+
+# AT-P9: Existing assertions still pass (covered by AT-1 through AT-13 above)
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
