@@ -1,6 +1,6 @@
 ---
 name: buildit-feature-build
-description: Use when implementing a feature or applying fixes after a buildit-feature-validate NO-GO — runs TDD cycle (status to-build) or fix cycle (status to-fix). Accepts optional feature name: /buildit-feature-build [feature-name].
+description: "Use when implementing a feature or applying fixes after a buildit-feature-validate NO-GO — runs TDD cycle (status to-build) or fix cycle (status to-fix). Accepts optional feature name: /buildit-feature-build [feature-name]."
 ---
 
 # Feature Build

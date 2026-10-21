@@ -1,6 +1,6 @@
 ---
 name: buildit-project-bootstrap
-description: Use when starting a new project or auditing an existing one — scans guidelines, existing practices, and does a light coring of the codebase before generating or updating the configuration kit.
+description: "Use when starting a new project or auditing an existing one — scans guidelines, existing practices, and does a light coring of the codebase before generating or updating the configuration kit."
 ---
 
 # Project Bootstrap

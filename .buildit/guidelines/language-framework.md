@@ -13,7 +13,7 @@ Each skill file follows this structure:
 ```
 ---
 name: <skill-name>
-description: <one-line trigger description>
+description: "<one-line trigger description>"
 ---
 
 # <Skill Title>

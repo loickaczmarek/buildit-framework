@@ -1,6 +1,6 @@
 ---
 name: buildit-worktree
-description: Use when creating an isolated git worktree for a feature — derives the branch name, creates the worktree under .worktrees/, resolves the absolute path, and instructs the calling agent to use git -C for all git operations inside it.
+description: "Use when creating an isolated git worktree for a feature — derives the branch name, creates the worktree under .worktrees/, resolves the absolute path, and instructs the calling agent to use git -C for all git operations inside it."
 ---
 
 # Worktree Setup
