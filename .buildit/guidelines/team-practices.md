@@ -10,6 +10,10 @@ When a skill orchestrates subagents and the first tool-permission-gated operatio
 
 Worktree management is handled internally by the `buildit-worktree` skill. Skills and orchestrators must **not** reference `superpowers:using-git-worktrees` or any external worktree tooling. The framework must remain self-contained; an external dependency on `superpowers:using-git-worktrees` creates a fragile coupling that silently breaks worktree isolation when the skill is absent or changes.
 
+### Parallel category subagents
+
+When a skill evaluates independent dimensions or domains, group them into parallel category subagents rather than a single sequential pass. Launch all subagents in a single message with multiple Agent tool calls. Each category's findings should be critiqued independently by a dedicated critique subagent that receives only that category's findings — this ensures deeper, focused critique and prevents cross-category contamination. See `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md` for the full design rationale.
+
 Skills are markdown files defining agent workflows. Each skill lives in its own directory:
 - Canonical source: `skills/<skill-name>/SKILL.md`
 - Deployed copy: `.claude/skills/<skill-name>/SKILL.md`
@@ -52,6 +56,8 @@ For each feature, the agent must derive documentation acceptance tests from the 
 | Bugfix | Not required | Not required |
 
 When in doubt about whether a design spec is warranted, write it. A short spec is better than a missing one.
+
+**README consistency on structural changes.** The "Skill modification" row above covers trigger/interface changes, but the README's "What it does" section also enumerates internal steps. When a feature modifies the step structure of a skill (adding, removing, reordering, or fundamentally changing steps), update the corresponding README section in the same commit — even if the trigger and external interface are unchanged. Treat the SKILL.md steps and their README summary as a coupled pair: never modify one without checking the other.
 
 ## Naming conventions
 

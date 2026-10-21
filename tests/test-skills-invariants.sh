@@ -13,6 +13,7 @@ SKILLS=(
   buildit-feature-validate
   buildit-feature-ship
   buildit-project-bootstrap
+  buildit-project-audit
   buildit-feature-run
   buildit-worktree
 )
