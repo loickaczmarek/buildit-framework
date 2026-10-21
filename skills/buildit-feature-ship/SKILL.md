@@ -1,6 +1,6 @@
 ---
 name: buildit-feature-ship
-description: Use when validation passed (status to-ship) — checks shared-context readiness, commits, cleans shared-context, migrates durable constraints to guidelines, runs retro. Does NOT push or create the PR. Accepts optional feature name: /buildit-feature-ship [feature-name].
+description: "Use when validation passed (status to-ship) — checks shared-context readiness, commits, cleans shared-context, migrates durable constraints to guidelines, runs retro. Does NOT push or create the PR. Accepts optional feature name: /buildit-feature-ship [feature-name]."
 ---
 
 # Feature Ship

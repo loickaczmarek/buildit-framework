@@ -1,6 +1,6 @@
 ---
 name: buildit-feature-run
-description: Use to orchestrate the full buildit cycle (start → build → validate → ship) in a single session — each phase runs in a fresh subagent for context isolation. Accepts optional feature name and --max-cycles N (default 3). /buildit-feature-run [feature-name] [--max-cycles N].
+description: "Use to orchestrate the full buildit cycle (start → build → validate → ship) in a single session — each phase runs in a fresh subagent for context isolation. Accepts optional feature name and --max-cycles N (default 3). /buildit-feature-run [feature-name] [--max-cycles N]."
 ---
 
 # Feature Run (Orchestrator)

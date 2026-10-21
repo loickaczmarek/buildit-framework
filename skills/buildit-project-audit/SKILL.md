@@ -1,6 +1,6 @@
 ---
 name: buildit-project-audit
-description: Use when auditing codebase health — evaluates code quality, architecture, and documentation across 9 dimensions via parallel category subagents with per-category critique, cross-cutting execution trace, and calibration pass. Accepts optional scope argument.
+description: "Use when auditing codebase health — evaluates code quality, architecture, and documentation across 9 dimensions via parallel category subagents with per-category critique, cross-cutting execution trace, and calibration pass. Accepts optional scope argument."
 ---
 
 # Project Audit

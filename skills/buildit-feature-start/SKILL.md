@@ -1,6 +1,6 @@
 ---
 name: buildit-feature-start
-description: Use when starting a new feature — creates the .scratch/ tracking file with plan and self-critique, initialises shared-context entry. Accepts optional feature name: /buildit-feature-start [feature-name].
+description: "Use when starting a new feature — creates the .scratch/ tracking file with plan and self-critique, initialises shared-context entry. Accepts optional feature name: /buildit-feature-start [feature-name]."
 ---
 
 # Feature Start

@@ -1,6 +1,6 @@
 ---
 name: buildit-feature-discover
-description: Use before buildit-feature-start when the feature needs scoping — analyses project context, asks targeted functional questions, and produces a structured brief (name + description + acceptance tests + risks) ready for /buildit-feature-start. Accepts optional feature name: /buildit-feature-discover [feature-name].
+description: "Use before buildit-feature-start when the feature needs scoping — analyses project context, asks targeted functional questions, and produces a structured brief (name + description + acceptance tests + risks) ready for /buildit-feature-start. Accepts optional feature name: /buildit-feature-discover [feature-name]."
 ---
 
 # Feature Discover
