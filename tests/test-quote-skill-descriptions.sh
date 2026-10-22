@@ -14,6 +14,7 @@ SKILLS=(
   buildit-feature-ship
   buildit-feature-start
   buildit-feature-validate
+  buildit-plan
   buildit-project-audit
   buildit-project-bootstrap
   buildit-worktree
