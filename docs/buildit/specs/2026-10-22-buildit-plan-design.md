@@ -66,6 +66,35 @@ Each task in the plan maps directly to a buildit cycle invocation:
 
 The handoff step (step 6) makes these suggestions explicit, creating a clear bridge from planning to execution.
 
+## Integration with buildit-feature-run
+
+When `buildit-feature-run` receives a `feature-name` argument, it checks for a matching `.scratch/plan/task-{feature-name}.md` file at step 0 (initialise). This is the detection mechanism: exact filename match, no glob expansion.
+
+### Status lifecycle
+
+The plan task status tracks the feature through the buildit cycle:
+
+- **Step 0 (initialise):** `todo` -> `in-progress`. The task file's `## Status` is updated. If `plan.md` exists, progress counters are re-synced from all task files. The checkbox remains `- [ ]` (in-progress is not done).
+- **Step 6 (after ship):** `in-progress` -> `done`. The task file's `## Status` is updated. If `plan.md` exists, the checkbox changes from `- [ ]` to `- [x]` and progress counters are re-synced.
+
+If the task is already `in-progress` or `done`, the orchestrator warns but proceeds.
+
+### Plan.md sync behaviour
+
+The `plan.md` sync uses the same mechanism as the plan skill's resume flow: re-read all task file statuses, recompute `X/Y done` for each epic or flat list. This avoids independent counter maintenance that could drift.
+
+Checkbox semantics are binary: `- [ ]` for not-done (todo or in-progress), `- [x]` for done. There is no intermediate checkbox state for in-progress.
+
+### Pre-fill inputs
+
+At step 1 (collect inputs), when a plan task is detected, the description and acceptance tests from the task file are pre-filled and presented for user confirmation. The worktree question is always asked regardless of plan data.
+
+### Backward compatibility
+
+If no matching task file exists, `PLAN_TASK_FILE` is set to `none` and the orchestrator falls through to existing behavior unchanged. No error, no warning.
+
+If the task file exists but `plan.md` does not (e.g., it was deleted or the task was created manually), only the task file is updated -- no error is raised for missing `plan.md`.
+
 ## File structure
 
 ```

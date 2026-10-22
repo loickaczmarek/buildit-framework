@@ -81,6 +81,48 @@ require_regex "AT-14: no orphan files — writes to existing shared-context.md" 
 require_regex "AT-15: start subagent told to skip step 5" "$SKILL" \
   '[Ss]kip.*step 5|[Ss]kip.*shared-context|[Ss]hared-context.*already done|[Ss]tep 5.*skip'
 
+# --- Plan integration tests (AT-P1 through AT-P10) ---
+
+# AT-P1: SKILL.md contains plan task detection logic
+require_regex "AT-P1: plan task detection logic present" "$SKILL" \
+  'task-\{?feature-name\}?\.md|plan/task-|task-.*\.md.*exists'
+
+# AT-P2: Status update from todo to in-progress at step 0
+require_regex "AT-P2: todo to in-progress status transition" "$SKILL" \
+  'todo.*to.*in-progress|`todo`.*`in-progress`'
+
+# AT-P3: Progress counter re-sync in plan.md
+require_regex "AT-P3: progress counter re-sync in plan.md" "$SKILL" \
+  '[Rr]e-?sync.*progress|[Rr]e-?comput.*progress|progress.*counter.*plan\.md|plan\.md.*progress.*counter'
+
+# AT-P4: Pre-fill description and acceptance tests from plan task
+require_regex "AT-P4: pre-fill description/ATs from plan task" "$SKILL" \
+  '[Pp]re-?fill.*(description|acceptance)|description.*(pre-?fill|plan task)'
+
+# AT-P5: Worktree question always asked regardless of plan data
+require_regex "AT-P5: worktree question always asked" "$SKILL" \
+  '[Ww]orktree.*(always|regardless)|[Aa]lways.*(ask|worktree)|regardless.*worktree'
+
+# AT-P6: Status update from in-progress to done after ship
+require_regex "AT-P6: in-progress to done after ship" "$SKILL" \
+  'in-progress.*to.*done|`in-progress`.*`done`'
+
+# AT-P7: Checkbox update (- [x]) in plan.md after ship
+require_regex "AT-P7: checkbox update in plan.md after ship" "$SKILL" \
+  '\[x\].*plan\.md|plan\.md.*\[x\]|\[ \].*\[x\]'
+
+# AT-P8: Fallthrough when no plan task file matches
+require_regex "AT-P8: fallthrough when no plan task matches" "$SKILL" \
+  '(not found|no.*match|does not exist).*([Nn]o.*plan|fall.?through|unchanged|existing behavior)|PLAN_TASK_FILE.*none|fall.?through'
+
+# AT-P9: Warning for already in-progress/done status
+require_regex "AT-P9: warning for already in-progress or done" "$SKILL" \
+  '(already|current).*(in-progress|done).*(warn|proceed)|warn.*(already|in-progress|done)'
+
+# AT-P10: Missing plan.md handled gracefully (task file only)
+require_regex "AT-P10: missing plan.md handled gracefully" "$SKILL" \
+  'plan\.md.*(not exist|does not|missing).*([Nn]o error|task file only|skip)|task file only.*plan\.md'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

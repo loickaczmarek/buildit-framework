@@ -40,16 +40,43 @@ Run `ls .claude/ 2>/dev/null`. If the directory exists → **Claude mode**; othe
 
 Use `PROJECT_ROOT` and `MODE` in all subsequent subagent autonomy instructions.
 
+**Detect plan task**
+
+If `feature-name` was provided as argument, check if `.scratch/plan/task-{feature-name}.md` exists.
+
+- If the task file exists:
+  - Read the task file. Extract `## Description`, `## Acceptance tests`, `## Readiness`, and `## Status`.
+  - Store as `PLAN_TASK_FILE` (the path), `PLAN_DESCRIPTION`, `PLAN_ACCEPTANCE_TESTS`, `PLAN_READINESS`.
+  - **Status guard:** if the task's current status is `in-progress` or `done`, warn: "Plan task '{feature-name}' is already marked '{status}' — proceeding anyway." but continue.
+  - Update `## Status` in the task file from `todo` to `in-progress`.
+  - If `.scratch/plan/plan.md` exists: re-sync the progress counters by re-reading all task file statuses and recomputing `X/Y done` for each epic or flat list. The checkbox stays `- [ ]` at this stage (in-progress is not done).
+  - If `.scratch/plan/plan.md` does not exist: update task file only — no error.
+- If the task file does not exist: set `PLAN_TASK_FILE=none`. No further plan-related actions — fallthrough to existing behavior unchanged.
+
 ### 1. Collect inputs before subagents
 
-Before launching any subagent, collect the following from the user (worktree, name, description, acceptance tests) if not already provided via arguments:
+Before launching any subagent, collect the following from the user (worktree, name, description, acceptance tests) if not already provided via arguments.
+
+**When `PLAN_TASK_FILE` is set (not `none`):**
+
+Pre-fill `description` with `PLAN_DESCRIPTION` and `acceptance-tests` with `PLAN_ACCEPTANCE_TESTS`. Present them to the user:
+
+> "The plan task provides the following description and acceptance tests. Confirm or override:"
+
+Show the pre-filled values. The user can confirm (use as-is) or provide overrides. The **name** is already provided via argument (required for task file lookup).
+
+The **worktree** question is always asked regardless of plan data — plan tasks do not determine worktree preference.
+
+**When `PLAN_TASK_FILE` is `none` (or no plan detected):**
+
+Ask all questions as before:
 
 - **Worktree:** "Do you want to work in an isolated worktree for this feature?"
 - **Name:** kebab-case slug (skip if provided as argument)
 - **Description:** short functional description
 - **Acceptance tests:** exhaustive list — being precise here determines the quality of all phases
 
-Ask these questions in order. Do not launch the start subagent until all four are confirmed.
+In both cases, ask questions in order. Do not launch the start subagent until all four inputs are confirmed.
 
 Store: `feature-name`, `description`, `acceptance-tests`, `use-worktree` (yes/no).
 
@@ -158,10 +185,25 @@ Launch a fresh subagent:
 > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
 > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
 
-Wait for completion. Once the ship subagent completes, inform the user:
+Wait for completion.
+
+**Update plan task on completion**
+
+If `PLAN_TASK_FILE` is set (not `none`):
+
+- Update `## Status` in the task file from `in-progress` to `done`.
+- If `.scratch/plan/plan.md` exists:
+  - Find the line matching `- [ ] task-{feature-name}` and change it to `- [x] task-{feature-name}` (preserve the rest of the line — priority and readiness tags).
+  - Re-sync the progress counters by re-reading all task file statuses and recomputing `X/Y done` for each epic or flat list.
+- If `.scratch/plan/plan.md` does not exist: update task file only — no error.
+
+Once the ship subagent completes (and plan updates are done, if applicable), inform the user:
 
 > "Feature '[feature-name]' shipped successfully after [cycle] cycle(s).
 >
 > Push and PR creation remain manual — run `git push` and open a PR when ready."
+
+If a plan task was tracked, add:
+> "Plan task 'task-{feature-name}' marked as done. Progress counters in plan.md updated."
 
 ## End of skill

@@ -288,10 +288,10 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** the default path for most features. Runs the full cycle (start → build → validate → ship) unattended in a single session. Each phase runs in a fresh subagent for context isolation. Fall back to the manual flow only when mid-cycle human judgement is needed.
 
 **What it does:**
-1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent
+1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent. When a matching plan task exists (`.scratch/plan/task-{name}.md`), pre-fills inputs and tracks task status automatically
 2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
 3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
-4. On GO + PASS: delegates `buildit-feature-ship`, then reminds the user that push and PR creation are manual
+4. On GO + PASS: delegates `buildit-feature-ship`, updates plan task status to done if applicable, then reminds the user that push and PR creation are manual
 
 **Guards:**
 - Stops if the tracking file is not found after start (possible subagent failure)
