@@ -19,6 +19,17 @@ Audits the codebase for code quality, architecture health, guideline compliance,
 
 Do NOT use for project setup or configuration — use `buildit-project-bootstrap` instead.
 
+## Subagent selection and workflow isolation
+
+Every subagent this skill launches — hotspot analysis (step 1, only when no scope argument is given), the 3 category subagents (step 4), the per-category critique subagents (step 5), the cross-cutting execution trace subagent (step 6), and the calibration subagent (step 7) — is launched with the neutral `general-purpose` agent selected in the delegation tool's agent-type parameter.
+
+**Fallback:** if `general-purpose` is not available in the harness, use the harness's default unspecialised subagent — never a specialised persona agent — still prepend the isolation preamble, and warn the user once:
+> "`general-purpose` agent not available — using the default unspecialised subagent with the isolation preamble."
+
+**Isolation preamble** — prepend this block verbatim as the first line of every subagent prompt, followed by the task-specific instructions from the relevant step:
+
+> "Remain a neutral execution agent: the task-specific instructions below (hotspot analysis, category audit, critique, execution trace, or calibration) define your role, procedure, and expected output. Execute only those instructions without adopting an additional persona or substituting another workflow. Do not invoke any skill or agent. Continue to follow the repository's shared project rules and guidelines."
+
 ## Steps
 
 ### 0. Detect environment paths
@@ -40,7 +51,7 @@ If `.scratch/shared-context.md` does not exist, stop with:
 
 - If a scope argument was provided (file path, directory, question, or keyword), verify it exists if it is a file or directory path. If the path does not exist, stop with: "Scope target `[path]` does not exist." Otherwise, use it directly as the scope. Store as `AUDIT_SCOPE`.
 
-- If no argument was provided, launch a subagent for hotspot analysis:
+- If no argument was provided, launch a subagent for hotspot analysis (`general-purpose` + isolation preamble — see "Subagent selection and workflow isolation"):
   - Git churn: `git log --format=format: --name-only | sort | uniq -c | sort -rn | head -20` to find most-changed files
   - Complexity heuristics: file length, function count, nesting depth for top churn files
   - Cap the hotspot list to the top 10 files and group them by concern area before returning
@@ -82,7 +93,7 @@ All subagents (category, critique, execution trace, calibration) use these sever
 
 ### 4. Launch 3 parallel category subagents
 
-Launch all 3 category subagents in a single message with multiple Agent tool calls. Each subagent receives `AUDIT_SCOPE` and returns structured findings (severity, dimension, location, description, proposed fix).
+Launch all 3 category subagents in a single message with multiple Agent tool calls. Each subagent (`general-purpose` + isolation preamble — see "Subagent selection and workflow isolation") receives `AUDIT_SCOPE` and returns structured findings (severity, dimension, location, description, proposed fix).
 
 **Category A subagent — Code quality (the 6 validate dimensions):**
 
@@ -116,7 +127,7 @@ Receives `AUDIT_SCOPE` and `<rules-file>`. Evaluates:
 
 As each category subagent returns, process it immediately:
 
-**a. Launch a critique subagent for that category.** The critique subagent receives ONLY the findings from that category — not findings from other categories, not the audit reasoning context. You are critiquing ONLY the findings from [Category X].
+**a. Launch a critique subagent for that category** (`general-purpose` + isolation preamble — see "Subagent selection and workflow isolation"). The critique subagent receives ONLY the findings from that category — not findings from other categories, not the audit reasoning context. You are critiquing ONLY the findings from [Category X].
 
 The critique prompt must be adversarial: require the subagent to challenge at least the severity rating of each finding and explicitly look for missed issues in that category's scope. A rubber-stamp critique has no value.
 
@@ -141,7 +152,7 @@ This step repeats for each of the 3 categories as they complete. Order of comple
 
 ### 6. Cross-cutting execution trace subagent
 
-After all 3 category+critique pairs have completed, launch a cross-cutting execution trace subagent. This subagent catches cross-file interaction bugs that parallel category subagents miss because each category examines files in isolation.
+After all 3 category+critique pairs have completed, launch a cross-cutting execution trace subagent (`general-purpose` + isolation preamble — see "Subagent selection and workflow isolation"). This subagent catches cross-file interaction bugs that parallel category subagents miss because each category examines files in isolation.
 
 The execution trace subagent receives:
 - `AUDIT_SCOPE`
@@ -161,7 +172,7 @@ Returns structured findings in the same format as category subagents (severity, 
 
 ### 7. Calibration subagent
 
-After the execution trace subagent returns, launch a calibration subagent. This subagent normalizes severity ratings across the full set of findings.
+After the execution trace subagent returns, launch a calibration subagent (`general-purpose` + isolation preamble — see "Subagent selection and workflow isolation"). This subagent normalizes severity ratings across the full set of findings.
 
 The calibration subagent receives ALL findings — from the 3 categories (after critique) plus the execution trace pass.
 

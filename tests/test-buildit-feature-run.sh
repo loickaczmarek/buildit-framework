@@ -123,6 +123,75 @@ require_regex "AT-P9: warning for already in-progress or done" "$SKILL" \
 require_regex "AT-P10: missing plan.md handled gracefully" "$SKILL" \
   'plan\.md.*(not exist|does not|missing).*([Nn]o error|task file only|skip)|task file only.*plan\.md'
 
+
+# --- Neutral subagent isolation (AT-I1 through AT-I6) ---
+
+ISO_HEADING='## Subagent selection and workflow isolation'
+PREAMBLE_SENTENCE='Remain a neutral execution agent'
+BAN_REGEX='[Dd]o not invoke any skill or agent'
+FALLBACK_REGEX='default unspeciali[sz]ed subagent'
+
+# Extracts the body of a "## " section (heading line excluded) up to the next "## " heading.
+section_body() {
+  awk -v h="$2" '$0 == h {f=1; next} f && /^## / {exit} f' "$1"
+}
+
+ISO_SECTION=$(section_body "$SKILL" "$ISO_HEADING")
+
+require_text "AT-I1: isolation section present" "$SKILL" "$ISO_HEADING"
+require_text "AT-I1b: named Isolation preamble block" "$SKILL" 'Isolation preamble'
+
+PREAMBLE_COUNT=$(grep -c -- "$PREAMBLE_SENTENCE" "$SKILL" || true)
+if [[ "$PREAMBLE_COUNT" -eq 1 ]]; then
+  ok "AT-I2: isolation preamble defined exactly once"
+else
+  fail "AT-I2: isolation preamble must appear exactly once (found $PREAMBLE_COUNT)"
+fi
+
+REF_COUNT=$(grep -c -- '\[Isolation preamble — see' "$SKILL" || true)
+if [[ "$REF_COUNT" -ge 4 ]]; then
+  ok "AT-I3: steps 3, 5.2, 5.4 and 6 reference the preamble ($REF_COUNT references)"
+else
+  fail "AT-I3: expected at least 4 preamble references, found $REF_COUNT"
+fi
+
+if grep -qE -- "$BAN_REGEX other than the requested phase skill and the buildit skills and subagents it explicitly references or instructs you to launch" <<<"$ISO_SECTION"; then
+  ok "AT-I4: preamble bans other skills and agents, exempting referenced buildit skills and subagents"
+else
+  fail "AT-I4: preamble ban wording (with skills-and-subagents exemption) missing from isolation section"
+fi
+if grep -qF -- 'config-update subagent' <<<"$ISO_SECTION"; then
+  ok "AT-I4c: validate config-update subagent cited as an allowed launched subagent"
+else
+  fail "AT-I4c: validate config-update subagent not cited in isolation section"
+fi
+if grep -qF -- 'buildit-worktree' <<<"$ISO_SECTION"; then
+  ok "AT-I4b: buildit-worktree cited as an allowed referenced skill"
+else
+  fail "AT-I4b: buildit-worktree not cited in isolation section"
+fi
+
+if grep -qE -- "$FALLBACK_REGEX" <<<"$ISO_SECTION" && grep -qiE -- 'warn' <<<"$ISO_SECTION"; then
+  ok "AT-I5: fallback to default unspecialised subagent with user warning"
+else
+  fail "AT-I5: fallback (default unspecialised subagent + warning) missing"
+fi
+require_absent "AT-I5b: old stop-and-report rule removed" "$SKILL" 'stop and report this to the user rather than substituting'
+
+# AT-I6: step 5.5 — status-unchanged message is separated from the routing list
+NEXT_AFTER_MSG=$(awk '/Tracking file status unchanged after buildit-feature-validate/ {getline; print; exit}' "$SKILL")
+if [[ -z "${NEXT_AFTER_MSG// /}" ]]; then
+  ok "AT-I6: status-unchanged message followed by a blank line"
+else
+  fail "AT-I6: status-unchanged message must be followed by a blank line (got: '$NEXT_AFTER_MSG')"
+fi
+ROUTING_INTRO=$(awk '/Tracking file status unchanged after buildit-feature-validate/ {f=1; next} f && NF {print; exit}' "$SKILL")
+if [[ -n "$ROUTING_INTRO" && ! "$ROUTING_INTRO" =~ ^[[:space:]]*-[[:space:]] ]]; then
+  ok "AT-I6b: routing list is introduced by a separate sentence"
+else
+  fail "AT-I6b: routing list must be introduced by a sentence, got: '$ROUTING_INTRO'"
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

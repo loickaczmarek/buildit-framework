@@ -55,6 +55,19 @@ require_regex "AT-11: warns when no detection" "$SKILL" '[Nn]o test runner detec
 require_regex "AT-12: checks shared-context.md existence" "$SKILL" 'shared-context\.md.*(not exist|does not exist|missing)|exist.*shared-context\.md'
 require_text "AT-12: tells user to run /buildit-project-bootstrap" "$SKILL" '/buildit-project-bootstrap'
 
+
+# --- Neutral subagent isolation for the §5a config-update subagent (AT-I1 through AT-I4) ---
+
+SECTION_5A=$(awk '/^### 5a\./ {f=1; next} f && /^### 5b\./ {exit} f' "$SKILL")
+if grep -qF -- 'general-purpose' <<<"$SECTION_5A"; then ok "AT-I1: §5a requires general-purpose agent"; else fail "AT-I1: §5a does not require general-purpose"; fi
+if grep -qF -- 'Remain a neutral execution agent' <<<"$SECTION_5A"; then ok "AT-I2: §5a includes the isolation preamble"; else fail "AT-I2: §5a isolation preamble missing"; fi
+if grep -qE -- '[Dd]o not invoke any skill or agent' <<<"$SECTION_5A"; then ok "AT-I3: §5a preamble bans skills and agents"; else fail "AT-I3: §5a ban wording missing"; fi
+if grep -qE -- 'default unspeciali[sz]ed subagent' <<<"$SECTION_5A" && grep -qiE -- 'warn' <<<"$SECTION_5A"; then
+  ok "AT-I4: §5a fallback to default unspecialised subagent with user warning"
+else
+  fail "AT-I4: §5a fallback missing"
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

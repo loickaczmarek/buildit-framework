@@ -138,6 +138,31 @@ else
   fail "AT-C9: design spec missing — docs/buildit/specs/2026-10-19-audit-calibration.md"
 fi
 
+
+# --- Neutral subagent isolation (AT-I1 through AT-I5) ---
+
+ISO_HEADING='## Subagent selection and workflow isolation'
+ISO_SECTION=$(awk -v h="$ISO_HEADING" '$0 == h {f=1; next} f && /^## / {exit} f' "$SKILL")
+
+require_text "AT-I1: isolation section present" "$SKILL" "$ISO_HEADING"
+if grep -qF -- 'general-purpose' <<<"$ISO_SECTION"; then ok "AT-I1b: general-purpose agent required"; else fail "AT-I1b: general-purpose not required in isolation section"; fi
+if grep -qF -- 'Isolation preamble' <<<"$ISO_SECTION"; then ok "AT-I1c: named Isolation preamble block"; else fail "AT-I1c: Isolation preamble block missing"; fi
+
+PREAMBLE_COUNT=$(grep -c -- 'Remain a neutral execution agent' "$SKILL" || true)
+if [[ "$PREAMBLE_COUNT" -eq 1 ]]; then ok "AT-I2: preamble defined exactly once"; else fail "AT-I2: preamble must appear exactly once (found $PREAMBLE_COUNT)"; fi
+
+if grep -qE -- '[Dd]o not invoke any skill or agent' <<<"$ISO_SECTION"; then ok "AT-I3: preamble bans skills and agents"; else fail "AT-I3: ban wording missing"; fi
+
+for term in hotspot category critique 'execution trace' calibration; do
+  if grep -qiF -- "$term" <<<"$ISO_SECTION"; then ok "AT-I4: isolation section covers $term subagent"; else fail "AT-I4: isolation section does not cover $term subagent"; fi
+done
+
+if grep -qE -- 'default unspeciali[sz]ed subagent' <<<"$ISO_SECTION" && grep -qiE -- 'warn' <<<"$ISO_SECTION"; then
+  ok "AT-I5: fallback to default unspecialised subagent with user warning"
+else
+  fail "AT-I5: fallback (default unspecialised subagent + warning) missing"
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

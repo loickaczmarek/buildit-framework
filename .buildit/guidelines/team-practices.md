@@ -18,6 +18,14 @@ Worktree management is handled internally by the `buildit-worktree` skill. Skill
 
 When a skill evaluates independent dimensions or domains, group them into parallel category subagents rather than a single sequential pass. Launch all subagents in a single message with multiple Agent tool calls. Each category's findings should be critiqued independently by a dedicated critique subagent that receives only that category's findings — this ensures deeper, focused critique and prevents cross-category contamination. See `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md` for the full design rationale.
 
+### Subagent selection and workflow isolation
+
+Every subagent launched by a skill uses the neutral `general-purpose` agent type. Each skill that launches subagents defines an **Isolation preamble** once, as a named block in a "Subagent selection and workflow isolation" section, and every launch step references that block instead of repeating it. Each skill stays self-contained: there is no include mechanism. The preamble keeps the subagent neutral, so it adopts no persona and does not swap in another workflow. It also forbids invoking any skill or agent except the buildit skills and subagents the delegated skill explicitly references or instructs it to launch (e.g. `buildit-worktree`, the validate §5a config-update subagent). If `general-purpose` is not available in the harness, fall back to the harness's default unspecialised subagent, still include the preamble, and warn the user once. Never fall back to a specialised persona agent. Why: persona agents or unrelated skills must not take over delegated buildit workflows, and the framework must stay portable across harnesses.
+
+### Restriction wording in delegated-subagent preambles
+
+When an orchestrator puts restriction text in front of a wrapped skill's prompt (e.g. "do not invoke any skill or agent"), the exemptions must cover every kind of delegation the wrapped skill itself requires. That means the skills it references *and* the subagents/agents it explicitly tells the agent to launch (e.g. a `general-purpose` config-update subagent). Before finalising the wording, read each wrapped skill and list every skill invocation and agent launch it requires. A ban that a strictly obedient subagent would read as forbidding one of those steps is a correctness bug, because the step gets skipped or done inline. Keep every restatement of the rule (README, `shared-context.md` decisions, design spec) worded exactly like the preamble.
+
 Skills are markdown files defining agent workflows. Each skill lives in its own directory:
 - Canonical source: `skills/<skill-name>/SKILL.md`
 - Deployed copy: `.claude/skills/<skill-name>/SKILL.md`
@@ -101,6 +109,8 @@ The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_rege
 `tests/run-all.sh` is the single entry point: runs all `test-*.sh` files and exits non-zero if any file fails, printing a combined `Total: X passed, Y failed` summary.
 
 New test files follow the naming pattern `tests/test-<skill-name>.sh`.
+
+Section comments that name a range of test IDs (e.g. "AT-I1 through AT-I6") must match the tests actually defined in that section. Update the comment in the same change whenever you add, remove or renumber a test in the section.
 
 ## Review
 

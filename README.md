@@ -156,6 +156,10 @@ Use relative paths for script invocations. Do not cd outside the project root �
 - **`PROJECT_ROOT`** — absolute path detected via `pwd` at orchestrator start
 - **`MODE`** — `claude` if `.claude/` directory exists at project root, `generic` otherwise
 
+### Subagent isolation
+
+Every subagent launched by `buildit-feature-run`, `buildit-project-audit`, and `buildit-feature-validate` (config-update step) uses the neutral `general-purpose` agent and receives an isolation preamble as the first line of its prompt: it executes only the requested skill or task, adopts no extra persona, and invokes no other skill or agent (phase subagents may still use the buildit skills and subagents their phase skill explicitly references or instructs them to launch, e.g. `buildit-worktree` or the `buildit-feature-validate` config-update subagent). If `general-purpose` is unavailable, the harness's default unspecialised subagent is used with the same preamble, and the user is warned.
+
 ### settings.json permission file (Claude mode only)
 
 In Claude mode, a `.claude/settings.json` allowlist reduces per-command permission prompts during automated runs. Run `/buildit-project-bootstrap` to auto-generate this file if absent.
