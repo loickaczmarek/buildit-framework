@@ -13,7 +13,22 @@ Before `/buildit-feature-start`, when the feature idea is vague or needs validat
 
 ## Steps
 
-### 0. Short-circuit if brief is already clear
+### 0a. Detect plan task
+
+If a `feature-name` was provided as argument, check if `.scratch/plan/task-{feature-name}.md` exists (created by `/buildit-plan`).
+
+- If the task file exists:
+  - Read it and extract the `## Description`, `## Acceptance tests`, `## Readiness` and `## Status` sections.
+  - Store as `PLAN_TASK_FILE` (the path), `PLAN_DESCRIPTION`, `PLAN_ACCEPTANCE_TESTS`, `PLAN_READINESS`, `PLAN_STATUS`.
+  - **Name lock:** the feature name is locked to the task name — do not rename it in the brief, otherwise `/buildit-feature-run` will not find the task file. If the user wants a different name, suggest re-planning with `/buildit-plan` instead.
+  - **Status guard:** if `PLAN_STATUS` is `in-progress` or `done`, warn ("Plan task '{feature-name}' is already marked '{status}'.") and ask the user to confirm before re-scoping. If the user declines → end the skill; nothing is modified.
+  - **Ready short-circuit:** if `PLAN_READINESS` is `ready` and both `PLAN_DESCRIPTION` and `PLAN_ACCEPTANCE_TESTS` are non-empty → report that the task is already scoped and suggest `/buildit-feature-run [task-name]`. Ask: "Re-scope anyway?" — **Yes** → continue with Phase 1; **No** → end the skill; nothing is modified.
+  - Otherwise → continue with Phase 1 (step 0b does not apply).
+- If no `feature-name` was provided or the task file does not exist: set `PLAN_TASK_FILE=none` and fall through to step 0b — behaviour unchanged.
+
+### 0b. Short-circuit if brief is already clear
+
+Applies only when `PLAN_TASK_FILE` is `none`.
 
 If a `feature-name` was provided as argument and the user has also supplied a description and acceptance tests, exit this skill and invoke `/buildit-feature-start [feature-name]` directly.
 
@@ -57,11 +72,13 @@ Add contextual questions based on Phase 1 findings:
 - If a constraint from `shared-context.md` applies → "Does this scope respect the constraint `[constraint]`?"
 - If the scope seems large → signal it and propose to split before continuing.
 
+**When `PLAN_TASK_FILE` is set (not `none`):** start from `PLAN_DESCRIPTION` and `PLAN_ACCEPTANCE_TESTS` — present them as the current understanding and ask only about what they leave open (vague points, missing or unverifiable acceptance tests, uncertain approach). Do not re-ask questions already answered by the task.
+
 ---
 
 ### Phase 3 — Technical translation
 
-From the context analysis and functional answers:
+From the context analysis and functional answers (plus the plan task description and acceptance tests when `PLAN_TASK_FILE` is set):
 
 1. Identify which files and components will be affected (skill directories, guidelines, shared-context, docs specs).
 2. Anchor the technical description in the patterns and conventions detected in Phase 1 (guideline rules, existing skill patterns).
@@ -80,7 +97,7 @@ Produce a structured brief in markdown:
 ~~~markdown
 ## Brief: [feature-name]
 
-**Name:** [feature-name] (kebab-case)
+**Name:** [feature-name] (kebab-case — the task name when `PLAN_TASK_FILE` is set)
 **Description:** [technical description anchored in project conventions]
 
 **Acceptance tests:**
@@ -100,11 +117,34 @@ Produce a structured brief in markdown:
 Present the brief to the user for review.
 
 - On correction → iterate only on the contested sections.
-- On validation → display:
+- If the brief is not validated (the user stops) → the task file and `plan.md` stay untouched; all plan writes happen only after validation.
+- On validation, if `PLAN_TASK_FILE` is set → update the plan task (below), then display the plan handoff.
+- On validation, if `PLAN_TASK_FILE` is `none` → display:
 
 > "Brief validated. Choose your next step:
 > - `/buildit-feature-start [feature-name]` — to continue the cycle manually, session by session
 > - `/buildit-feature-run [feature-name]` — to execute the full cycle autonomously (start → build → validate → ship)"
+
+**Update plan task on validation**
+
+In `PLAN_TASK_FILE`:
+- Replace the `## Description` content with the brief description.
+- Replace the `## Acceptance tests` content with the brief acceptance tests.
+- Replace the `## Risks & Constraints` content with the brief risks and constraints if the section exists; otherwise append the section at the end of the file.
+- Set `## Readiness` to `ready` — a validated brief means the task is ready.
+
+In `.scratch/plan/plan.md`:
+- Find the line for this task (`- [ ] task-{feature-name} ` or `- [x] task-{feature-name} ` — the task name followed by a space) and replace `[needs-scoping]` with `[ready]`. Preserve the checkbox and the priority. If the line already shows `[ready]`, leave it as is.
+- If the line is not found → warn: "Task line not found in plan.md — task file updated only." No error.
+- If `.scratch/plan/plan.md` does not exist → update the task file only — no error.
+
+Never modify `## Status` — it is owned by `/buildit-feature-run`. Progress counters depend on Status only, so no counter re-sync is needed.
+
+Plan handoff:
+
+> "Brief validated — plan task 'task-{feature-name}' updated and marked `ready`. Choose your next step:
+> - `/buildit-feature-run [task-name]` — recommended: executes the full cycle autonomously and tracks the task status
+> - `/buildit-feature-start [task-name]` — to continue the cycle manually, session by session"
 
 ## End of skill
 

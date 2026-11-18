@@ -10,6 +10,8 @@ When a skill orchestrates subagents and the first tool-permission-gated operatio
 
 When `buildit-feature-run` receives a `feature-name` argument, it checks for a matching `.scratch/plan/task-{feature-name}.md` file and manages the task's status lifecycle automatically: `todo` -> `in-progress` at step 0, `in-progress` -> `done` at step 6 (after ship). Plan.md checkbox and progress counters are re-synced at each transition. If no matching task file exists, the orchestrator falls through to existing behavior unchanged.
 
+`buildit-feature-discover` applies the same detection when it receives a `feature-name`: it scopes the task starting from its description and acceptance tests, then on brief validation writes the brief into the task file, sets `## Readiness` to `ready`, and switches the plan.md tag from `[needs-scoping]` to `[ready]`. Field ownership is strict: `## Readiness` (and the plan.md readiness tag) is owned by `buildit-feature-discover`; `## Status` (and the plan.md checkbox and progress counters) is owned by `buildit-feature-run`. Neither skill writes the other's field.
+
 ### Worktree management
 
 Worktree management is handled internally by the `buildit-worktree` skill. Skills and orchestrators must **not** reference `superpowers:using-git-worktrees` or any external worktree tooling. The framework must remain self-contained; an external dependency on `superpowers:using-git-worktrees` creates a fragile coupling that silently breaks worktree isolation when the skill is absent or changes.
@@ -30,7 +32,7 @@ Skills are markdown files defining agent workflows. Each skill lives in its own 
 - Canonical source: `skills/<skill-name>/SKILL.md`
 - Deployed copy: `.claude/skills/<skill-name>/SKILL.md`
 
-Both files must be kept in sync at every commit. Changes to a skill are always made in `skills/` first, then mirrored to `.claude/skills/`.
+Both files must be kept in sync at every commit. Changes to a skill are always made in `skills/` first, then mirrored to `.claude/skills/`. In this repository `.claude/skills` is a tracked symlink to `../skills`, so the deployed copy is in sync by construction — edit `skills/` only, never `cp` over the symlinked path; `diff -q` remains a valid sanity check.
 
 **Single source of truth for guideline references.** When a skill needs to document a concept or definition (e.g. craft principles, naming conventions), the canonical text lives in the appropriate guideline file under `.buildit/guidelines/`. The skill file references that guideline by path — it does not copy the content. This avoids DRY violations (diverging definitions) and ensures a single edit point when definitions evolve.
 

@@ -43,6 +43,68 @@ require_regex "AT-7: validation step before finalising" "$SKILL_SRC" '(valid|con
 # AT-8: Output explicitly proposes /buildit-feature-start [feature-name]
 require_text "AT-8: handoff to buildit-feature-start" "$SKILL_SRC" '/buildit-feature-start'
 
+# --- Plan-task integration ---
+README_FILE="README.md"
+GUIDELINE_FILE=".buildit/guidelines/team-practices.md"
+
+# AT-D1: detection of the plan task file and extraction of its sections
+require_text  "AT-D1: detects plan task file" "$SKILL_SRC" '.scratch/plan/task-{feature-name}.md'
+require_text  "AT-D1: stores PLAN_TASK_FILE" "$SKILL_SRC" 'PLAN_TASK_FILE'
+require_regex "AT-D1: extracts Description, Acceptance tests and Readiness" "$SKILL_SRC" '## Description.*## Acceptance tests.*## Readiness'
+
+# AT-D2: explicit fallthrough when no task file / no feature-name
+require_regex "AT-D2: explicit fallthrough" "$SKILL_SRC" 'PLAN_TASK_FILE=none.*(fall.?through|unchanged)'
+
+# AT-D3: feature name locked to the task name
+require_regex "AT-D3: feature name locked to task name" "$SKILL_SRC" '[Ff]eature name is locked to the task name'
+
+# AT-D4: ready short-circuit with re-scope option
+require_regex "AT-D4: ready short-circuit suggests feature-run" "$SKILL_SRC" 'PLAN_READINESS.*ready.*/buildit-feature-run \[task-name\]'
+require_regex "AT-D4: re-scope option" "$SKILL_SRC" '[Rr]e-scope anyway'
+
+# AT-D5: status guard with confirmation
+require_regex "AT-D5: in-progress/done status guard asks confirmation" "$SKILL_SRC" 'PLAN_STATUS.*in-progress.*done.*confirm'
+
+# AT-D6: Phase 2 reuses task data
+require_regex "AT-D6: does not re-ask answered questions" "$SKILL_SRC" "([Dd]o not|[Dd]on't) re-ask"
+
+# AT-D7: task file updated on validation
+require_text  "AT-D7: Risks & Constraints section in task file" "$SKILL_SRC" '## Risks & Constraints'
+require_regex "AT-D7: Readiness set to ready" "$SKILL_SRC" 'Set `## Readiness` to `ready`'
+
+# AT-D8: plan.md tag switched, checkbox and priority preserved
+require_regex "AT-D8: needs-scoping tag replaced by ready" "$SKILL_SRC" '`\[needs-scoping\]`.*`\[ready\]`'
+require_regex "AT-D8: checkbox and priority preserved" "$SKILL_SRC" '[Pp]reserve.*checkbox.*priority'
+
+# AT-D9: graceful handling of missing plan.md / missing line
+require_regex "AT-D9: plan.md missing -> task file only" "$SKILL_SRC" 'plan\.md` does not exist.*task file only'
+require_regex "AT-D9: line not found -> warning" "$SKILL_SRC" '[Tt]ask line not found.*task file updated only'
+
+# AT-D10: never modifies ## Status
+require_regex "AT-D10: never modifies Status" "$SKILL_SRC" '[Nn]ever modif(y|ies) `## Status`'
+
+# AT-D11: not validated -> untouched
+require_regex "AT-D11: no writes when brief not validated" "$SKILL_SRC" 'not validated.*untouched'
+
+# AT-D12: handoff recommends feature-run with task name
+require_regex "AT-D12: handoff recommends feature-run [task-name]" "$SKILL_SRC" '/buildit-feature-run \[task-name\]`.*recommended'
+
+# AT-D13: README discover section documents the plan integration
+README_SECTION=$(sed -n '/^### `buildit-feature-discover`/,/^---/p' "$README_FILE")
+if grep -qF '.scratch/plan/task-' <<<"$README_SECTION" && grep -qF 'needs-scoping' <<<"$README_SECTION"; then
+  ok "AT-D13: README discover section documents plan integration"
+else
+  fail "AT-D13: README discover section does not document plan integration"
+fi
+
+# AT-D14: guideline extended to discover with ownership rule
+GUIDELINE_SECTION=$(sed -n '/^### Plan-task integration/,/^### Worktree/p' "$GUIDELINE_FILE")
+if grep -qF 'buildit-feature-discover' <<<"$GUIDELINE_SECTION" && grep -qE 'Readiness.*buildit-feature-discover|buildit-feature-discover.*Readiness' <<<"$GUIDELINE_SECTION"; then
+  ok "AT-D14: guideline covers discover and Readiness ownership"
+else
+  fail "AT-D14: guideline does not cover discover / Readiness ownership"
+fi
+
 # Dual-location deployment: source and deployed copy must both exist
 require_file "$SKILL_DEPLOYED"
 
