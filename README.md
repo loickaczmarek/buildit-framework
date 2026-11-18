@@ -1,6 +1,6 @@
 # buildit — Multi-Agent Development Workflow
 
-A framework of 8 skills that drive the development loop feature by feature. The default path is `buildit-feature-run` — it orchestrates the full cycle unattended. A manual sequence (start → build → validate → ship) is available for features needing mid-cycle human judgement.
+A framework of 9 skills that drive the development loop feature by feature. The default path is `buildit-feature-run` — it orchestrates the full cycle unattended. A manual sequence (start → build → validate → ship) is available for features needing mid-cycle human judgement.
 
 ## Setup
 
@@ -20,6 +20,9 @@ The recommended path for most features — runs the full cycle unattended:
 
 ```
 [buildit-project-bootstrap]  ← new project or resync
+        │
+        ▼
+[buildit-plan]  (optional) ← decompose PRD/spec → ordered tasks
         │
         ▼
 [buildit-feature-discover]  (optional) ← scope vague feature → structured brief
@@ -238,6 +241,27 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
 ---
 
+### `buildit-plan`
+
+**Trigger:** `/buildit-plan [plan-name]`
+
+**When to use:** before starting a batch of features, when the scope is larger than a single feature. Decomposes a PRD, spec, or ad-hoc request into ordered tasks with progress tracking. If the request is already a single well-defined feature, skip this and use `/buildit-feature-discover` or `/buildit-feature-start` directly.
+
+**What it does:**
+1. Detects mode (Claude vs generic) and checks for an existing plan (resume detection)
+2. Collects input: any structured document (PRD, specs, user stories, bullet points) or ad-hoc request
+3. Offers two decomposition paths: fast (auto-decompose then validate) or coaching (collaborative question-driven)
+4. Decomposes into tasks with name, description, acceptance tests, priority, and readiness (`ready` or `needs-scoping`)
+5. Groups tasks into epics if 3 or more tasks; uses flat list otherwise
+6. Creates `.scratch/plan/task-{name}.md` per task and `.scratch/plan/plan.md` with epic index and progress counters
+7. On resume: reads existing plan, proposes cleanup of `.scratch/done/` files older than 7 days and completed epics, enters coaching mode for modifications, re-syncs progress counters
+
+**Ends with:** explicit handoff listing actionable tasks — suggests `/buildit-feature-discover [task-name]` for `needs-scoping` tasks and `/buildit-feature-run [task-name]` for `ready` tasks.
+
+**Design spec:** `docs/buildit/specs/2026-10-22-buildit-plan-design.md`
+
+---
+
 ### `buildit-feature-discover`
 
 **Trigger:** `/buildit-feature-discover [feature-name]`
@@ -264,10 +288,10 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** the default path for most features. Runs the full cycle (start → build → validate → ship) unattended in a single session. Each phase runs in a fresh subagent for context isolation. Fall back to the manual flow only when mid-cycle human judgement is needed.
 
 **What it does:**
-1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent
+1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent. When a matching plan task exists (`.scratch/plan/task-{name}.md`), pre-fills inputs and tracks task status automatically
 2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
 3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
-4. On GO + PASS: delegates `buildit-feature-ship`, then reminds the user that push and PR creation are manual
+4. On GO + PASS: delegates `buildit-feature-ship`, updates plan task status to done if applicable, then reminds the user that push and PR creation are manual
 
 **Guards:**
 - Stops if the tracking file is not found after start (possible subagent failure)
@@ -461,6 +485,7 @@ Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md
 
 ## References
 
+- buildit-plan design: `docs/buildit/specs/2026-10-22-buildit-plan-design.md`
 - buildit-feature-run design: `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
 - Generic test runner detection: `docs/buildit/specs/2026-10-14-generic-test-runner-detection.md`
 - Audit parallel pipeline: `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`

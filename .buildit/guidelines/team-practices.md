@@ -6,6 +6,10 @@
 
 When a skill orchestrates subagents and the first tool-permission-gated operation would otherwise occur inside a subagent, move a real write to an existing coordination file (e.g. `shared-context.md`) into the orchestrator before launching subagents, and pass a "skip" instruction to the subagent to avoid duplication. This surfaces the permission prompt immediately at session start rather than midway through a subagent, improving UX for users who have not pre-allowed permissions.
 
+### Plan-task integration in orchestrators
+
+When `buildit-feature-run` receives a `feature-name` argument, it checks for a matching `.scratch/plan/task-{feature-name}.md` file and manages the task's status lifecycle automatically: `todo` -> `in-progress` at step 0, `in-progress` -> `done` at step 6 (after ship). Plan.md checkbox and progress counters are re-synced at each transition. If no matching task file exists, the orchestrator falls through to existing behavior unchanged.
+
 ### Worktree management
 
 Worktree management is handled internally by the `buildit-worktree` skill. Skills and orchestrators must **not** reference `superpowers:using-git-worktrees` or any external worktree tooling. The framework must remain self-contained; an external dependency on `superpowers:using-git-worktrees` creates a fragile coupling that silently breaks worktree isolation when the skill is absent or changes.

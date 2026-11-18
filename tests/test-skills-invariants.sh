@@ -15,6 +15,7 @@ SKILLS=(
   buildit-project-bootstrap
   buildit-project-audit
   buildit-feature-run
+  buildit-plan
   buildit-worktree
 )
 
