@@ -20,6 +20,19 @@ When you want the full cycle to run unattended in a single session, rather than 
 - `feature-name` — optional kebab-case name; passed to each subagent as argument
 - `--max-cycles N` — maximum number of build/fix cycles before stopping (default 3, must be a positive integer; if N < 1, warn and use default)
 
+## Subagent selection and workflow isolation
+
+For every phase (start, build/fix, validate, and ship), explicitly select the neutral `general-purpose` agent in the delegation tool's agent-type parameter. Each phase skill defines the delegated subagent's role, procedure, and expected output; the subagent must remain neutral rather than layer another persona or workflow on top.
+
+**Fallback:** if `general-purpose` is not available in the harness, use the harness's default unspecialised subagent — never a specialised persona agent — still prepend the isolation preamble, and warn the user once:
+> "`general-purpose` agent not available — using the default unspecialised subagent with the isolation preamble."
+
+**Isolation preamble** — prepend this block verbatim as the first line of every phase subagent prompt (steps 3, 5.2, 5.4 and 6 reference it as `[Isolation preamble — see "Subagent selection and workflow isolation"]`):
+
+> "Remain a neutral execution agent: the requested buildit phase skill defines your role, procedure, and expected output. Execute that skill without adopting an additional persona or substituting another workflow. Do not invoke any skill or agent other than the requested phase skill and the buildit skills and subagents it explicitly references or instructs you to launch (e.g. `buildit-worktree`, the `buildit-feature-validate` §5a config-update subagent). Continue to follow the repository's shared project rules and guidelines."
+
+The ban does not block the buildit skills and subagents a phase skill explicitly references or instructs the subagent to launch (e.g. `buildit-feature-start` → `buildit-worktree`, `buildit-feature-validate` §5a → config-update subagent); everything else stays forbidden. Repository project rules and guidelines still apply.
+
 ## Steps
 
 ### 0. Initialise
@@ -104,9 +117,10 @@ This writes to an existing file — no new files are created, so cancelling afte
 
 ### 3. Subagent: buildit-feature-start
 
-Launch a fresh subagent with the following prompt:
+Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation") with the following prompt:
 
-> "Run /buildit-feature-start [feature-name].
+> "[Isolation preamble — see "Subagent selection and workflow isolation"]
+> Run /buildit-feature-start [feature-name].
 > Use worktree: [yes/no].
 > Description: [description].
 > Acceptance tests: [acceptance-tests list].
@@ -120,6 +134,7 @@ Wait for the subagent to complete.
 Read the tracking file: scan `.scratch/` for `*[feature-name]*.md` outside of `done/`.
 
 If the tracking file is not found after start: stop and warn the user:
+
 > "Tracking file not found after buildit-feature-start — possible subagent failure. Inspect `.scratch/` and re-run manually."
 
 If `use-worktree` is yes: read the `## Worktree path` field from the tracking file as the primary source of the worktree path. As secondary verification, run `git worktree list` and confirm the path appears. Pass this path to subsequent subagents.
@@ -131,12 +146,15 @@ Initialise: `cycle = 0`.
 **Loop:**
 
 1. Increment `cycle`. If `cycle > N`: stop with message:
+
    > "Max cycles (N=[N]) reached without a GO. Loop aborted after [N] cycles. Inspect `.scratch/[tracking-file]` and run `/buildit-feature-build [feature-name]` manually to continue."
 
 2. **Subagent: buildit-feature-build**
 
-   Launch a fresh subagent:
-   > "Run /buildit-feature-build [feature-name]."
+   Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
+
+   > "[Isolation preamble — see "Subagent selection and workflow isolation"]
+   > Run /buildit-feature-build [feature-name]."
    > (Include worktree path if applicable.)
    > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
    > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
@@ -148,15 +166,19 @@ Initialise: `cycle = 0`.
    Read the tracking file status.
 
    If status has not changed from before the subagent ran: stop with message:
+
    > "Tracking file status unchanged after buildit-feature-build — possible subagent failure. Manual inspection required."
 
    If status ≠ `to-validate`: stop with message:
+
    > "Unexpected status '[status]' after buildit-feature-build — manual inspection required."
 
 4. **Subagent: buildit-feature-validate**
 
-   Launch a fresh subagent:
-   > "Run /buildit-feature-validate [feature-name]."
+   Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
+
+   > "[Isolation preamble — see "Subagent selection and workflow isolation"]
+   > Run /buildit-feature-validate [feature-name]."
    > (Include worktree path if applicable.)
    > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
    > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
@@ -168,7 +190,10 @@ Initialise: `cycle = 0`.
    Read the tracking file status.
 
    If status has not changed from `to-validate`: stop with message:
+
    > "Tracking file status unchanged after buildit-feature-validate — possible subagent failure. Manual inspection required."
+
+   Otherwise, route on the status:
 
    - `to-ship` → break the loop (GO)
    - `to-fix` → continue loop (increment cycle, repeat)
@@ -179,8 +204,10 @@ Initialise: `cycle = 0`.
 
 **Subagent: buildit-feature-ship**
 
-Launch a fresh subagent:
-> "Run /buildit-feature-ship [feature-name]."
+Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
+
+> "[Isolation preamble — see "Subagent selection and workflow isolation"]
+> Run /buildit-feature-ship [feature-name]."
 > (Include worktree path if applicable.)
 > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
 > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
@@ -204,6 +231,7 @@ Once the ship subagent completes (and plan updates are done, if applicable), inf
 > Push and PR creation remain manual — run `git push` and open a PR when ready."
 
 If a plan task was tracked, add:
+
 > "Plan task 'task-{feature-name}' marked as done. Progress counters in plan.md updated."
 
 ## End of skill

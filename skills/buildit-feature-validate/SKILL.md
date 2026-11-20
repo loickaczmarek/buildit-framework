@@ -111,13 +111,17 @@ Act within the same context, before closing the session.
 
 Before documenting problems, produce a structured list of the issues found — this is the subagent's input.
 
-Launch a subagent with the following context:
+Launch a subagent with the neutral `general-purpose` agent selected in the delegation tool's agent-type parameter. **Fallback:** if `general-purpose` is not available in the harness, use the harness's default unspecialised subagent — never a specialised persona agent — keep the isolation preamble, and warn the user: "`general-purpose` agent not available — using the default unspecialised subagent with the isolation preamble."
+
+Pass the following context:
 - The structured list of issues (from the review and acceptance phases above)
 - The paths `<rules-file>`, `<guidelines-dir>/team-practices.md`, `<guidelines-dir>/language-framework.md`
 - The current content of each of those files
 
-Subagent instructions:
-> "You are updating project configuration files. For each issue in the list below, identify which configuration would have prevented it and add the corresponding rule to the appropriate file:
+Subagent instructions (the first line is the isolation preamble):
+> "Remain a neutral execution agent: these instructions define your role, procedure, and expected output. Execute only this configuration-update task without adopting an additional persona or substituting another workflow. Do not invoke any skill or agent. Continue to follow the repository's shared project rules and guidelines.
+>
+> You are updating project configuration files. For each issue in the list below, identify which configuration would have prevented it and add the corresponding rule to the appropriate file:
 > - `<rules-file>` → cross-cutting rules (security, global behaviour)
 > - `<guidelines-dir>/team-practices.md` → team conventions, test patterns
 > - `<guidelines-dir>/language-framework.md` → stack constraints, APIs, versions

@@ -156,6 +156,10 @@ Use relative paths for script invocations. Do not cd outside the project root �
 - **`PROJECT_ROOT`** — absolute path detected via `pwd` at orchestrator start
 - **`MODE`** — `claude` if `.claude/` directory exists at project root, `generic` otherwise
 
+### Subagent isolation
+
+Every subagent launched by `buildit-feature-run`, `buildit-project-audit`, and `buildit-feature-validate` (config-update step) uses the neutral `general-purpose` agent and receives an isolation preamble as the first line of its prompt: it executes only the requested skill or task, adopts no extra persona, and invokes no other skill or agent (phase subagents may still use the buildit skills and subagents their phase skill explicitly references or instructs them to launch, e.g. `buildit-worktree` or the `buildit-feature-validate` config-update subagent). If `general-purpose` is unavailable, the harness's default unspecialised subagent is used with the same preamble, and the user is warned.
+
 ### settings.json permission file (Claude mode only)
 
 In Claude mode, a `.claude/settings.json` allowlist reduces per-command permission prompts during automated runs. Run `/buildit-project-bootstrap` to auto-generate this file if absent.
@@ -269,15 +273,16 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** before `buildit-feature-start`, when the feature idea is vague or needs validation against project conventions. If the brief is already clear (name + description + acceptance tests), skip this skill and invoke `/buildit-feature-start` directly.
 
 **What it does:**
-1. Short-circuits if a complete brief is already provided as argument
+1. Detects a matching plan task (`.scratch/plan/task-{name}.md`, created by `/buildit-plan`): locks the feature name to the task name, warns and asks confirmation if the task is already `in-progress` or `done`, and short-circuits to `/buildit-feature-run [task-name]` if the task is already `ready` (re-scope remains possible). Otherwise, short-circuits if a complete brief is already provided as argument
 2. Reads `shared-context.md`, guidelines, and scans existing skills to extract constraints, conventions and potential overlaps
 3. Asks whether external documentation is available (specs, user stories, design doc)
-4. Poses targeted functional questions (problem, users, expected behaviour, success criteria) — adapted to what Phase 1 revealed
+4. Poses targeted functional questions (problem, users, expected behaviour, success criteria) — adapted to what Phase 1 revealed — starting from the plan task description and acceptance tests when a task is detected, without re-asking what they already answer
 5. Translates functional answers into a technical description anchored in project conventions, and surfaces actionable risks
 6. Produces a structured brief: kebab-case name, technical description, acceptance tests, risks & constraints
 7. Presents the brief for user validation; iterates on contested sections only
+8. On validation, when a plan task is detected: writes the brief (description, acceptance tests, risks & constraints) into the task file, sets its Readiness to `ready`, and switches its `plan.md` tag from `[needs-scoping]` to `[ready]`. Never touches the task Status (owned by `buildit-feature-run`); nothing is written if the brief is not validated
 
-**Ends with:** the user chooses between `/buildit-feature-run [feature-name]` (full cycle unattended, recommended) or `/buildit-feature-start [feature-name]` (manual cycle, session by session).
+**Ends with:** the user chooses between `/buildit-feature-run [feature-name]` (full cycle unattended, recommended) or `/buildit-feature-start [feature-name]` (manual cycle, session by session). When a plan task is detected, `/buildit-feature-run [task-name]` is recommended so the task status is tracked.
 
 ---
 

@@ -10,6 +10,8 @@ When a skill orchestrates subagents and the first tool-permission-gated operatio
 
 When `buildit-feature-run` receives a `feature-name` argument, it checks for a matching `.scratch/plan/task-{feature-name}.md` file and manages the task's status lifecycle automatically: `todo` -> `in-progress` at step 0, `in-progress` -> `done` at step 6 (after ship). Plan.md checkbox and progress counters are re-synced at each transition. If no matching task file exists, the orchestrator falls through to existing behavior unchanged.
 
+`buildit-feature-discover` applies the same detection when it receives a `feature-name`: it scopes the task starting from its description and acceptance tests, then on brief validation writes the brief into the task file, sets `## Readiness` to `ready`, and switches the plan.md tag from `[needs-scoping]` to `[ready]`. Field ownership is strict: `## Readiness` (and the plan.md readiness tag) is owned by `buildit-feature-discover`; `## Status` (and the plan.md checkbox and progress counters) is owned by `buildit-feature-run`. Neither skill writes the other's field.
+
 ### Worktree management
 
 Worktree management is handled internally by the `buildit-worktree` skill. Skills and orchestrators must **not** reference `superpowers:using-git-worktrees` or any external worktree tooling. The framework must remain self-contained; an external dependency on `superpowers:using-git-worktrees` creates a fragile coupling that silently breaks worktree isolation when the skill is absent or changes.
@@ -18,11 +20,19 @@ Worktree management is handled internally by the `buildit-worktree` skill. Skill
 
 When a skill evaluates independent dimensions or domains, group them into parallel category subagents rather than a single sequential pass. Launch all subagents in a single message with multiple Agent tool calls. Each category's findings should be critiqued independently by a dedicated critique subagent that receives only that category's findings — this ensures deeper, focused critique and prevents cross-category contamination. See `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md` for the full design rationale.
 
+### Subagent selection and workflow isolation
+
+Every subagent launched by a skill uses the neutral `general-purpose` agent type. Each skill that launches subagents defines an **Isolation preamble** once, as a named block in a "Subagent selection and workflow isolation" section, and every launch step references that block instead of repeating it. Each skill stays self-contained: there is no include mechanism. The preamble keeps the subagent neutral, so it adopts no persona and does not swap in another workflow. It also forbids invoking any skill or agent except the buildit skills and subagents the delegated skill explicitly references or instructs it to launch (e.g. `buildit-worktree`, the validate §5a config-update subagent). If `general-purpose` is not available in the harness, fall back to the harness's default unspecialised subagent, still include the preamble, and warn the user once. Never fall back to a specialised persona agent. Why: persona agents or unrelated skills must not take over delegated buildit workflows, and the framework must stay portable across harnesses.
+
+### Restriction wording in delegated-subagent preambles
+
+When an orchestrator puts restriction text in front of a wrapped skill's prompt (e.g. "do not invoke any skill or agent"), the exemptions must cover every kind of delegation the wrapped skill itself requires. That means the skills it references *and* the subagents/agents it explicitly tells the agent to launch (e.g. a `general-purpose` config-update subagent). Before finalising the wording, read each wrapped skill and list every skill invocation and agent launch it requires. A ban that a strictly obedient subagent would read as forbidding one of those steps is a correctness bug, because the step gets skipped or done inline. Keep every restatement of the rule (README, `shared-context.md` decisions, design spec) worded exactly like the preamble.
+
 Skills are markdown files defining agent workflows. Each skill lives in its own directory:
 - Canonical source: `skills/<skill-name>/SKILL.md`
 - Deployed copy: `.claude/skills/<skill-name>/SKILL.md`
 
-Both files must be kept in sync at every commit. Changes to a skill are always made in `skills/` first, then mirrored to `.claude/skills/`.
+Both files must be kept in sync at every commit. Changes to a skill are always made in `skills/` first, then mirrored to `.claude/skills/`. In this repository `.claude/skills` is a tracked symlink to `../skills`, so the deployed copy is in sync by construction — edit `skills/` only, never `cp` over the symlinked path; `diff -q` remains a valid sanity check.
 
 **Single source of truth for guideline references.** When a skill needs to document a concept or definition (e.g. craft principles, naming conventions), the canonical text lives in the appropriate guideline file under `.buildit/guidelines/`. The skill file references that guideline by path — it does not copy the content. This avoids DRY violations (diverging definitions) and ensures a single edit point when definitions evolve.
 
@@ -101,6 +111,8 @@ The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_rege
 `tests/run-all.sh` is the single entry point: runs all `test-*.sh` files and exits non-zero if any file fails, printing a combined `Total: X passed, Y failed` summary.
 
 New test files follow the naming pattern `tests/test-<skill-name>.sh`.
+
+Section comments that name a range of test IDs (e.g. "AT-I1 through AT-I6") must match the tests actually defined in that section. Update the comment in the same change whenever you add, remove or renumber a test in the section.
 
 ## Review
 
