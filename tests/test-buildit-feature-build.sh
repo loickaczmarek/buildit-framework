@@ -11,7 +11,7 @@ SKILL="skills/buildit-feature-build/SKILL.md"
 require_text "AT-1: fix mode triggered by Problems to fix section" "$SKILL" 'Problems to fix'
 
 # AT-2: TDD mode writes failing tests before implementing
-require_regex "AT-2: TDD mode writes failing tests first" "$SKILL" '(fail|failing).*(test|impl)'
+in_text_re "AT-2: TDD mode writes failing tests first" "$(section "$SKILL" '### 3a. Write the tests')" 'Tests must fail'
 
 # AT-3: Handoff instruction references /buildit-feature-validate
 require_text "AT-3: handoff references /buildit-feature-validate" "$SKILL" '/buildit-feature-validate'
@@ -36,8 +36,9 @@ require_regex "AT-8: guard warns about current status" "$SKILL" '[Cc]urrent stat
 require_regex "AT-8: guard asks for confirmation" "$SKILL" '[Cc]onfirm|[Cc]ontinue anyway'
 
 # AT-9: Shared-context existence check — stops if shared-context.md missing
-require_regex "AT-9: checks shared-context.md existence" "$SKILL" 'shared-context\.md.*(not exist|does not exist|missing)|exist.*shared-context\.md'
-require_text "AT-9: tells user to run /buildit-project-bootstrap" "$SKILL" '/buildit-project-bootstrap'
+PRE=$(section "$SKILL" '### 0. Prerequisite check')
+in_text "AT-9: prerequisite check tests shared-context.md existence" "$PRE" 'If `.scratch/shared-context.md` does not exist, stop'
+in_text "AT-9: prerequisite check points to /buildit-project-bootstrap" "$PRE" 'run `/buildit-project-bootstrap`'
 
 # --- Worktree working directory (AT-WT-*) ---
 require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
@@ -53,14 +54,13 @@ fi
 require_absent "AT-WD-amend: no commit --amend in build" "$SKILL" 'commit --amend'
 
 # --- Staging contract (AT-SC-*) ---
-STEP5=$(mktemp); trap 'rm -f "$STEP5"' EXIT
-awk '/^### 5\./{f=1} /^## End of skill/{f=0} f' "$SKILL" > "$STEP5"
-require_text "AT-SC-1: step 5 stages feature files" "$STEP5" 'git [-C <worktree-path>] add'
-require_text "AT-SC-1: step 5 checks status --porcelain" "$STEP5" 'status --porcelain'
-require_regex "AT-SC-1: step 5 excludes .scratch/ from the check" "$STEP5" '`\.scratch/`'
-ADD_L=$(grep -nF -- 'git [-C <worktree-path>] add' "$STEP5" | head -1 | cut -d: -f1 || true)
-POR_L=$(grep -nF -- 'status --porcelain' "$STEP5" | head -1 | cut -d: -f1 || true)
-TOV_L=$(grep -nE -- '[Ss]et the status to `to-validate`' "$STEP5" | head -1 | cut -d: -f1 || true)
+STEP5=$(section "$SKILL" '### 5.')
+in_text "AT-SC-1: step 5 stages feature files" "$STEP5" 'git [-C <worktree-path>] add'
+in_text "AT-SC-1: step 5 checks status --porcelain" "$STEP5" 'status --porcelain'
+in_text "AT-SC-1: step 5 excludes .scratch/ from the check" "$STEP5" '`.scratch/`'
+ADD_L=$(line_of <(echo "$STEP5") 'git [-C <worktree-path>] add')
+POR_L=$(line_of <(echo "$STEP5") 'status --porcelain')
+TOV_L=$(line_of <(echo "$STEP5") 'et the status to `to-validate`')
 if [[ -n "$ADD_L" && -n "$POR_L" && -n "$TOV_L" && "$ADD_L" -lt "$TOV_L" && "$POR_L" -lt "$TOV_L" ]]; then
   ok "AT-SC-1: staging and porcelain check happen before setting to-validate"
 else

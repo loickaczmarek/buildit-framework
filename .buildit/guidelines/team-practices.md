@@ -42,7 +42,7 @@ Both files must be kept in sync at every commit. Changes to a skill are always m
 
 **Single source of truth for guideline references.** When a skill needs to document a concept or definition (e.g. craft principles, naming conventions), the canonical text lives in the appropriate guideline file under `.buildit/guidelines/`. The skill file references that guideline by path — it does not copy the content. This avoids DRY violations (diverging definitions) and ensures a single edit point when definitions evolve.
 
-**Rules shared between independently deployed skills.** When several skills must apply the same procedural rule (e.g. the `**Tracking file discovery rule**` in build, validate, ship and run), each skill is deployed standalone and cannot rely on a file the target project may lack. Copy the rule verbatim into each skill as one block (bold heading followed by a contiguous list, no blank line inside), and add a test that extracts each copy (heading to first blank line) and asserts the copies are byte-identical — that test is what keeps it "one rule".
+**Rules shared between independently deployed skills.** When several skills must apply the same procedural rule (e.g. the `**Tracking file discovery rule**` in build, validate, ship and run), each skill is deployed standalone and cannot rely on a file the target project may lack. Copy the rule verbatim into each skill as one block (bold heading followed by a contiguous list, no blank line inside), and register the block in `tests/test-cross-skill-contracts.sh`, which extracts each copy (heading to first blank line, via `named_block`), asserts the whitespace-normalised copies are identical, that the heading appears exactly once per carrier, and that the expected carrier set is complete — that test is what keeps it "one rule".
 
 All skill files must be authored in English. User-facing messages, field labels, step descriptions, and inline comments must not contain strings in any other language.
 
@@ -50,7 +50,7 @@ All skill files must be authored in English. User-facing messages, field labels,
 
 **No hardcoded absolute paths.** Skills must never embed machine-specific or project-specific absolute paths. Use `pwd` to detect the project root at runtime and store it as `PROJECT_ROOT`.
 
-**Operating mode.** Skills that reference agent-specific directories (skills dir, rules file, permissions config) determine their mode at step 0 with the rule below, copied verbatim into each of them (discover, run, plan, validate, ship, audit, bootstrap; `tests/test-mode-detection.sh` keeps the copies identical):
+**Operating mode.** Skills that reference agent-specific directories (skills dir, rules file, permissions config) determine their mode at step 0 with the rule below, copied verbatim into each of them (discover, run, plan, validate, ship, audit, bootstrap; `tests/test-cross-skill-contracts.sh` keeps the copies identical):
 
 **Operating mode rule**
 - The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
@@ -120,13 +120,17 @@ Shared assertion helpers live in `tests/lib/assertions.sh` and must be sourced a
 source "$(dirname "$0")/lib/assertions.sh"
 ```
 
-The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_regex`. Each test file initialises `PASS`/`FAIL` counters via that source — never inline. This avoids duplicating helper definitions across test files while keeping zero external dependencies.
+The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_regex`. Each test file initialises `PASS`/`FAIL` counters via that source — never inline. This avoids duplicating helper definitions across test files while keeping zero external dependencies. Sourcing the library anchors the working directory to the repository root, so every test file (and `tests/run-all.sh`) runs from any cwd with repo-relative paths.
+
+**Section-scoped assertions.** Extract Markdown only through the fence-aware helpers of the library — `section`, `section_body`, `named_block`, `fenced_block`, `count_outside_fences`, `lines_outside_fences`, `line_of`, `normalize` — and assert on the captured text with `in_text` / `in_text_re` / `absent_in_text`. Never write a local awk/sed extractor in a test file, and never assert a generic regex (e.g. `[Ss]top`) against a whole file: scope it to the step that owns the behaviour. Match wrapped prose on `normalize`d text. Pin a full sentence only when it is a machine contract (e.g. the exact `## Last error` line, the `SHIP BLOCKED:` prefix); otherwise assert key tokens within the section. Why: duplicated, non-fence-aware extractors and whole-file regexes made assertions vacuous or blind to line-wrapped text (audit 24-11-2026, finding #22).
+
+**Cross-skill contracts.** Contracts that span several skills — named shared blocks, the status / tracking-file heading / config.md heading vocabularies, and the phase handoff (start → build → validate → ship, `## Branch` writer/readers, `## Last error` writers/reporter/clearers, run's ship verification) — are tested in `tests/test-cross-skill-contracts.sh`. Per-skill test files keep content checks on their own skill only. When a change adds a phase, a status, a tracking-file heading, a config.md heading or a shared block, update the contract test in the same change.
 
 `tests/run-all.sh` is the single entry point: runs all `test-*.sh` files and exits non-zero if any file fails, printing a combined `Total: X passed, Y failed` summary.
 
 New test files follow the naming pattern `tests/test-<skill-name>.sh`.
 
-README-wide assertions (structure, Project configuration, Plan files, skill count, diagram alignment) live in `tests/test-readme.sh`; per-skill test files keep their existing checks on that skill's README section. When slicing a README section by heading, use a fence-aware extractor so `## ` headings inside fenced example blocks do not end the section.
+README-wide assertions (structure, Project configuration, Plan files, skill count, diagram alignment) live in `tests/test-readme.sh`; per-skill test files keep their existing checks on that skill's README section. When slicing a README section by heading, use the library's fence-aware `section` helper so `## ` headings inside fenced example blocks do not end the section.
 
 `tests/test-readme.sh` must assert that each skill heading (`### <skill-name>` for every directory in `skills/`) and each top-level README section heading appears exactly once in README.md. When a change rewrites existing documented behaviour (reordered or renamed steps), the per-skill test must also add a negative assertion that the superseded wording is absent from the whole README, not only from the first sliced section. A test that slices only the first matching section, plus presence-only `grep` checks, cannot detect a stale copy left next to the new text. Why: AT-CC-5 in `tests/test-buildit-feature-ship.sh` stopped reading at the first `---`, so a duplicated, contradicting ship section still passed the full suite (669/0).
 

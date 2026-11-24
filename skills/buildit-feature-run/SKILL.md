@@ -153,7 +153,7 @@ Read the tracking file, located with this rule (named lookup with `[feature-name
 4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
 5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
 
-If the tracking file is not found after start: stop and warn the user:
+If the tracking file is not found after start (no match), report it with this message instead of the rule's general "No tracking file found" message — the rule's several-matches branch still applies as written. Stop and warn the user:
 
 > "Tracking file not found after buildit-feature-start — possible subagent failure. Inspect `.scratch/` and re-run manually."
 

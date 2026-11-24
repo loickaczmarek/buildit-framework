@@ -4,12 +4,10 @@
 # next heading as its value (audit findings #6, #16).
 
 set -uo pipefail
-cd "$(dirname "$0")/.."
-source tests/lib/assertions.sh
+source "$(dirname "$0")/lib/assertions.sh"
 
 PHRASE='read only within that heading (stop at the next heading); a line starting with `#` is never a value'
 GUIDELINE=".buildit/guidelines/language-framework.md"
-README="README.md"
 CONSUMERS=(
   buildit-feature-validate
   buildit-feature-ship
@@ -24,23 +22,11 @@ require_text "AT-1: guideline names the Config value rule" "$GUIDELINE" "**Confi
 require_text "AT-1: guideline states the boundary phrase" "$GUIDELINE" "$PHRASE"
 require_text "AT-1: guideline treats an empty value as absent" "$GUIDELINE" "an empty value is treated exactly like an absent one"
 
-# AT-1/AT-4: every consumer restates the phrase and cites the guideline
+# AT-1: every consumer cites the Config value rule. That each consumer restates the
+# boundary phrase and that no unbounded read remains (wrap-insensitive) is checked in
+# test-cross-skill-contracts.sh (named blocks).
 for skill in "${CONSUMERS[@]}"; do
-  file="skills/$skill/SKILL.md"
-  require_text "AT-4: $skill states the boundary phrase" "$file" "$PHRASE"
-  require_text "AT-1: $skill cites the Config value rule" "$file" "Config value rule"
-done
-require_text "AT-4: README states the boundary phrase" "$README" "$PHRASE"
-
-# AT-4: no unbounded read remains — every line describing the read carries the boundary
-for file in "$GUIDELINE" "$README" "${CONSUMERS[@]/#/skills/}"; do
-  [[ "$file" == skills/* ]] && file="$file/SKILL.md"
-  offending=$(grep -nF 'first non-empty, non-comment line' "$file" | grep -vF 'read only within that heading' || true)
-  if [[ -z "$offending" ]]; then
-    ok "AT-4: no unbounded config read in $file"
-  else
-    fail "AT-4: unbounded config read in $file — $offending"
-  fi
+  require_text "AT-1: $skill cites the Config value rule" "skills/$skill/SKILL.md" "Config value rule"
 done
 
 # AT-2: empty values fall back

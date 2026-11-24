@@ -1,50 +1,22 @@
 #!/usr/bin/env bash
 # Structural tests for the Operating mode rule: one agent-identity rule, defined in the
-# team-practices guideline and copied verbatim into every skill that detects the mode.
+# team-practices guideline and copied verbatim into every skill that detects the mode
+# (copy identity: test-cross-skill-contracts.sh).
 
 set -euo pipefail
 
 source "$(dirname "$0")/lib/assertions.sh"
 
 GUIDELINE=".buildit/guidelines/team-practices.md"
-SKILLS=(
-  "skills/buildit-feature-discover/SKILL.md"
-  "skills/buildit-feature-run/SKILL.md"
-  "skills/buildit-plan/SKILL.md"
-  "skills/buildit-feature-validate/SKILL.md"
-  "skills/buildit-feature-ship/SKILL.md"
-  "skills/buildit-project-audit/SKILL.md"
-  "skills/buildit-project-bootstrap/SKILL.md"
-)
 BOOTSTRAP="skills/buildit-project-bootstrap/SKILL.md"
 README="README.md"
-HEADING='**Operating mode rule**'
 
-# Prints the rule block: from the heading line to the first blank line.
-extract_rule() {
-  awk -v h="$HEADING" '$0 == h {on=1} on && /^$/ {exit} on {print}' "$1"
-}
-
-# AT-1: one rule, defined in the guideline and copied byte-identically into each skill
-REFERENCE="$(extract_rule "$GUIDELINE")"
+# AT-1: the rule is defined in the guideline. Its presence in every carrier skill and
+# the identity of each copy are checked in test-cross-skill-contracts.sh (named blocks).
+REFERENCE="$(named_block "$GUIDELINE" '**Operating mode rule**')"
 if [[ -n "$REFERENCE" ]]; then ok "AT-1: rule block present in $GUIDELINE"; else fail "AT-1: rule block missing in $GUIDELINE"; fi
-for f in "$GUIDELINE" "${SKILLS[@]}"; do
-  count="$(grep -cxF -- "$HEADING" "$f" || true)"
-  if [[ "$count" -eq 1 ]]; then ok "AT-1: rule heading appears once in $f"; else fail "AT-1: rule heading appears $count times in $f (expected 1)"; fi
-done
-for f in "${SKILLS[@]}"; do
-  rule="$(extract_rule "$f")"
-  if [[ -n "$rule" && "$rule" == "$REFERENCE" ]]; then
-    ok "AT-1: rule block identical to the guideline copy in $f"
-  else
-    fail "AT-1: rule block missing or differs from the guideline copy in $f"
-  fi
-done
 
-check_rule() {
-  local label="$1" pattern="$2"
-  if grep -qF -- "$pattern" <<<"$REFERENCE"; then ok "$label"; else fail "$label — not in rule: '$pattern'"; fi
-}
+check_rule() { in_text "$1" "$REFERENCE" "$2"; }
 check_rule "AT-1: mode is the agent identity" 'identity of the agent'
 check_rule "AT-1: Claude mode value" '`MODE` = `claude`'
 check_rule "AT-1: Generic mode value" '`MODE` = `generic`'

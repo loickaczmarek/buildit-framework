@@ -100,14 +100,15 @@ require_regex "AT-D12: handoff recommends feature-run with the bare name" "$SKIL
 require_text "AT-D12: handoff start command uses the bare name" "$SKILL_SRC" '`/buildit-feature-start {feature-name}`'
 
 # Manual flow (audit #12): the plan handoff says start → ship does not track the plan task
-p5_manual() { if awk 'index($0,"Plan handoff:")==1{f=1} f' "$SKILL_SRC" | grep -qF -- "$2"; then ok "$1"; else fail "$1 — not in plan handoff: '$2'"; fi; }
+HANDOFF=$(section "$SKILL_SRC" 'Plan handoff:')
+p5_manual() { in_text "$1" "$HANDOFF" "$2"; }
 p5_manual "AT-M1: manual path does not track plan status" 'the manual path (start → ship) does not track plan status'
 p5_manual "AT-M1: user updates the task status" 'update the task `## Status` to `done`'
 p5_manual "AT-M1: user ticks the plan.md checkbox" 'tick its `plan.md` checkbox'
 p5_manual "AT-M1: user recomputes progress counters" 'recompute the progress counters'
 
 # AT-D13: README discover section documents the plan integration
-README_SECTION=$(sed -n '/^### `buildit-feature-discover`/,/^---/p' "$README_FILE")
+README_SECTION=$(section "$README_FILE" '### `buildit-feature-discover`' '---')
 if grep -qF '.scratch/plan/task-' <<<"$README_SECTION" && grep -qF 'needs-scoping' <<<"$README_SECTION"; then
   ok "AT-D13: README discover section documents plan integration"
 else
@@ -115,7 +116,7 @@ else
 fi
 
 # AT-D14: guideline extended to discover with ownership rule
-GUIDELINE_SECTION=$(sed -n '/^### Plan-task integration/,/^### Worktree/p' "$GUIDELINE_FILE")
+GUIDELINE_SECTION=$(section "$GUIDELINE_FILE" '### Plan-task integration')
 if grep -qF 'buildit-feature-discover' <<<"$GUIDELINE_SECTION" && grep -qE 'Readiness.*buildit-feature-discover|buildit-feature-discover.*Readiness' <<<"$GUIDELINE_SECTION"; then
   ok "AT-D14: guideline covers discover and Readiness ownership"
 else
@@ -123,8 +124,8 @@ else
 fi
 
 # --- Task synchronization (plan-task-synchronization) ---
-P5=$(awk 'index($0,"### Phase 5")==1{f=1} f&&index($0,"## End of skill")==1{exit} f' "$SKILL_SRC")
-p5_in() { if grep -qF -- "$2" <<<"$P5"; then ok "$1"; else fail "$1 — pattern not found in Phase 5: '$2'"; fi; }
+P5=$(section "$SKILL_SRC" '### Phase 5')
+p5_in() { in_text "$1" "$P5" "$2"; }
 p5_in "AT-SYNC-11: Phase 5 sync block" '**Synchronize validated brief**'
 p5_in "AT-SYNC-11: one confirmation" 'ONE confirmation'
 p5_in "AT-SYNC-11: pushes description, AT and readiness only" 'description, acceptance tests and readiness'

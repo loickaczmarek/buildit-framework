@@ -7,18 +7,6 @@ source "$(dirname "$0")/lib/assertions.sh"
 
 README="README.md"
 
-# Section from a heading line (exact prefix) to the next heading of the same
-# level, ignoring headings inside fenced code blocks (``` or ~~~).
-md_section() { # file, start-prefix, end-prefix
-  awk -v s="$2" -v e="$3" '
-    /^(```|~~~)/ { fence = !fence }
-    !f && index($0, s) == 1 { f = 1; print; next }
-    f && !fence && index($0, e) == 1 { exit }
-    f' "$1"
-}
-in_section() { # label, text, fixed pattern
-  if grep -qF -- "$3" <<<"$2"; then ok "$1"; else fail "$1 — pattern not found in section: '$3'"; fi
-}
 in_section_i() { # label, text, case-insensitive regex
   if grep -qiE -- "$3" <<<"$2"; then ok "$1"; else fail "$1 — regex not found in section: '$3'"; fi
 }
@@ -32,28 +20,28 @@ require_text "AT-R2: README states $N skills" "$README" "$N skills"
 require_regex "AT-R2: README notes the internal skill" "$README" "$N skills \\([0-9]+ user-facing \\+ the internal \`buildit-worktree\`\\)"
 
 # AT-R3: Project configuration section
-CONFIG=$(md_section "$README" '## Project configuration' '## ')
+CONFIG=$(section "$README" '## Project configuration' '## ')
 if [[ -n "$CONFIG" ]]; then ok "AT-R3: Project configuration section exists"; else fail "AT-R3: Project configuration section missing"; fi
 for key in '## Test command' '## Base branch' '## Task synchronization' '## Synchronization method' '## Synchronization tag'; do
-  in_section "AT-R3: Project configuration documents $key" "$CONFIG" "$key"
+  in_text "AT-R3: Project configuration documents $key" "$CONFIG" "$key"
 done
 in_section_i "AT-R3: unconfigured is not the same as disabled" "$CONFIG" 'unconfigured, not disabled|unconfigured is not (the same as )?disabled'
 in_section_i "AT-R3: bans secrets" "$CONFIG" 'secret'
-in_section "AT-R3: example file" "$CONFIG" '```markdown'
+in_text "AT-R3: example file" "$CONFIG" '```markdown'
 
 # AT-R4: Plan files section
-PLAN_FILES=$(md_section "$README" '## Plan files' '## ')
+PLAN_FILES=$(section "$README" '## Plan files' '## ')
 if [[ -n "$PLAN_FILES" ]]; then ok "AT-R4: Plan files section exists"; else fail "AT-R4: Plan files section missing"; fi
 for p in 'plan.md' 'task-{name}.md' 'todo' 'in-progress' 'done' 'Readiness' '## Synchronization' 'Link:' 'Pending:' 'buildit-feature-run' 'buildit-feature-discover' 'buildit-plan'; do
-  in_section "AT-R4: Plan files section mentions $p" "$PLAN_FILES" "$p"
+  in_text "AT-R4: Plan files section mentions $p" "$PLAN_FILES" "$p"
 done
 for sk in buildit-plan buildit-feature-discover buildit-feature-run; do
-  RS=$(md_section "$README" "### \`$sk\`" '---')
-  in_section "AT-R4: $sk section points to Plan files" "$RS" '(#plan-files)'
+  RS=$(section "$README" "### \`$sk\`" '---')
+  in_text "AT-R4: $sk section points to Plan files" "$RS" '(#plan-files)'
 done
 
 # AT-R5: buildit-worktree inside the skills list under an Internal subheading
-SKILLS=$(md_section "$README" '## Skills' '## ')
+SKILLS=$(section "$README" '## Skills' '## ')
 if grep -qE -- '^(#+ |\*\*)Internal' <<<"$SKILLS" && grep -qF -- '### `buildit-worktree`' <<<"$SKILLS"; then
   ok "AT-R5: buildit-worktree listed in Skills under an Internal subheading"
 else
@@ -63,7 +51,7 @@ require_absent "AT-R5: no stray (internal) heading outside the skills list" "$RE
 require_absent "AT-R5: Manual flow skills is not a ### heading" "$README" '^### Manual flow skills'
 
 # AT-R6: manual-flow diagram loop border aligned in a single column
-MANUAL=$(md_section "$README" '## Manual flow' '## ')
+MANUAL=$(section "$README" '## Manual flow' '## ')
 if python3 -I - "$MANUAL" <<'PY'
 import sys, unicodedata
 def width(text):  # display columns: wide/fullwidth chars (e.g. emoji) take 2
@@ -77,33 +65,30 @@ PY
 then ok "AT-R6: manual-flow loop border aligned"; else fail "AT-R6: manual-flow loop border misaligned"; fi
 
 # AT-R7: Running tests part
-TESTS=$(md_section "$README" '## Running tests' '## ')
-in_section "AT-R7: Running tests documents run-all" "$TESTS" 'bash tests/run-all.sh'
-in_section "AT-R7: Running tests documents assertions helper" "$TESTS" 'tests/lib/assertions.sh'
+TESTS=$(section "$README" '## Running tests' '## ')
+in_text "AT-R7: Running tests documents run-all" "$TESTS" 'bash tests/run-all.sh'
+in_text "AT-R7: Running tests documents assertions helper" "$TESTS" 'tests/lib/assertions.sh'
 in_section_i "AT-R7: Running tests documents content-assertion convention" "$TESTS" 'content.assertion'
 
 # AT-R8: validate and ship descriptions reflect staged diff, base branch, staging guard
-VALIDATE=$(md_section "$README" '### `buildit-feature-validate`' '---')
-in_section "AT-R8: validate mentions staged diff" "$VALIDATE" '--cached --merge-base'
-in_section "AT-R8: validate mentions base branch" "$VALIDATE" 'Base branch'
+VALIDATE=$(section "$README" '### `buildit-feature-validate`' '---')
+in_text "AT-R8: validate mentions staged diff" "$VALIDATE" '--cached --merge-base'
+in_text "AT-R8: validate mentions base branch" "$VALIDATE" 'Base branch'
 in_section_i "AT-R8: validate mentions staging guard" "$VALIDATE" 'staging guard'
-SHIP=$(md_section "$README" '### `buildit-feature-ship`' '---')
-in_section "AT-R8: ship mentions staged diff" "$SHIP" '--cached --merge-base'
-in_section "AT-R8: ship mentions base branch" "$SHIP" 'Base branch'
+SHIP=$(section "$README" '### `buildit-feature-ship`' '---')
+in_text "AT-R8: ship mentions staged diff" "$SHIP" '--cached --merge-base'
+in_text "AT-R8: ship mentions base branch" "$SHIP" 'Base branch'
 
 # Plan handoffs use the bare name; the manual flow does not track the plan task (audit #12, #13)
 require_absent "AT-R10: no [task-name] placeholder" "$README" '\[task-name\]'
-MANUAL=$(md_section "$README" '## Manual flow (advanced)' '## ')
-DISCOVER=$(sed -n '/^### `buildit-feature-discover`/,/^---/p' "$README")
+MANUAL=$(section "$README" '## Manual flow (advanced)')
+DISCOVER=$(section "$README" '### `buildit-feature-discover`' '---')
 for sec in MANUAL DISCOVER; do
   if grep -qF -- 'does not track plan status' <<<"${!sec}"; then ok "AT-R11: $sec section says the manual path does not track the plan task"; else fail "AT-R11: $sec section misses the manual-path plan note"; fi
 done
 
 # AT-R9: each skill heading and each top-level section appears exactly once
 # (a duplicated block left two contradicting ship sections in the README)
-count_outside_fences() { # file, exact line
-  awk -v l="$2" '/^(```|~~~)/ { fence = !fence } !fence && $0 == l { n++ } END { print n + 0 }' "$1"
-}
 for d in skills/*/; do
   sk=$(basename "$d")
   n=$(count_outside_fences "$README" "### \`$sk\`")
@@ -112,7 +97,7 @@ done
 while IFS= read -r h; do
   n=$(count_outside_fences "$README" "$h")
   if [[ "$n" -eq 1 ]]; then ok "AT-R9: '$h' appears once"; else fail "AT-R9: '$h' must appear exactly once (found $n)"; fi
-done < <(awk '/^(```|~~~)/ { fence = !fence } !fence && /^## /' "$README" | sort -u)
+done < <(lines_outside_fences "$README" '^## ' | sort -u)
 n=$(grep -c '^\*\*Manual flow skills\*\*' "$README" || true)
 if [[ "$n" -eq 1 ]]; then ok "AT-R9: Manual flow skills block appears once"; else fail "AT-R9: Manual flow skills block must appear exactly once (found $n)"; fi
 

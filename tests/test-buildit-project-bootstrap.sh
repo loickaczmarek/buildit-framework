@@ -49,7 +49,7 @@ require_text "AT-11: stores test command in .buildit/config.md" "$SKILL" '.build
 
 # AT-SYNC-12: optional task synchronization configuration
 require_text "AT-SYNC-12: optional sync step" "$SKILL" '### 6b. Configure task synchronization (optional)'
-TPL=$(awk 'index($0,"# Project Configuration")==1{f=1} f&&index($0,"~~~")==1{exit} f' "$SKILL")
+TPL=$(fenced_block "$SKILL" '# Project Configuration')
 for h in '## Task synchronization' '## Synchronization method' '## Synchronization tag'; do
   if grep -qF -- "$h" <<<"$TPL"; then ok "AT-SYNC-12: config template has $h"; else fail "AT-SYNC-12: config template lacks $h"; fi
 done
@@ -72,35 +72,30 @@ else
 fi
 
 # --- Staging contract (AT-SC-*) ---
-RULES_TPL=$(mktemp); trap 'rm -f "$RULES_TPL"' EXIT
-awk '/^`<rules-file>`:/{f=1;next} /^`<guidelines-dir>\/team-practices\.md`:/{f=0} f' "$SKILL" > "$RULES_TPL"
-require_regex "AT-SC-2: rules-file template contains the staging rule" "$RULES_TPL" 'to-validate.*stage.*git status|stage.*git status.*to-validate'
+RULES_TPL=$(section_body "$SKILL" '`<rules-file>`:' '`<guidelines-dir>/team-practices.md`:')
+in_text_re "AT-SC-2: rules-file template contains the staging rule" "$RULES_TPL" 'to-validate.*stage.*git status|stage.*git status.*to-validate'
 
 # --- Bootstrap templates audit 24-11-2026 (AT-TB-*) ---
-section() { awk -v s="$2" -v e="$3" 'index($0,s)==1{f=1;print;next} f&&index($0,e)==1{exit} f' "$1"; }
-in_sec() { if grep -qF -- "$3" <<<"$2"; then ok "$1"; else fail "$1 — pattern not found in section: '$3'"; fi; }
-in_sec_re() { if grep -qE -- "$3" <<<"$2"; then ok "$1"; else fail "$1 — regex not found in section: '$3'"; fi; }
-not_in_sec() { if grep -qE -- "$3" <<<"$2"; then fail "$1 — pattern must be absent: '$3'"; else ok "$1"; fi; }
 README="README.md"
 RUN_SKILL="skills/buildit-feature-run/SKILL.md"
 S2=$(section "$SKILL" '### 2. Detect workflow configuration files' '### 2b.')
 TP_TPL=$(section "$SKILL" '`<guidelines-dir>/team-practices.md`:' '`<guidelines-dir>/language-framework.md`')
 CP_TPL=$(section "$SKILL" '`<guidelines-dir>/craft-principles.md`:' '`.scratch/shared-context.md`:')
 S9=$(section "$SKILL" '### 9. Commit' '## End of skill')
-END=$(section "$SKILL" '## End of skill' '@@none@@')
+END=$(section "$SKILL" '## End of skill')
 
 # AT-TB-1: craft-principles.md detected, templated, and indexed by the rules file
-in_sec "AT-TB-1: step 2 detects craft-principles.md" "$S2" '<guidelines-dir>/craft-principles.md'
+in_text "AT-TB-1: step 2 detects craft-principles.md" "$S2" '<guidelines-dir>/craft-principles.md'
 if [[ -n "$CP_TPL" ]]; then ok "AT-TB-1: craft-principles.md template present"; else fail "AT-TB-1: craft-principles.md template missing"; fi
-for p in DRY KISS YAGNI; do in_sec "AT-TB-1: craft-principles template covers $p" "$CP_TPL" "## $p"; done
-require_text "AT-TB-1: rules-file template indexes craft-principles.md" "$RULES_TPL" '.buildit/guidelines/craft-principles.md'
+for p in DRY KISS YAGNI; do in_text "AT-TB-1: craft-principles template covers $p" "$CP_TPL" "## $p"; done
+in_text "AT-TB-1: rules-file template indexes craft-principles.md" "$RULES_TPL" '.buildit/guidelines/craft-principles.md'
 require_text "AT-TB-1: this repo's rules file indexes craft-principles.md" ".claude/CLAUDE.md" '.buildit/guidelines/craft-principles.md'
 
 # AT-TB-2: 6 review dimensions and the full tracking-file section list
-in_sec "AT-TB-2: team-practices template has the Craft principles dimension" "$TP_TPL" '- Craft principles:'
+in_text "AT-TB-2: team-practices template has the Craft principles dimension" "$TP_TPL" '- Craft principles:'
 DIMS=$(awk '/^Mandatory evaluation dimensions:/{f=1;next} f&&/^- /{n++;next} f{exit} END{print n+0}' <<<"$TP_TPL")
 if [[ "$DIMS" -eq 6 ]]; then ok "AT-TB-2: 6 review dimensions"; else fail "AT-TB-2: expected 6 review dimensions, found $DIMS"; fi
-in_sec "AT-TB-2: full tracking-file section list" "$TP_TPL" 'Tracking file sections: Status · Branch · Worktree path · Goal · Acceptance Tests · Plan · Progress · Problems to fix · Last error'
+in_text "AT-TB-2: full tracking-file section list" "$TP_TPL" 'Tracking file sections: Status · Branch · Worktree path · Goal · Acceptance Tests · Plan · Progress · Problems to fix · Last error'
 
 # AT-TB-3: anchored cd patterns, honest security note, one worktree permission string
 for f in "$SKILL" "$README"; do
@@ -116,29 +111,29 @@ require_text "AT-TB-3: run uses Bash(cd */.worktrees/*)" "$RUN_SKILL" '`Bash(cd 
 require_regex "AT-TB-3: run says the chained command needs its own rule" "$RUN_SKILL" 'each (`&&`|&&) subcommand|each subcommand'
 
 # AT-TB-4: explicit staging and gitignored settings.local.json
-not_in_sec "AT-TB-4: no directory-wide staging (Claude)" "$S9" 'git add \.claude/ \.buildit/ \.scratch/'
-not_in_sec "AT-TB-4: no directory-wide staging (Generic)" "$S9" 'git add \.agents/guidelines/project-rules\.md \.buildit/ \.scratch/'
-not_in_sec "AT-TB-4: no git add of a bare directory" "$S9" 'git add[^`]* (\.claude|\.buildit|\.scratch)/( |$)'
-in_sec "AT-TB-4: stages .claude/settings.json explicitly" "$S9" '.claude/settings.json'
-in_sec "AT-TB-4: stages craft-principles.md explicitly" "$S9" '.buildit/guidelines/craft-principles.md'
-in_sec "AT-TB-4: ensures settings.local.json is gitignored" "$S9" '.claude/settings.local.json'
-in_sec "AT-TB-4: stages .gitignore" "$S9" 'git add .gitignore'
+absent_in_text "AT-TB-4: no directory-wide staging (Claude)" "$S9" 'git add \.claude/ \.buildit/ \.scratch/'
+absent_in_text "AT-TB-4: no directory-wide staging (Generic)" "$S9" 'git add \.agents/guidelines/project-rules\.md \.buildit/ \.scratch/'
+absent_in_text "AT-TB-4: no git add of a bare directory" "$S9" 'git add[^`]* (\.claude|\.buildit|\.scratch)/( |$)'
+in_text "AT-TB-4: stages .claude/settings.json explicitly" "$S9" '.claude/settings.json'
+in_text "AT-TB-4: stages craft-principles.md explicitly" "$S9" '.buildit/guidelines/craft-principles.md'
+in_text "AT-TB-4: ensures settings.local.json is gitignored" "$S9" '.claude/settings.local.json'
+in_text "AT-TB-4: stages .gitignore" "$S9" 'git add .gitignore'
 require_regex "AT-TB-4: this repo ignores .claude/settings.local.json" ".gitignore" '^\.claude/settings\.local\.json$'
 
 # AT-TB-5: no "workflow v2", closing message recommends run, description has no "audit"
 require_absent "AT-TB-5: bootstrap has no 'workflow v2'" "$SKILL" 'workflow v2'
 require_absent "AT-TB-5: README has no 'workflow v2'" "$README" 'workflow v2'
-in_sec "AT-TB-5: closing message recommends /buildit-feature-run" "$END" '/buildit-feature-run'
+in_text "AT-TB-5: closing message recommends /buildit-feature-run" "$END" '/buildit-feature-run'
 if grep -E '^description:' "$SKILL" | grep -qi 'audit'; then fail "AT-TB-5: description must not use 'audit'"; else ok "AT-TB-5: description does not use 'audit'"; fi
 
 # AT-TB-8: Progress line carries the NO-GO cycle count and the Last error convention
-in_sec "AT-TB-8: template states the ### NO-GO cycle count" "$TP_TPL" '`### NO-GO cycle`'
-in_sec "AT-TB-8: template states the ## Last error convention" "$TP_TPL" '`## Last error`'
+in_text "AT-TB-8: template states the ### NO-GO cycle count" "$TP_TPL" '`### NO-GO cycle`'
+in_text "AT-TB-8: template states the ## Last error convention" "$TP_TPL" '`## Last error`'
 
 # AT-TB-9: Coring summary matches the steps actually run
 CORING=$(grep -F -- '**Coring summary:**' "$SKILL" || true)
-in_sec_re "AT-TB-9: coring summary covers the full path 4a–4f" "$CORING" 'full path[^;]*4a–4f'
-in_sec_re "AT-TB-9: coring summary covers the fast path 4e and 4f only" "$CORING" 'fast path[^;]*4e and 4f'
+in_text_re "AT-TB-9: coring summary covers the full path 4a–4f" "$CORING" 'full path[^;]*4a–4f'
+in_text_re "AT-TB-9: coring summary covers the fast path 4e and 4f only" "$CORING" 'fast path[^;]*4e and 4f'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

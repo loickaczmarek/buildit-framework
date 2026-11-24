@@ -142,7 +142,7 @@ fi
 # --- Neutral subagent isolation (AT-I1 through AT-I5) ---
 
 ISO_HEADING='## Subagent selection and workflow isolation'
-ISO_SECTION=$(awk -v h="$ISO_HEADING" '$0 == h {f=1; next} f && /^## / {exit} f' "$SKILL")
+ISO_SECTION=$(section_body "$SKILL" "$ISO_HEADING")
 
 require_text "AT-I1: isolation section present" "$SKILL" "$ISO_HEADING"
 if grep -qF -- 'general-purpose' <<<"$ISO_SECTION"; then ok "AT-I1b: general-purpose agent required"; else fail "AT-I1b: general-purpose not required in isolation section"; fi

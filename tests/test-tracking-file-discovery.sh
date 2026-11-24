@@ -14,29 +14,12 @@ PHASES=(
 )
 VALIDATE="skills/buildit-feature-validate/SKILL.md"
 AUDIT="skills/buildit-project-audit/SKILL.md"
-HEADING='**Tracking file discovery rule**'
 
-# Prints the rule block: from the heading line to the first blank line.
-extract_rule() {
-  awk -v h="$HEADING" '$0 == h {on=1} on && /^$/ {exit} on {print}' "$1"
-}
+# AT-1: the rule content (reference copy: build). Presence in every phase skill and the
+# identity of each copy are checked in test-cross-skill-contracts.sh (named blocks).
+REFERENCE="$(named_block "${PHASES[0]}" '**Tracking file discovery rule**')"
 
-# AT-1: one discovery rule, stated identically in every phase skill
-REFERENCE="$(extract_rule "${PHASES[0]}")"
-for f in "${PHASES[@]}"; do
-  rule="$(extract_rule "$f")"
-  if [[ -n "$rule" ]]; then ok "AT-1: rule block present in $f"; else fail "AT-1: rule block missing in $f"; fi
-  if [[ -n "$rule" && "$rule" == "$REFERENCE" ]]; then
-    ok "AT-1: rule block identical to the build copy in $f"
-  else
-    fail "AT-1: rule block differs from the build copy in $f"
-  fi
-done
-
-check_rule() {
-  local label="$1" pattern="$2"
-  if grep -qF -- "$pattern" <<<"$REFERENCE"; then ok "$label"; else fail "$label — not in rule: '$pattern'"; fi
-}
+check_rule() { in_text "$1" "$REFERENCE" "$2"; }
 check_rule "AT-1: candidates need a ## Status heading" '`## Status` heading'
 for s in to-build building to-validate validating to-fix to-ship; do
   check_rule "AT-1: feature status $s listed" "\`$s\`"
@@ -61,8 +44,8 @@ require_absent "AT-3: no audit report at the .scratch/ top level" "$AUDIT" '\.sc
 
 # AT-4: validate stops when the status is not to-validate, before setting validating
 require_text "AT-4: validate status guard" "$VALIDATE" 'buildit-feature-validate expects `to-validate`'
-guard_line="$(grep -nF 'buildit-feature-validate expects `to-validate`' "$VALIDATE" | head -1 | cut -d: -f1)"
-set_line="$(grep -nF 'Set the status to `validating`' "$VALIDATE" | head -1 | cut -d: -f1)"
+guard_line="$(line_of "$VALIDATE" 'buildit-feature-validate expects `to-validate`')"
+set_line="$(line_of "$VALIDATE" 'Set the status to `validating`')"
 if [[ -n "$guard_line" && -n "$set_line" && "$guard_line" -lt "$set_line" ]]; then
   ok "AT-4: guard precedes setting status to validating"
 else

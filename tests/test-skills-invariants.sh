@@ -6,18 +6,11 @@ set -euo pipefail
 
 source "$(dirname "$0")/lib/assertions.sh"
 
-SKILLS=(
-  buildit-feature-discover
-  buildit-feature-start
-  buildit-feature-build
-  buildit-feature-validate
-  buildit-feature-ship
-  buildit-project-bootstrap
-  buildit-project-audit
-  buildit-feature-run
-  buildit-plan
-  buildit-worktree
-)
+# The skill list is every directory under skills/: a new skill is covered without
+# editing this file, and a skill directory without SKILL.md is a failure.
+SKILLS=()
+for d in skills/*/; do SKILLS+=("$(basename "$d")"); done
+if [[ ${#SKILLS[@]} -gt 0 ]]; then ok "skill list built from skills/*/ (${#SKILLS[@]} skills)"; else fail "no skill directory found under skills/"; fi
 
 for skill in "${SKILLS[@]}"; do
   src="skills/$skill/SKILL.md"
@@ -40,7 +33,8 @@ for skill in "${SKILLS[@]}"; do
   require_text "$skill: ## End of skill section present" "$src" "## End of skill"
 done
 
-# Cross-skill invariant: skills that write to shared-context.md mention sequential access
+# Cross-skill invariant: skills that write to shared-context.md mention sequential access.
+# Kept explicit: "writes shared-context.md" is a behaviour, not a detectable heading.
 WRITERS=(
   buildit-feature-start
   buildit-feature-build
