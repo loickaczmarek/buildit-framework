@@ -59,7 +59,7 @@ If `.scratch/shared-context.md` does not exist, stop with:
   - Git churn: `git log --format=format: --name-only | sort | uniq -c | sort -rn | head -20` to find most-changed files
   - Complexity heuristics: file length, function count, nesting depth for top churn files
   - Cap the hotspot list to the top 10 files and group them by concern area before returning
-  - Fallback: if fewer than 5 files appear in the churn results (e.g. new repo with little history), fall back to scanning the full `skills/` directory (or `src/` if present)
+  - Fallback: if fewer than 5 files appear in the churn results (e.g. new repo with little history), fall back to scanning the source directories detected from the repository layout (whichever of `src/`, `lib/`, `app/`, `packages/`, `skills/`, ... exist, from the build manifest or the top-level tree), excluding `.scratch/`, documentation, vendored and generated directories
   - Return a prioritized list of files/areas to audit
   - Store the result as `AUDIT_SCOPE`
 

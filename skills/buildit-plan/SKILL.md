@@ -290,12 +290,12 @@ Display a progress summary showing all tasks grouped by readiness.
 For tasks marked `needs-scoping`:
 
 > "The following tasks need scoping before implementation:
-> - `task-{name}` — run `/buildit-feature-discover [task-name]` to produce a structured brief"
+> - `task-{name}` — run `/buildit-feature-discover {name}` to produce a structured brief"
 
 For tasks marked `ready`:
 
 > "The following tasks are ready for implementation:
-> - `task-{name}` — run `/buildit-feature-run [task-name]` to execute the full cycle"
+> - `task-{name}` — run `/buildit-feature-run {name}` to execute the full cycle"
 
 Suggest the recommended next step based on priority ordering: start with the highest-priority `ready` task, or scope the highest-priority `needs-scoping` task first.
 

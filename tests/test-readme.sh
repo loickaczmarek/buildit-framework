@@ -91,6 +91,14 @@ SHIP=$(md_section "$README" '### `buildit-feature-ship`' '---')
 in_section "AT-R8: ship mentions staged diff" "$SHIP" '--cached --merge-base'
 in_section "AT-R8: ship mentions base branch" "$SHIP" 'Base branch'
 
+# Plan handoffs use the bare name; the manual flow does not track the plan task (audit #12, #13)
+require_absent "AT-R10: no [task-name] placeholder" "$README" '\[task-name\]'
+MANUAL=$(md_section "$README" '## Manual flow (advanced)' '## ')
+DISCOVER=$(sed -n '/^### `buildit-feature-discover`/,/^---/p' "$README")
+for sec in MANUAL DISCOVER; do
+  if grep -qF -- 'does not track plan status' <<<"${!sec}"; then ok "AT-R11: $sec section says the manual path does not track the plan task"; else fail "AT-R11: $sec section misses the manual-path plan note"; fi
+done
+
 # AT-R9: each skill heading and each top-level section appears exactly once
 # (a duplicated block left two contradicting ship sections in the README)
 count_outside_fences() { # file, exact line

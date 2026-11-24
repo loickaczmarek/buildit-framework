@@ -163,6 +163,11 @@ else
   fail "AT-I5: fallback (default unspecialised subagent + warning) missing"
 fi
 
+# Hotspot fallback scans detected source directories (audit #25)
+require_absent "AT-F1: no skills-first fallback" "$SKILL" 'full `skills/` directory \(or `src/` if present\)'
+require_text "AT-F1: fallback scans detected source directories" "$SKILL" 'source directories detected from the repository layout'
+require_text "AT-F1: fallback exclusions" "$SKILL" 'excluding `.scratch/`, documentation, vendored and generated directories'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

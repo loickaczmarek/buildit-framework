@@ -93,6 +93,8 @@ For complex features where mid-cycle human judgement is needed, run each skill s
 
 **Why clear-context?** Each session accumulates contextual noise. Cutting between phases keeps reasoning clean, especially across build/fix cycles.
 
+**Plan tasks:** the manual path (start → ship) does not track plan status — only `buildit-feature-run` updates `.scratch/plan/`. A plan task stays `todo`: after ship, update the task `## Status` to `done`, tick its `plan.md` checkbox and recompute the progress counters yourself, or use `/buildit-feature-run {name}`, which tracks them.
+
 ---
 
 ## Tracking file structure
@@ -370,7 +372,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 7. When synchronization is enabled, synchronizes selected tasks with the external tool (step 5b) — full reconcile, see [Plan files](#plan-files)
 8. On resume: reads existing plan, proposes human-readable titles for slug-only tasks, shows a read-only synchronization drift report, proposes cleanup of `.scratch/done/` files older than 7 days and completed epics, enters coaching mode for modifications, re-syncs progress counters
 
-**Ends with:** explicit handoff listing actionable tasks — suggests `/buildit-feature-discover [task-name]` for `needs-scoping` tasks and `/buildit-feature-run [task-name]` for `ready` tasks.
+**Ends with:** explicit handoff listing actionable tasks — prints the exact command with the bare task name — `/buildit-feature-discover {name}` for `needs-scoping` tasks and `/buildit-feature-run {name}` for `ready` tasks (the file is `task-{name}.md`; a `task-` prefix passed by mistake is stripped by discover and run).
 
 **Design specs:** `docs/buildit/specs/2026-10-22-buildit-plan-design.md`, `docs/buildit/specs/2026-11-24-plan-task-synchronization.md`
 
@@ -383,8 +385,8 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** before `buildit-feature-start`, when the feature idea is vague or needs validation against project conventions. If the brief is already clear (name + description + acceptance tests), skip this skill and invoke `/buildit-feature-start` directly.
 
 **What it does:**
-1. Detects a matching plan task (`.scratch/plan/task-{name}.md`, created by `/buildit-plan`): locks the feature name to the task name, warns and asks confirmation if the task is already `in-progress` or `done`, and short-circuits to `/buildit-feature-run [task-name]` if the task is already `ready` (re-scope remains possible). Otherwise, short-circuits if a complete brief is already provided as argument
-2. Reads `shared-context.md`, guidelines, and scans existing skills to extract constraints, conventions and potential overlaps
+1. Detects a matching plan task (`.scratch/plan/task-{name}.md`, created by `/buildit-plan`; a leading `task-` in the argument is stripped when only the bare name matches): locks the feature name to the task name, warns and asks confirmation if the task is already `in-progress` or `done`, and short-circuits to `/buildit-feature-run {name}` if the task is already `ready` (re-scope remains possible). Otherwise, short-circuits if a complete brief is already provided as argument
+2. Reads `shared-context.md`, guidelines, and scans the project modules (source directories detected from the repository layout — skills in a skills framework) to extract constraints, conventions and potential overlaps
 3. Asks whether external documentation is available (specs, user stories, design doc)
 4. Poses targeted functional questions (problem, users, expected behaviour, success criteria) — adapted to what Phase 1 revealed — starting from the plan task description and acceptance tests when a task is detected, without re-asking what they already answer
 5. Translates functional answers into a technical description anchored in project conventions, and surfaces actionable risks
@@ -393,7 +395,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 8. On validation, when a plan task is detected: writes the brief (description, acceptance tests, risks & constraints) into the task file, sets its Readiness to `ready`, and switches its `plan.md` tag from `[needs-scoping]` to `[ready]`. Never touches the task Status (owned by `buildit-feature-run`); nothing is written if the brief is not validated
 9. When task synchronization is enabled and the task is linked, pushes its own fields to the external ticket after one confirmation — see [Plan files](#plan-files) for field ownership and `Pending:` entries
 
-**Ends with:** the user chooses between `/buildit-feature-run [feature-name]` (full cycle unattended, recommended) or `/buildit-feature-start [feature-name]` (manual cycle, session by session). When a plan task is detected, `/buildit-feature-run [task-name]` is recommended so the task status is tracked.
+**Ends with:** the user chooses between `/buildit-feature-run [feature-name]` (full cycle unattended, recommended) or `/buildit-feature-start [feature-name]` (manual cycle, session by session). When a plan task is detected, `/buildit-feature-run {name}` is recommended so the task status is tracked: the manual path (start → ship) does not track plan status — the task stays `todo` in `.scratch/plan/`, so after ship you update the task `## Status` to `done`, tick its `plan.md` checkbox and recompute the progress counters yourself.
 
 ---
 

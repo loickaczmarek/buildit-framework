@@ -138,6 +138,11 @@ done
 require_file "$SPEC"
 require_text "AT-SYNC-14: README references spec" "$README" '2026-11-24-plan-task-synchronization.md'
 
+# Handoff commands use the bare task name (audit #13)
+require_absent "AT-H1: no [task-name] placeholder" "$SKILL_SRC" '\[task-name\]'
+require_text "AT-H1: needs-scoping handoff prints the discover command" "$SKILL_SRC" '`/buildit-feature-discover {name}`'
+require_text "AT-H1: ready handoff prints the run command" "$SKILL_SRC" '`/buildit-feature-run {name}`'
+
 # Dual-deployment check: both files must exist and match
 require_file "$SKILL_SRC"
 require_file "$SKILL_DEPLOYED"

@@ -68,7 +68,13 @@ Use `PROJECT_ROOT` and `MODE` in the Subagent autonomy block.
 
 **Detect plan task**
 
-If `feature-name` was provided as argument, check if `.scratch/plan/task-{feature-name}.md` exists.
+If `feature-name` was provided as argument, apply the **Plan task lookup rule**.
+
+**Plan task lookup rule**
+- Look up `.scratch/plan/task-{feature-name}.md`.
+- If it is missing, `feature-name` starts with `task-` and the remainder is non-empty, strip that prefix once and retry the lookup.
+- If the stripped lookup finds the task, use the bare name as `feature-name` from then on and tell the user: "Stripped the `task-` prefix: using feature name `{feature-name}`."
+- If neither lookup finds a task file, there is no plan task.
 
 - If the task file exists:
   - Read the task file. Extract `## Description`, `## Acceptance tests`, `## Readiness`, and `## Status`.
@@ -79,7 +85,7 @@ If `feature-name` was provided as argument, check if `.scratch/plan/task-{featur
   - If `SYNC=on`, push the `in-progress` status (see below).
   - If `.scratch/plan/plan.md` exists: re-sync the progress counters by re-reading all task file statuses and recomputing `X/Y done` for each epic or flat list. The checkbox stays `- [ ]` at this stage (in-progress is not done).
   - If `.scratch/plan/plan.md` does not exist: update task file only — no error.
-- If the task file does not exist: set `PLAN_TASK_FILE=none`. No further plan-related actions — fallthrough to existing behavior unchanged.
+- If there is no plan task: set `PLAN_TASK_FILE=none`. No further plan-related actions — fallthrough to existing behavior unchanged.
 
 **Detect task synchronization**
 

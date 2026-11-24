@@ -19,7 +19,15 @@ require_text "AT-1: description mentions /buildit-feature-discover" "$SKILL_SRC"
 # AT-2: Analysis phase reads shared-context.md, guidelines, and scans project structure
 require_text "AT-2: reads shared-context.md" "$SKILL_SRC" 'shared-context.md'
 require_regex "AT-2: reads guidelines dir" "$SKILL_SRC" '\.buildit/guidelines'
-require_regex "AT-2: scans project structure (ls skills)" "$SKILL_SRC" '(ls|scan|list).*skills'
+require_text "AT-2: scans project modules from detected source directories" "$SKILL_SRC" 'detect the source directories from the repository layout'
+require_text "AT-2: source directory candidates listed" "$SKILL_SRC" '`src/`, `lib/`, `app/`, `packages/`'
+require_absent "AT-2: no skills-only overlap scan" "$SKILL_SRC" 'Scan existing skills: `ls \$SKILLS_DIR`'
+
+# Generic discover (audit #19): questions talk about features and modules, not skills
+require_absent "AT-G1: no 'this skill' in questions" "$SKILL_SRC" 'this skill (solve|differ)|invokes this skill|the skill is successfully invoked|the skill is working'
+require_text "AT-G1: problem question about the feature" "$SKILL_SRC" 'what problem does this feature solve'
+require_text "AT-G1: users question about the feature" "$SKILL_SRC" 'who uses this feature'
+require_text "AT-G1: overlap question about a module" "$SKILL_SRC" 'How does this feature differ from `[module]`?'
 
 # AT-3: Asks user about external documentation before posing questions
 require_regex "AT-3: asks about external documentation" "$SKILL_SRC" '(documentation|specs|user stories|design doc)'
@@ -59,7 +67,8 @@ require_regex "AT-D2: explicit fallthrough" "$SKILL_SRC" 'PLAN_TASK_FILE=none.*(
 require_regex "AT-D3: feature name locked to task name" "$SKILL_SRC" '[Ff]eature name is locked to the task name'
 
 # AT-D4: ready short-circuit with re-scope option
-require_regex "AT-D4: ready short-circuit suggests feature-run" "$SKILL_SRC" 'PLAN_READINESS.*ready.*/buildit-feature-run \[task-name\]'
+require_regex "AT-D4: ready short-circuit suggests feature-run" "$SKILL_SRC" 'PLAN_READINESS.*ready.*/buildit-feature-run \{feature-name\}'
+require_absent "AT-D4: no [task-name] placeholder" "$SKILL_SRC" '\[task-name\]'
 require_regex "AT-D4: re-scope option" "$SKILL_SRC" '[Rr]e-scope anyway'
 
 # AT-D5: status guard with confirmation
@@ -87,7 +96,15 @@ require_regex "AT-D10: never modifies Status" "$SKILL_SRC" '[Nn]ever modif(y|ies
 require_regex "AT-D11: no writes when brief not validated" "$SKILL_SRC" 'not validated.*untouched'
 
 # AT-D12: handoff recommends feature-run with task name
-require_regex "AT-D12: handoff recommends feature-run [task-name]" "$SKILL_SRC" '/buildit-feature-run \[task-name\]`.*recommended'
+require_regex "AT-D12: handoff recommends feature-run with the bare name" "$SKILL_SRC" '/buildit-feature-run \{feature-name\}`.*recommended'
+require_text "AT-D12: handoff start command uses the bare name" "$SKILL_SRC" '`/buildit-feature-start {feature-name}`'
+
+# Manual flow (audit #12): the plan handoff says start → ship does not track the plan task
+p5_manual() { if awk 'index($0,"Plan handoff:")==1{f=1} f' "$SKILL_SRC" | grep -qF -- "$2"; then ok "$1"; else fail "$1 — not in plan handoff: '$2'"; fi; }
+p5_manual "AT-M1: manual path does not track plan status" 'the manual path (start → ship) does not track plan status'
+p5_manual "AT-M1: user updates the task status" 'update the task `## Status` to `done`'
+p5_manual "AT-M1: user ticks the plan.md checkbox" 'tick its `plan.md` checkbox'
+p5_manual "AT-M1: user recomputes progress counters" 'recompute the progress counters'
 
 # AT-D13: README discover section documents the plan integration
 README_SECTION=$(sed -n '/^### `buildit-feature-discover`/,/^---/p' "$README_FILE")

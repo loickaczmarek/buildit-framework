@@ -248,6 +248,23 @@ REF_COUNT=$(grep -cF -- '[Autonomy block — see "Subagent autonomy block"]' "$S
 if [[ "$REF_COUNT" -ge 4 ]]; then ok "AT-AB-2: start, build, validate and ship prompts reference the autonomy block"; else fail "AT-AB-2: expected >=4 autonomy block references, found $REF_COUNT"; fi
 require_text "AT-AB-3: named autonomy block section" "$SKILL" '## Subagent autonomy block'
 
+# --- Plan task lookup rule shared with discover (AT-PL-*) ---
+PL_HEADING='**Plan task lookup rule**'
+extract_lookup_rule() { awk -v h="$PL_HEADING" '$0 == h {on=1} on && /^$/ {exit} on {print}' "$1"; }
+PL_RUN="$(extract_lookup_rule "$SKILL")"
+PL_DISCOVER="$(extract_lookup_rule skills/buildit-feature-discover/SKILL.md)"
+if [[ -n "$PL_RUN" ]]; then ok "AT-PL-1: lookup rule block present in run"; else fail "AT-PL-1: lookup rule block missing in run"; fi
+if [[ -n "$PL_DISCOVER" ]]; then ok "AT-PL-1: lookup rule block present in discover"; else fail "AT-PL-1: lookup rule block missing in discover"; fi
+if [[ -n "$PL_RUN" && "$PL_RUN" == "$PL_DISCOVER" ]]; then ok "AT-PL-2: lookup rule block identical in run and discover"; else fail "AT-PL-2: lookup rule block differs between run and discover"; fi
+pl_in() { if grep -qF -- "$2" <<<"$PL_RUN"; then ok "$1"; else fail "$1 — not in lookup rule: '$2'"; fi; }
+pl_in "AT-PL-3: prefixed lookup first" 'Look up `.scratch/plan/task-{feature-name}.md`'
+pl_in "AT-PL-3: strips a leading task- prefix once on a miss" 'starts with `task-`'
+pl_in "AT-PL-3: never strips to an empty name" 'remainder is non-empty'
+pl_in "AT-PL-3: tells the user" 'Stripped the `task-` prefix: using feature name `{feature-name}`.'
+for f in "$SKILL" skills/buildit-feature-discover/SKILL.md; do
+  require_text "AT-PL-4: detection step applies the lookup rule in $f" "$f" 'apply the **Plan task lookup rule**'
+done
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
