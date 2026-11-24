@@ -49,7 +49,7 @@ The recommended path for most features — runs the full cycle unattended:
         ├─ validate → 6-dimension review + acceptance tests
         │    ├─ GO     → ship
         │    └─ NO-GO  → loop back to build (max N cycles, default 3)
-        └─ ship     → readiness check + commit + shared-context cleanup + retro
+        └─ ship     → readiness check + shared-context cleanup + retro + commit
                       (push + PR remain manual)
 ```
 
@@ -547,9 +547,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, waits for human confirmation — or, when running as a subagent, commits nothing, records the reason in `## Last error` and returns `SHIP BLOCKED: <reason>`.
 
-**2. Commit** — format `type(scope): description` (the WHY, not the what). Moves the tracking file to `.scratch/done/`.
-
-**3. Shared-context.md cleanup** (in the same commit):
+**2. Shared-context.md cleanup** (root file):
 - "Merge readiness" → removes the line for this branch (`## Branch`)
 - "API & Contracts modified" → removes the section for this branch
 - "Constraints discovered" → decision tree:
@@ -557,7 +555,13 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
   - Durable → migrate into the appropriate guideline (`language-framework.md`, `team-practices.md`, dedicated guideline, or rules file), then delete
 - "Decisions & Conventions" → always durable, always migrate into the appropriate guideline, then delete
 
-**4. Light retro** — three questions: what slowed down the loop? would a configuration have prevented it? was the plan precise enough? If a configuration needs changing, the update is included in the commit.
+**3. Light retro** — three questions: what slowed down the loop? would a configuration have prevented it? was the plan precise enough? If a configuration needs changing, it is updated now, before the commit (no amend).
+
+**4. Stage the closing changes** — moves the tracking file to `.scratch/done/` and stages it, the guideline migrations and configuration updates with explicit paths (`git [-C <worktree>] add`, never `add -A`). Shared-context rule: the commit carries only this feature's removals from `shared-context.md` — never the root file as a whole, which holds other features' uncommitted rows (when it does, ship updates the index only via `git update-index --cacheinfo`). In worktree mode, only the archived tracking file is copied into the worktree.
+
+**5. Commit** — format `type(scope): description` (the WHY, not the what).
+
+**6. Worktree cleanup** — worktree mode only: removes the root copy of the archived tracking file, then `git worktree remove` on the `## Worktree path` read once at the start.
 
 **Ends with:** push and PR creation are manual.
 
@@ -583,7 +587,7 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 4. Resolves and returns the absolute worktree path (`WORKTREE_PATH`)
 5. Instructs the calling agent to use `git -C <WORKTREE_PATH>` for all git commands inside the worktree
 
-**Working directory in worktree mode:** `.scratch/` and `.buildit/config.md` stay in the project root; build, validate and ship run git commands on feature code with `git -C <WORKTREE_PATH>` (each worktree has its own index). Ship copies its `.scratch/` changes into the worktree so they land in the feature commit.
+**Working directory in worktree mode:** `.scratch/` and `.buildit/config.md` stay in the project root; build, validate and ship run git commands on feature code with `git -C <WORKTREE_PATH>` (each worktree has its own index). Ship copies only the archived tracking file into the worktree and applies this feature's `shared-context.md` removals to the worktree's own copy, so the feature commit never carries other features' rows.
 
 **Design rationale:** replaces the external dependency on `superpowers:using-git-worktrees`. Worktree management is now fully internal to the buildit framework, ensuring consistent behaviour regardless of which superpowers skills are installed.
 

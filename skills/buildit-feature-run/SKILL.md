@@ -201,7 +201,7 @@ Initialise: `cycle = 0`.
 **Record the pre-ship state**
 
 Before launching the ship subagent, record:
-- `SHIP_REF` — the feature branch: `git branch --show-current`, or `git -C <worktree-path> branch --show-current` in worktree mode. If empty (detached HEAD, no worktree), use `HEAD`. A branch ref stays resolvable after ship removes the worktree.
+- `SHIP_REF` — the feature branch: the `## Branch` value of the tracking file found at step 4 (bare branch name — the branch ship commits on). Legacy tracking file without `## Branch`: `git branch --show-current`, or `git -C <worktree-path> branch --show-current` in worktree mode; if empty (detached HEAD, no worktree), use `HEAD`. A branch ref stays resolvable after ship removes the worktree.
 - `PRE_SHIP_HEAD` — `git rev-parse <SHIP_REF>`.
 - `TRACKING_FILE` — the file name (without directory) of the tracking file found at step 4.
 

@@ -91,6 +91,23 @@ SHIP=$(md_section "$README" '### `buildit-feature-ship`' '---')
 in_section "AT-R8: ship mentions staged diff" "$SHIP" '--cached --merge-base'
 in_section "AT-R8: ship mentions base branch" "$SHIP" 'Base branch'
 
+# AT-R9: each skill heading and each top-level section appears exactly once
+# (a duplicated block left two contradicting ship sections in the README)
+count_outside_fences() { # file, exact line
+  awk -v l="$2" '/^(```|~~~)/ { fence = !fence } !fence && $0 == l { n++ } END { print n + 0 }' "$1"
+}
+for d in skills/*/; do
+  sk=$(basename "$d")
+  n=$(count_outside_fences "$README" "### \`$sk\`")
+  if [[ "$n" -eq 1 ]]; then ok "AT-R9: ### \`$sk\` appears once"; else fail "AT-R9: ### \`$sk\` must appear exactly once (found $n)"; fi
+done
+while IFS= read -r h; do
+  n=$(count_outside_fences "$README" "$h")
+  if [[ "$n" -eq 1 ]]; then ok "AT-R9: '$h' appears once"; else fail "AT-R9: '$h' must appear exactly once (found $n)"; fi
+done < <(awk '/^(```|~~~)/ { fence = !fence } !fence && /^## /' "$README" | sort -u)
+n=$(grep -c '^\*\*Manual flow skills\*\*' "$README" || true)
+if [[ "$n" -eq 1 ]]; then ok "AT-R9: Manual flow skills block appears once"; else fail "AT-R9: Manual flow skills block must appear exactly once (found $n)"; fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

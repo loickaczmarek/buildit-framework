@@ -231,6 +231,7 @@ before "AT-SV-1e: verification precedes plan task update" 'Unexpected state afte
 before "AT-SV-1e: verification precedes success message" 'Unexpected state after ship' 'shipped successfully'
 sync_in "AT-SV-1f: ship prompt states it runs as a subagent" "$S6" 'You are running as a subagent'
 sync_in "AT-SV-1g: no Pending entry on failed verification" "$S6" 'write no `Pending:` entry'
+if grep -E -- '^- `SHIP_REF`' <<<"$S6" | grep -qF -- '`## Branch`'; then ok "AT-SV-1h: SHIP_REF comes from the tracking file's ## Branch"; else fail "AT-SV-1h: SHIP_REF must be read from the tracking file's ## Branch"; fi
 README_RUN=$(sync_section README.md '### `buildit-feature-run`' '### `buildit-feature-start`')
 sync_in "AT-SV-README: run section mentions ship verification" "$README_RUN" 'Unexpected state after ship'
 

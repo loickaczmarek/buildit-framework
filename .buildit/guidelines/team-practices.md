@@ -77,6 +77,8 @@ When in doubt about whether a design spec is warranted, write it. A short spec i
 
 **README consistency on structural changes.** The "Skill modification" row above covers trigger/interface changes, but the README's "What it does" section also enumerates internal steps. When a feature modifies the step structure of a skill (adding, removing, reordering, or fundamentally changing steps), update the corresponding README section in the same commit — even if the trigger and external interface are unchanged. Treat the SKILL.md steps and their README summary as a coupled pair: never modify one without checking the other.
 
+**Replace README sections in place, never append.** When updating an existing README section (e.g. a skill's "What it does" steps), edit the existing block; do not insert a new copy beside it. Before staging, check that every `### <skill-name>` heading (and every top-level section such as "Manual flow skills") appears exactly once in README.md (e.g. `grep -c '^### `buildit-feature-ship`$' README.md` returns 1). Also check that the replaced wording no longer appears anywhere in the file. Read `git diff --cached README.md` before staging: if a section edit adds many lines and removes few, the old block was probably duplicated instead of replaced. Why: a duplicated block left the README with two `buildit-feature-ship` sections that described contradictory step orders.
+
 ## Naming conventions
 
 - Skill directory names: kebab-case (e.g. `buildit-feature-start`)
@@ -117,6 +119,8 @@ The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_rege
 New test files follow the naming pattern `tests/test-<skill-name>.sh`.
 
 README-wide assertions (structure, Project configuration, Plan files, skill count, diagram alignment) live in `tests/test-readme.sh`; per-skill test files keep their existing checks on that skill's README section. When slicing a README section by heading, use a fence-aware extractor so `## ` headings inside fenced example blocks do not end the section.
+
+`tests/test-readme.sh` must assert that each skill heading (`### <skill-name>` for every directory in `skills/`) and each top-level README section heading appears exactly once in README.md. When a change rewrites existing documented behaviour (reordered or renamed steps), the per-skill test must also add a negative assertion that the superseded wording is absent from the whole README, not only from the first sliced section. A test that slices only the first matching section, plus presence-only `grep` checks, cannot detect a stale copy left next to the new text. Why: AT-CC-5 in `tests/test-buildit-feature-ship.sh` stopped reading at the first `---`, so a duplicated, contradicting ship section still passed the full suite (669/0).
 
 Section comments that name a range of test IDs (e.g. "AT-I1 through AT-I6") must match the tests actually defined in that section. Update the comment in the same change whenever you add, remove or renumber a test in the section.
 

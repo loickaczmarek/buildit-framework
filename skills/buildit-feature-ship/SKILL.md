@@ -1,11 +1,11 @@
 ---
 name: buildit-feature-ship
-description: "Use when validation passed (status to-ship) — checks shared-context readiness, commits, cleans shared-context, migrates durable constraints to guidelines, runs retro. Does NOT push or create the PR. Accepts optional feature name: /buildit-feature-ship [feature-name]."
+description: "Use when validation passed (status to-ship) — checks shared-context readiness, cleans shared-context, migrates durable constraints to guidelines, runs retro, commits. Does NOT push or create the PR. Accepts optional feature name: /buildit-feature-ship [feature-name]."
 ---
 
 # Feature Ship
 
-Readiness checklist, commit, shared-context cleanup, constraint migration, retro. Push and PR remain manual.
+Readiness checklist, shared-context cleanup, constraint migration, retro, commit. Push and PR remain manual.
 
 ## When to use
 
@@ -29,9 +29,11 @@ If the most recent file does not have status `to-ship`, warn: "The most recent f
 
 If the tracking file has a `## Last error` section, remove it: it describes a previous run.
 
-**Feature branch:** read the `## Branch` value from the tracking file (the line below the heading, a bare branch name — contract in `buildit-feature-start` step 3) and store it as `<feature-branch>`. Legacy tracking file without `## Branch`: fall back to `git -C <worktree-path> branch --show-current` in worktree mode, `git branch --show-current` otherwise, and warn once: "No `## Branch` in the tracking file — using the checked-out branch `<feature-branch>`."
+**Worktree path:** read the `## Worktree path` value from the tracking file once and store it as `WORKTREE_PATH` (`none` = no worktree). `<worktree-path>` below stands for this value. Step 6 reuses it — never re-read it from the tracking file, which step 4 moves to `.scratch/done/`.
 
-**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
+**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. If `WORKTREE_PATH` is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
+
+**Feature branch:** read the `## Branch` value from the tracking file (the line below the heading, a bare branch name — contract in `buildit-feature-start` step 3) and store it as `<feature-branch>`. Legacy tracking file without `## Branch`: fall back to `git -C <worktree-path> branch --show-current` in worktree mode, `git branch --show-current` otherwise, and warn once: "No `## Branch` in the tracking file — using the checked-out branch `<feature-branch>`."
 
 ### 0a. Prerequisite check
 
@@ -60,7 +62,7 @@ Read `.scratch/shared-context.md` in full.
 
 **Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
 
-Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 2).
+Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 5).
 
 **File overlap — dynamic computation:**
 For each `IN_PROGRESS` branch listed in "Merge readiness" other than `<feature-branch>` (skip this feature's own row), compute its touched files dynamically: `git diff --name-only --merge-base <base-branch> <branch>`. Compare the two file lists. If any files overlap, report the overlapping files as a warning. If a branch cannot be resolved locally, warn and skip it rather than failing.
@@ -84,20 +86,9 @@ Are there entries in "Constraints discovered" that apply to this feature's scope
 
 If blocking: explain the issue and wait for human confirmation before continuing. As a subagent, return the blocked signal instead (see "Running as a subagent") — do not commit.
 
-### 2. Commit
+### 2. Clean shared-context.md
 
-Message: `type(scope): short description` — the description explains the WHY, not the what.
-
-Move `.scratch/DD-MM-YYYY-[feature-name].md` to `.scratch/done/`.
-
-The shared-context.md cleanup (step 3) is included in this same commit.
-
-**Worktree mode** (`## Worktree path` is not `none`): the `.scratch/` changes and guideline migrations land in the feature commit, exactly as without a worktree.
-- Make the step 3 migrations to `<guidelines-dir>` and `<rules-file>` inside the worktree, not in the project root.
-- Do the move and the step 3 cleanup in the project root `.scratch/` (other features read it there). Then copy `.scratch/shared-context.md` and `.scratch/done/DD-MM-YYYY-[feature-name].md` from the project root `.scratch/` into the worktree at the same paths, stage them with `git -C <worktree-path> add -A .scratch/`, and commit with `git -C <worktree-path> commit`.
-- After the commit, remove the root copy of `.scratch/done/DD-MM-YYYY-[feature-name].md`: the feature branch now carries it, and an untracked copy in the root would block merging that branch. `shared-context.md` stays modified in the project root on purpose — it is the live coordination file.
-
-### 3. Clean shared-context.md
+Edit the project root `.scratch/shared-context.md` (other features read it there). Make the migrations below to `<guidelines-dir>` and `<rules-file>` inside the worktree in worktree mode, in the project root otherwise — step 4 stages them.
 
 > **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
 
@@ -146,34 +137,57 @@ Nature of the decision?
 → Migrate to the destination, then delete from shared-context.md
 ```
 
-### 3b. Worktree cleanup
-
-Read the `## Worktree path` value from the tracking file. If the value is not `none`, remove the worktree:
-
-```
-git worktree remove <path>
-```
-
-If the removal fails (e.g. uncommitted changes or worktree already removed), warn the user but do not block the ship process.
-
-Run this step after step 4b: a configuration update there amends the feature commit, which needs the worktree.
-
-### 4. Light retro
+### 3. Light retro
 
 Answer these three questions:
 - What slowed down the loop on this feature?
 - Would a configuration have prevented that slowdown?
 - Was the initial plan precise enough?
 
-### 4b. Update configurations if needed
+### 3b. Update configurations if needed
 
 If any answer above indicates that a configuration was missing or insufficient, identify and immediately update the relevant files:
 - `<rules-file>` → cross-cutting rules (security, global behaviour)
 - `<guidelines-dir>/team-practices.md` → team conventions, test patterns, naming
 - `<guidelines-dir>/language-framework.md` → stack constraints, APIs, versions
 
-Amend the feature commit to include these changes: `git add <files> && git commit --amend --no-edit`.
-In worktree mode, edit the files under `<guidelines-dir>` and `<rules-file>` inside the worktree and run both commands with `git -C <worktree-path>`, then run step 3b.
+In worktree mode, edit the files under `<guidelines-dir>` and `<rules-file>` inside the worktree. Step 4 stages them with the rest of the closing changes.
+
+### 4. Stage the closing changes
+
+Move `.scratch/DD-MM-YYYY-[feature-name].md` to `.scratch/done/` in the project root.
+
+**Shared-context rule:** the feature commit carries only this feature's removals from `.scratch/shared-context.md` (the step 2 cleanup) — never the live root file as a whole, which also holds other features' uncommitted rows. The staged version is the version already in the feature branch's index minus this feature's entries. If this feature has no entry in that version, there is nothing to stage for it.
+
+Stage with explicit paths only — never `git add -A` or `git add .`, which would sweep in other features' tracking files and plan files.
+
+**Without worktree** (`WORKTREE_PATH` is `none`):
+- Tracking file: `git add .scratch/done/DD-MM-YYYY-[feature-name].md`, then `git rm --cached --quiet --ignore-unmatch -- .scratch/DD-MM-YYYY-[feature-name].md` (drops the old path if it was ever tracked; no-op otherwise).
+- Shared-context: if `git diff -- .scratch/shared-context.md` shows nothing but the removal of this feature's entries, `git add .scratch/shared-context.md`. Otherwise (other features' uncommitted rows are present), stage this feature's removals in the index only, leaving the working file untouched: take `git show :.scratch/shared-context.md`, remove this feature's entries from that content, pipe the result to `git hash-object -w --stdin`, then `git update-index --cacheinfo 100644,<blob>,.scratch/shared-context.md`.
+- Migrations and configuration updates (steps 2 and 3b): `git add <file>...` for each guideline or rules file touched.
+
+**Worktree mode** (`WORKTREE_PATH` is not `none`):
+- Tracking file: copy only `.scratch/done/DD-MM-YYYY-[feature-name].md` from the project root into the worktree at the same path, then `git -C <worktree-path> add .scratch/done/DD-MM-YYYY-[feature-name].md`.
+- Shared-context: apply this feature's step 2 removals to the worktree's own `.scratch/shared-context.md` (the branch copy) — never replace it with the root file. If that changed it, `git -C <worktree-path> add .scratch/shared-context.md`. Usually a no-op: rows are added in the root file and never committed.
+- Migrations and configuration updates (steps 2 and 3b): `git -C <worktree-path> add <file>...` for each guideline or rules file touched inside the worktree.
+
+### 5. Commit
+
+`git [-C <worktree-path>] commit` — message: `type(scope): short description`; the description explains the WHY, not the what. The commit holds the feature work staged by build plus the closing changes staged in step 4.
+
+### 6. Worktree cleanup
+
+Only if `WORKTREE_PATH` (stored at step 0) is not `none`:
+1. In the project root, remove the root copy of `.scratch/done/DD-MM-YYYY-[feature-name].md`: the feature branch now carries it, and an untracked copy in the root would block merging that branch.
+2. Remove the worktree:
+
+```
+git worktree remove <WORKTREE_PATH>
+```
+
+If the removal fails (e.g. uncommitted changes or worktree already removed), warn the user but do not block the ship process.
+
+`shared-context.md` stays modified in the project root on purpose — it is the live coordination file.
 
 ## End of skill
 

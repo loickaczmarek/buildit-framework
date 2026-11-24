@@ -43,8 +43,8 @@ require_regex "AT-BASE-5: defaults to main" "$SKILL" 'defaults? to `main`|falls?
 # --- Worktree working directory (AT-WT-*) ---
 require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
 require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
-require_regex "AT-WT-3: copies .scratch/ changes into the worktree before the commit" "$SKILL" '[Cc]opy.*\.scratch/.*into the worktree'
-require_regex "AT-WT-4: guideline migrations and amend happen in the worktree" "$SKILL" '<guidelines-dir>.*worktree|worktree.*<guidelines-dir>'
+require_regex "AT-WT-3: copies the archived tracking file into the worktree before the commit" "$SKILL" '[Cc]opy.*\.scratch/done/.*into the worktree'
+require_regex "AT-WT-4: guideline migrations and config updates happen in the worktree" "$SKILL" '<guidelines-dir>.*worktree|worktree.*<guidelines-dir>'
 require_regex "AT-WT-5: removes root copy of the archived tracking file after commit" "$SKILL" '(remove|delete).*root copy'
 
 # --- Blocked signal as a subagent (AT-SV-*) ---
@@ -65,11 +65,66 @@ fi
 sec() { awk -v a="$2" -v b="$3" 'index($0,a)==1{f=1;next} f&&index($0,b)==1{exit} f' "$1"; }
 SH0=$(sec "$SKILL" '### 0. ' '### 0a.')
 SH1=$(sec "$SKILL" '### 1. ' '### 2. ')
-SH3=$(sec "$SKILL" '### 3. ' '### 3b.')
+SH2=$(sec "$SKILL" '### 2. ' '### 3. ')
 if grep -qF -- '`## Branch`' <<<"$SH0" && grep -qF -- '<feature-branch>' <<<"$SH0"; then ok "AT-BR-4: step 0 reads ## Branch as <feature-branch>"; else fail "AT-BR-4: step 0 must read ## Branch as <feature-branch>"; fi
 if grep -qiE -- 'legacy|fall back|falls back' <<<"$SH0" && grep -qF -- 'branch --show-current' <<<"$SH0"; then ok "AT-BR-4: legacy fallback when ## Branch is missing"; else fail "AT-BR-4: step 0 must define a legacy fallback when ## Branch is missing"; fi
 if grep -qE -- 'other than `<feature-branch>`|skip.*<feature-branch>|<feature-branch>.*skip' <<<"$SH1"; then ok "AT-BR-4: overlap loop skips this feature's own branch"; else fail "AT-BR-4: overlap loop must skip <feature-branch>"; fi
-if grep -qE -- 'Merge readiness.*remove.*<feature-branch>' <<<"$SH3"; then ok "AT-BR-4: step 3 removes the row for <feature-branch>"; else fail "AT-BR-4: step 3 must remove the Merge readiness row for <feature-branch>"; fi
+if grep -qE -- 'Merge readiness.*remove.*<feature-branch>' <<<"$SH2"; then ok "AT-BR-4: step 2 removes the row for <feature-branch>"; else fail "AT-BR-4: step 2 must remove the Merge readiness row for <feature-branch>"; fi
+
+# --- Closing commit built in execution order (AT-CC-*) ---
+SH4=$(sec "$SKILL" '### 4. ' '### 5. ')
+SH6=$(sec "$SKILL" '### 6. ' '## End of skill')
+in_sec() { if grep -qE -- "$3" <<<"$2"; then ok "$1"; else fail "$1 — regex not found in section: '$3'"; fi; }
+not_in_sec() { if grep -qE -- "$3" <<<"$2"; then fail "$1 — regex must be absent from section: '$3'"; else ok "$1"; fi; }
+
+# AT-CC-1: the root shared-context.md is never copied into a feature commit; only this feature's removals are staged
+require_absent "AT-CC-1: shared-context.md is never copied into the worktree" "$SKILL" '[Cc]opy `?\.scratch/shared-context\.md'
+require_absent "AT-CC-1: no blanket staging of .scratch/" "$SKILL" 'add -A \.scratch/'
+in_sec "AT-CC-1: step 4 states the shared-context rule" "$SH4" '\*\*Shared-context rule'
+in_sec "AT-CC-1: only this feature's removals are committed" "$SH4" "only this feature's removals"
+in_sec "AT-CC-1: index-only update when other features' rows are present" "$SH4" 'git update-index --cacheinfo'
+
+# AT-CC-2: steps numbered in execution order, no amend
+line_of() { grep -nE -- "$1" "$SKILL" | head -1 | cut -d: -f1 || true; }
+L2=$(line_of '^### 2\. Clean shared-context'); L3=$(line_of '^### 3\. Light retro'); L3b=$(line_of '^### 3b\. Update configurations')
+L4=$(line_of '^### 4\. Stage'); L5=$(line_of '^### 5\. Commit'); L6=$(line_of '^### 6\. Worktree cleanup')
+if [[ -n "$L2" && -n "$L3" && -n "$L3b" && -n "$L4" && -n "$L5" && -n "$L6" ]] && (( L2 < L3 && L3 < L3b && L3b < L4 && L4 < L5 && L5 < L6 )); then
+  ok "AT-CC-2: steps ordered cleanup → retro → config update → stage → commit → worktree cleanup"
+else
+  fail "AT-CC-2: steps must be ### 2. Clean shared-context, ### 3. Light retro, ### 3b. Update configurations, ### 4. Stage, ### 5. Commit, ### 6. Worktree cleanup in that order"
+fi
+require_absent "AT-CC-2: no commit --amend" "$SKILL" 'commit --amend'
+require_absent "AT-CC-2: no 'after step 4b' ordering constraint" "$SKILL" 'after step 4b'
+
+# AT-CC-3: non-worktree path explicitly stages the moved tracking file and the shared-context cleanup
+in_sec "AT-CC-3: step 4 has an explicit Without worktree path" "$SH4" '\*\*Without worktree'
+in_sec "AT-CC-3: stages the archived tracking file" "$SH4" 'git add \.scratch/done/'
+in_sec "AT-CC-3: stages the shared-context cleanup" "$SH4" 'git add \.scratch/shared-context\.md'
+
+# AT-CC-4: WORKTREE_PATH read once at step 0, reused by worktree removal
+in_sec "AT-CC-4: step 0 stores WORKTREE_PATH" "$SH0" 'WORKTREE_PATH'
+in_sec "AT-CC-4: step 6 reuses WORKTREE_PATH" "$SH6" 'git worktree remove <WORKTREE_PATH>'
+not_in_sec "AT-CC-4: step 6 does not re-read the tracking file" "$SH6" 'Read the `## Worktree path`'
+
+# AT-CC-6: step 0 reads ## Worktree path before any use of <worktree-path>
+RD=$(grep -nF -- '`## Worktree path`' <<<"$SH0" | head -1 | cut -d: -f1 || true)
+US=$(grep -nF -- '<worktree-path>' <<<"$SH0" | head -1 | cut -d: -f1 || true)
+if [[ -n "$RD" && -n "$US" ]] && (( RD <= US )); then ok "AT-CC-6: ## Worktree path read before <worktree-path> is used"; else fail "AT-CC-6: step 0 must read ## Worktree path before using <worktree-path>"; fi
+
+# AT-CC-5: README ship section matches the new order and states the rule
+RS=$(awk '/^### `buildit-feature-ship`/{f=1;next} f&&/^---/{exit} f' README.md)
+rl() { grep -nE -- "$1" <<<"$RS" | head -1 | cut -d: -f1 || true; }
+R2=$(rl '^\*\*2\. Shared-context'); R3=$(rl '^\*\*3\. Light retro'); R4=$(rl '^\*\*4\. Stage'); R5=$(rl '^\*\*5\. Commit'); R6=$(rl '^\*\*6\. Worktree')
+if [[ -n "$R2" && -n "$R3" && -n "$R4" && -n "$R5" && -n "$R6" ]] && (( R2 < R3 && R3 < R4 && R4 < R5 && R5 < R6 )); then
+  ok "AT-CC-5: README ship steps in execution order"
+else
+  fail "AT-CC-5: README ship section must list **2. Shared-context, **3. Light retro, **4. Stage, **5. Commit, **6. Worktree in order"
+fi
+in_sec "AT-CC-5: README states the shared-context rule" "$RS" "only this feature's removals"
+require_absent "AT-CC-5: README no longer says ship copies its .scratch/ changes" README.md 'copies its `\.scratch/` changes'
+require_absent "AT-CC-5: README has no superseded ship step '**2. Commit**'" README.md '^\*\*2\. Commit\*\*'
+require_absent "AT-CC-5: README has no superseded ship cleanup '(in the same commit)'" README.md '\(in the same commit\)'
+require_absent "AT-CC-5: README has no superseded retro 'included in the commit'" README.md 'the update is included in the commit'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
