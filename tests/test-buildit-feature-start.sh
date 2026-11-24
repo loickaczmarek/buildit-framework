@@ -26,6 +26,9 @@ require_regex "AT-5: tracking file uses DD-MM-YYYY format" "$SKILL" 'DD-MM-YYYY'
 require_regex "AT-6: checks shared-context.md existence" "$SKILL" 'shared-context\.md.*(not exist|does not exist|missing)|exist.*shared-context\.md'
 require_text "AT-6: tells user to run /buildit-project-bootstrap" "$SKILL" '/buildit-project-bootstrap'
 
+# --- Worktree working directory (AT-WT-*) ---
+require_regex "AT-WT-1: .scratch/ files stay in the project root in worktree mode" "$SKILL" '`\.scratch/`.*stay.*project root'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

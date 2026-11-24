@@ -39,6 +39,10 @@ require_regex "AT-8: guard asks for confirmation" "$SKILL" '[Cc]onfirm|[Cc]ontin
 require_regex "AT-9: checks shared-context.md existence" "$SKILL" 'shared-context\.md.*(not exist|does not exist|missing)|exist.*shared-context\.md'
 require_text "AT-9: tells user to run /buildit-project-bootstrap" "$SKILL" '/buildit-project-bootstrap'
 
+# --- Worktree working directory (AT-WT-*) ---
+require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
+require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

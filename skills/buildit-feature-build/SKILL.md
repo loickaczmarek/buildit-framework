@@ -33,6 +33,8 @@ Then detect the mode:
 
 Then set the status to `building` in that file.
 
+**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
+
 ### 2. Check API changes
 
 Read `.scratch/shared-context.md` section "API & Contracts modified".

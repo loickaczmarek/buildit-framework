@@ -40,6 +40,13 @@ require_absent "AT-BASE-4: no hardcoded main..." "$SKILL" 'main\.\.'
 require_text "AT-BASE-5: reads ## Base branch" "$SKILL" '## Base branch'
 require_regex "AT-BASE-5: defaults to main" "$SKILL" 'defaults? to `main`|falls? back to `main`'
 
+# --- Worktree working directory (AT-WT-*) ---
+require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
+require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
+require_regex "AT-WT-3: copies .scratch/ changes into the worktree before the commit" "$SKILL" '[Cc]opy.*\.scratch/.*into the worktree'
+require_regex "AT-WT-4: guideline migrations and amend happen in the worktree" "$SKILL" '<guidelines-dir>.*worktree|worktree.*<guidelines-dir>'
+require_regex "AT-WT-5: removes root copy of the archived tracking file after commit" "$SKILL" '(remove|delete).*root copy'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

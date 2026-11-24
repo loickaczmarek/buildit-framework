@@ -87,6 +87,10 @@ else
   fail "AT-STAGE-3: staging guard must appear before the review diff"
 fi
 
+# --- Worktree working directory (AT-WT-*) ---
+require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
+require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

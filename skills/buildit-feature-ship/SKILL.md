@@ -20,6 +20,8 @@ After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in
 
 If the most recent file does not have status `to-ship`, warn: "The most recent file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing.
 
+**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
+
 ### 0a. Prerequisite check
 
 If `.scratch/shared-context.md` does not exist, stop with:
@@ -78,6 +80,11 @@ Message: `type(scope): short description` — the description explains the WHY, 
 Move `.scratch/DD-MM-YYYY-[feature-name].md` to `.scratch/done/`.
 
 The shared-context.md cleanup (step 3) is included in this same commit.
+
+**Worktree mode** (`## Worktree path` is not `none`): the `.scratch/` changes and guideline migrations land in the feature commit, exactly as without a worktree.
+- Make the step 3 migrations to `<guidelines-dir>` and `<rules-file>` inside the worktree, not in the project root.
+- Do the move and the step 3 cleanup in the project root `.scratch/` (other features read it there). Then copy `.scratch/shared-context.md` and `.scratch/done/DD-MM-YYYY-[feature-name].md` from the project root `.scratch/` into the worktree at the same paths, stage them with `git -C <worktree-path> add -A .scratch/`, and commit with `git -C <worktree-path> commit`.
+- After the commit, remove the root copy of `.scratch/done/DD-MM-YYYY-[feature-name].md`: the feature branch now carries it, and an untracked copy in the root would block merging that branch. `shared-context.md` stays modified in the project root on purpose — it is the live coordination file.
 
 ### 3. Clean shared-context.md
 
@@ -138,6 +145,8 @@ git worktree remove <path>
 
 If the removal fails (e.g. uncommitted changes or worktree already removed), warn the user but do not block the ship process.
 
+Run this step after step 4b: a configuration update there amends the feature commit, which needs the worktree.
+
 ### 4. Light retro
 
 Answer these three questions:
@@ -153,6 +162,7 @@ If any answer above indicates that a configuration was missing or insufficient, 
 - `<guidelines-dir>/language-framework.md` → stack constraints, APIs, versions
 
 Amend the feature commit to include these changes: `git add <files> && git commit --amend --no-edit`.
+In worktree mode, edit the files under `<guidelines-dir>` and `<rules-file>` inside the worktree and run both commands with `git -C <worktree-path>`, then run step 3b.
 
 ## End of skill
 

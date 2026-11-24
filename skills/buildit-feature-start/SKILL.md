@@ -19,7 +19,7 @@ Ask the user:
 
 > "Do you want to work in an isolated worktree for this feature? (recommended for non-trivial features or parallel work)"
 
-- **Yes** → invoke `buildit-worktree [feature-name]` now. Capture the returned "Worktree created at: <path>" line and store the absolute path as `WORKTREE_PATH`. Continue the following steps inside the created worktree.
+- **Yes** → invoke `buildit-worktree [feature-name]` now. Capture the returned "Worktree created at: <path>" line and store the absolute path as `WORKTREE_PATH`. The `.scratch/` files written by the following steps (tracking file, `shared-context.md`) stay in the project root; only implementation work happens inside the worktree.
 - **No** → retrieve the current branch (`git branch --show-current`) and inform the user: "You will work directly on `[branch]`." Set `WORKTREE_PATH=none`. Then continue to step 1.
 
 ### 0b. Prerequisite check
