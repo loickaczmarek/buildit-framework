@@ -50,9 +50,13 @@ All skill files must be authored in English. User-facing messages, field labels,
 
 **No hardcoded absolute paths.** Skills must never embed machine-specific or project-specific absolute paths. Use `pwd` to detect the project root at runtime and store it as `PROJECT_ROOT`.
 
-**Operating mode detection.** Skills that reference agent-specific directories (skills dir, rules file, permissions config) must detect their mode at step 0:
-- Run `ls .claude/ 2>/dev/null` — if the directory exists → **Claude mode**, use `.claude/` paths
-- Otherwise → **Generic mode**, use `.agents/` paths
+**Operating mode.** Skills that reference agent-specific directories (skills dir, rules file, permissions config) determine their mode at step 0 with the rule below, copied verbatim into each of them (discover, run, plan, validate, ship, audit, bootstrap; `tests/test-mode-detection.sh` keeps the copies identical):
+
+**Operating mode rule**
+- The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
+- Claude mode: rules file `.claude/CLAUDE.md`, skills directory `.claude/skills/`. Generic mode: rules file `.agents/guidelines/project-rules.md`, skills directory `.agents/skills/`.
+- Never infer the mode from the presence of `.claude/` or `.agents/`: a dual-deployment repository contains both directories, so such a check always answers Claude.
+- The mode is never persisted (not in `.buildit/config.md` nor in any other file): every skill applies this rule for the agent that runs it.
 
 | Resource | Claude mode | Generic mode |
 |----------|-------------|--------------|

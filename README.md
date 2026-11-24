@@ -171,7 +171,7 @@ For git commands inside the worktree, use `git -C <worktree-path>` instead of cd
 ```
 
 - **`PROJECT_ROOT`** — absolute path detected via `pwd` at orchestrator start
-- **`MODE`** — `claude` if `.claude/` directory exists at project root, `generic` otherwise
+- **`MODE`** — agent identity (Operating mode rule): `claude` when the running agent is Claude / Claude Code, `generic` for any other agent — never inferred from the presence of `.claude/`
 
 ### Subagent isolation
 
@@ -317,7 +317,7 @@ External writes happen from the orchestrator, never inside a subagent, after one
 | **External practices integration** | When adopting practices from an existing doc (Confluence, `docs/`, ADR…) | Merges content into guidelines or adds a reference link |
 
 **What it does:**
-1. Detects agent identity (Claude vs other agent) and asks for mode confirmation
+1. Detects agent identity (Claude vs other agent) and asks for mode confirmation — a switched answer applies only to the kit generated in that run and is not persisted
 2. Scans `.buildit/guidelines/` to detect all files present — custom files (`figma.md`, `jira.md`…) are preserved without modification
 3. Checks autonomy settings (`.claude/settings.json` in Claude mode) — creates or audits the permission allowlist for worktree subagents
 4. Asks whether a directory or document of existing practices exists, and if so proposes to **merge** it into the guidelines or **reference** it (link at the top of the guideline)
@@ -361,7 +361,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** before starting a batch of features, when the scope is larger than a single feature. Decomposes a PRD, spec, or ad-hoc request into ordered tasks with progress tracking. If the request is already a single well-defined feature, skip this and use `/buildit-feature-discover` or `/buildit-feature-start` directly.
 
 **What it does:**
-1. Detects mode (Claude vs generic), reads the task synchronization configuration from `.buildit/config.md` (asks to configure it when unconfigured), and checks for an existing plan (resume detection)
+1. Detects mode from agent identity (Claude vs generic), reads the task synchronization configuration from `.buildit/config.md` (asks to configure it when unconfigured), and checks for an existing plan (resume detection)
 2. Collects input: any structured document (PRD, specs, user stories, bullet points) or ad-hoc request
 3. Offers two decomposition paths: fast (auto-decompose then validate) or coaching (collaborative question-driven)
 4. Decomposes into tasks with name, description, acceptance tests, priority, and readiness (`ready` or `needs-scoping`)
