@@ -255,6 +255,16 @@ same "AT-7: run step 4 has the rule's general message only inside the rule block
 in_text "AT-7: run step 4 has its own after-start message" "$R4" 'Tracking file not found after buildit-feature-start — possible subagent failure'
 in_text "AT-7: run step 4 states its message replaces the rule's general one" "$R4" "instead of the rule's general \"No tracking file found\" message"
 
+# Merge readiness row: 3 columns, written by start, header from bootstrap; no
+# READY status nor Waiting for column (never written by any skill — audit #24).
+same "AT-8: bootstrap Merge readiness header has 3 columns" \
+  "$(grep -cxF '| Branch | Status | Main files touched |' "$BOOTSTRAP" || true)" 1
+in_text "AT-8: start writes a 3-column row" "$(section "$START" '### 5. ')" '| [## Branch value] | IN_PROGRESS | — |'
+for f in "$START" "$SHIP" "$BOOTSTRAP" "$RUN"; do
+  require_absent "AT-8: no Waiting for in $f" "$f" '[Ww]aiting for'
+  require_absent "AT-8: no READY status in $f" "$f" '\bREADY\b'
+done
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

@@ -10,5 +10,5 @@
 
 ## Merge readiness
 
-| Branch | Status | Main files touched | Waiting for |
-|--------|--------|--------------------|-------------|
+| Branch | Status | Main files touched |
+|--------|--------|--------------------|

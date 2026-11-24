@@ -79,9 +79,9 @@ If `feature-name` was provided as argument, apply the **Plan task lookup rule**.
 - If the task file exists:
   - Read the task file. Extract `## Description`, `## Acceptance tests`, `## Readiness`, and `## Status`.
   - Store as `PLAN_TASK_FILE` (the path), `PLAN_DESCRIPTION`, `PLAN_ACCEPTANCE_TESTS`, `PLAN_READINESS`.
-  - **Status guard:** if the task's current status is `in-progress` or `done`, warn: "Plan task '{feature-name}' is already marked '{status}' — proceeding anyway." but continue.
+  - **Status guard:** if the task's current status is `in-progress`, warn: "Plan task '{feature-name}' is already marked 'in-progress' — proceeding anyway." but continue. If it is `done`, ask: "Plan task '{feature-name}' is already marked 'done' — re-run it? Its status goes back to 'in-progress'." **No** → stop; nothing is modified. As a subagent (no human can answer), stop instead of guessing.
   - Run **Detect task synchronization** (below) before the local status update.
-  - Update `## Status` in the task file from `todo` to `in-progress`.
+  - Update `## Status` in the task file from `todo` to `in-progress` (or from `done` once the re-run is confirmed).
   - If `SYNC=on`, push the `in-progress` status (see below).
   - If `.scratch/plan/plan.md` exists: re-sync the progress counters by re-reading all task file statuses and recomputing `X/Y done` for each epic or flat list. The checkbox stays `- [ ]` at this stage (in-progress is not done).
   - If `.scratch/plan/plan.md` does not exist: update task file only — no error.

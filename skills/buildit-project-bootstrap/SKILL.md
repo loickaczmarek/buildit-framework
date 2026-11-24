@@ -444,8 +444,8 @@ Violation signs: unused parameters, untested code paths, options with no consume
 
 ## Merge readiness
 
-| Branch | Status | Main files touched | Waiting for |
-|--------|--------|--------------------|-------------|
+| Branch | Status | Main files touched |
+|--------|--------|--------------------|
 ~~~
 
 `.buildit/config.md` (create with the test command detected in step 4e, the base branch detected in step 4f, and the synchronization answers from step 6b). If `.buildit/config.md` already exists, update only the headings whose values changed and preserve every other heading and value:

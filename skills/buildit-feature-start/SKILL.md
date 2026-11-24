@@ -29,7 +29,7 @@ Integrate this information into the plan where relevant.
 
 ### 2. Collect feature information
 
-If a non-empty `feature-name` was provided as argument (`/feature-start feature-name`), use it directly. An empty or whitespace-only argument counts as missing.
+If a non-empty `feature-name` was provided as argument (`/buildit-feature-start feature-name`), use it directly. An empty or whitespace-only argument counts as missing.
 
 Otherwise, ask:
 - Short feature name (kebab-case slug, will be the `.scratch/` file name)
@@ -99,7 +99,7 @@ This step runs after the worktree exists (step 2b) and the tracking file exists 
 Read the `## Branch` value from the tracking file and add a line keyed by it in the "Merge readiness" section of `.scratch/shared-context.md`:
 
 ~~~markdown
-| [## Branch value] | IN_PROGRESS | — | — |
+| [## Branch value] | IN_PROGRESS | — |
 ~~~
 
 ## End of skill

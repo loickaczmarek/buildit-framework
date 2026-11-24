@@ -106,11 +106,7 @@ This sets `core.hooksPath` to `scripts/hooks/` in the local git config, so git p
 
 ## Testing
 
-No automated test framework. Skills are validated by:
-1. Manual invocation in a real Claude Code session
-2. Reviewing agent behaviour against acceptance tests defined in the tracking file
-
-For skills whose acceptance criteria are content-checkable, structural bash scripts (`tests/test-*.sh`) serve as the TDD "failing test" artefact. Each script maps one-to-one to an acceptance criterion and uses `grep` against the `SKILL.md` content. This makes criteria machine-verifiable without introducing a test runner dependency.
+Skills are markdown, so they are validated by content assertions: structural bash scripts (`tests/test-*.sh`) check each `SKILL.md` (and the README or guidelines a feature documents itself in) for the required instructions, wording and ordering, and serve as the TDD "failing test" artefact. `tests/run-all.sh` runs them all; the pre-push hook and the CI workflow `.github/workflows/tests.yml` (on every push and pull request) run the same suite. Behaviour that text cannot prove is still checked by manual invocation in a real agent session against the tracking file's acceptance tests.
 
 ### Test harness conventions
 
@@ -120,7 +116,7 @@ Shared assertion helpers live in `tests/lib/assertions.sh` and must be sourced a
 source "$(dirname "$0")/lib/assertions.sh"
 ```
 
-The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_regex`. Each test file initialises `PASS`/`FAIL` counters via that source — never inline. This avoids duplicating helper definitions across test files while keeping zero external dependencies. Sourcing the library anchors the working directory to the repository root, so every test file (and `tests/run-all.sh`) runs from any cwd with repo-relative paths.
+The library exposes: `ok`, `fail`, `require_file`, `require_text` (fixed string), `require_regex` (extended regex), `require_absent` (regex that must not match), plus the section-scoped extractors and text assertions below. Each test file initialises `PASS`/`FAIL` counters via that source — never inline. This avoids duplicating helper definitions across test files while keeping zero external dependencies. Sourcing the library anchors the working directory to the repository root, so every test file (and `tests/run-all.sh`) runs from any cwd with repo-relative paths.
 
 **Section-scoped assertions.** Extract Markdown only through the fence-aware helpers of the library — `section`, `section_body`, `named_block`, `fenced_block`, `count_outside_fences`, `lines_outside_fences`, `line_of`, `normalize` — and assert on the captured text with `in_text` / `in_text_re` / `absent_in_text`. Never write a local awk/sed extractor in a test file, and never assert a generic regex (e.g. `[Ss]top`) against a whole file: scope it to the step that owns the behaviour. Match wrapped prose on `normalize`d text. Pin a full sentence only when it is a machine contract (e.g. the exact `## Last error` line, the `SHIP BLOCKED:` prefix); otherwise assert key tokens within the section. Why: duplicated, non-fence-aware extractors and whole-file regexes made assertions vacuous or blind to line-wrapped text (audit 24-11-2026, finding #22).
 

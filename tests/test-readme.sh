@@ -87,6 +87,55 @@ for sec in MANUAL DISCOVER; do
   if grep -qF -- 'does not track plan status' <<<"${!sec}"; then ok "AT-R11: $sec section says the manual path does not track the plan task"; else fail "AT-R11: $sec section misses the manual-path plan note"; fi
 done
 
+# --- Audit 24-11-2026 #23: README statements paired with the current skills -------
+RUN_SKILL="skills/buildit-feature-run/SKILL.md"
+TRACKING=$(section "$README" '## Tracking file structure' '## ')
+for h in '## Branch' '## Last error'; do
+  in_text "AT-R12: tracking file structure shows $h" "$TRACKING" "$h"
+done
+absent_in_text "AT-R12: Problems to fix is not cleared at the start of the next cycle" "$TRACKING" 'cleared at the start of the next cycle'
+in_text "AT-R12: Problems to fix is cleared by build when it sets to-validate" "$(normalize <<<"$TRACKING")" 'cleared by `buildit-feature-build` when it sets `to-validate`'
+in_text_re "AT-R12: status table shows validate restoring to-validate on a deliberate stop" "$TRACKING" 'validate.*stop.*`validating` → `to-validate`.*`## Last error`'
+
+require_absent "AT-R13: no READY status in README" "$README" '\bREADY\b'
+require_absent "AT-R13: no Waiting for column or dependency check in README" "$README" '[Ww]aiting for'
+
+# The README copy of run's Subagent autonomy block is the same text, whitespace aside.
+RUN_BLOCK=$(section "$RUN_SKILL" '## Subagent autonomy block' | grep -E '^> ' | sed -E 's/^> "?//; s/"$//' | normalize)
+README_BLOCK=$(fenced_block "$README" 'Autonomy: you are operating' | normalize)
+if [[ -n "$RUN_BLOCK" && "$RUN_BLOCK" == "$README_BLOCK" ]]; then ok "AT-R14: README autonomy block matches run's Subagent autonomy block"; else fail "AT-R14: README autonomy block differs from run's Subagent autonomy block"; fi
+
+BOOT=$(section "$README" '### `buildit-project-bootstrap`' '---')
+in_text "AT-R15: bootstrap section documents base branch detection (4f)" "$BOOT" 'origin/HEAD'
+RUN_R=$(section "$README" '### `buildit-feature-run`' '---')
+in_text "AT-R16: run section says start writes the Merge readiness row (run step 2)" "$(normalize <<<"$RUN_R")" 'writes nothing to `.scratch/shared-context.md` before start'
+in_text "AT-R16: run section documents ship verification" "$RUN_R" 'Unexpected state after ship'
+in_text "AT-R17: validate NO-GO says 5a stages its config edits" "$(normalize <<<"$VALIDATE")" 'stages each touched file'
+WT=$(section "$README" '### `buildit-worktree`' '---')
+in_text "AT-R18: worktree section says tests run in the worktree" "$(normalize <<<"$WT")" 'run the test command with the worktree as working directory'
+DISCOVER_END=$(grep -F '**Ends with:**' <<<"$DISCOVER" || true)
+absent_in_text "AT-R19: discover Ends with uses no [feature-name] placeholder" "$DISCOVER_END" '\[feature-name\]'
+in_text "AT-R20: Running tests mentions the cross-skill contract test" "$TESTS" 'tests/test-cross-skill-contracts.sh'
+in_text "AT-R20: Running tests mentions section-scoped helpers" "$TESTS" 'section'
+in_text "AT-R20: Running tests mentions the CI workflow" "$TESTS" '.github/workflows/tests.yml'
+
+# --- Audit 24-11-2026 #27, #28, #30: hygiene ------------------------------------------
+if [[ ! -e scripts/test_docs.sh ]]; then ok "AT-R21: dead scripts/test_docs.sh removed"; else fail "AT-R21: scripts/test_docs.sh must be deleted"; fi
+CI=".github/workflows/tests.yml"
+require_file "$CI"
+require_regex "AT-R22: CI runs on push" "$CI" '^[[:space:]]*push:'
+require_regex "AT-R22: CI runs on pull_request" "$CI" '^[[:space:]]*pull_request:'
+require_text "AT-R22: CI runs the full suite" "$CI" 'bash tests/run-all.sh'
+REFS=$(section "$README" '## References' '## ')
+for spec in buildit-feature-run-design worktree-mode-design subagent-isolation-design; do
+  f=$(find docs/buildit/specs -name "*-$spec.md" | head -1)
+  if [[ -n "$f" ]]; then ok "AT-R23: spec $spec exists"; else fail "AT-R23: spec *-$spec.md missing under docs/buildit/specs/"; fi
+  in_text "AT-R23: README References lists $spec" "$REFS" "$spec.md"
+done
+# Checks migrated from the deleted scripts/test_docs.sh
+require_regex "AT-R24: README title starts with '# buildit'" "$README" '^# buildit'
+in_text "AT-R24: --max-cycles default 3 documented" "$RUN_R" 'Default | `--max-cycles 3`'
+
 # AT-R9: each skill heading and each top-level section appears exactly once
 # (a duplicated block left two contradicting ship sections in the README)
 for d in skills/*/; do

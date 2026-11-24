@@ -30,7 +30,7 @@ require_text "AT-5: detects worktree via git worktree list" "$SKILL" 'git worktr
 
 # AT-6: --max-cycles N parameter accepted (default 3)
 require_text "AT-6: --max-cycles parameter present" "$SKILL" '--max-cycles'
-require_regex "AT-6b: default N=3 documented" "$SKILL" '(default|défaut).*(3|N=3)'
+require_regex "AT-6b: default N=3 documented" "$SKILL" 'default.*(3|N=3)'
 
 # AT-7: On GO + PASS, launches ship and reminds push/PR are manual
 require_text "AT-7: ship launched on GO" "$SKILL" '### 6. On GO: subagent buildit-feature-ship'

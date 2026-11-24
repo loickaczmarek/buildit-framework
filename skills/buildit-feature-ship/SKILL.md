@@ -81,9 +81,6 @@ For each `IN_PROGRESS` branch listed in "Merge readiness" other than `<feature-b
 
 Fallback for git < 2.30 (no `--merge-base` option): `git diff --cached --name-only $(git merge-base <base-branch> HEAD)` for this feature, `git diff --name-only $(git merge-base <base-branch> <branch>) <branch>` for other branches.
 
-**Declared dependencies:**
-Are there branches that declare `Waiting for: [this branch]` in "Merge readiness"?
-
 **APIs:**
 Are there entries in "API & Contracts modified" by other branches that are not yet accounted for in this feature's code?
 
