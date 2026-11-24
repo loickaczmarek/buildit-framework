@@ -45,10 +45,16 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 Read `.scratch/shared-context.md` in full.
 
-Retrieve the files touched by this feature: `git diff main...HEAD --name-only`
+**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading as `<base-branch>`. If the file or the heading is absent, or no value sits under it, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
+
+Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 2).
 
 **File overlap — dynamic computation:**
-For each `IN_PROGRESS` branch listed in "Merge readiness", compute its touched files dynamically: `git diff main...<branch> --name-only`. Compare the two file lists. If any files overlap, report the overlapping files as a warning. If a branch cannot be resolved locally, warn and skip it rather than failing.
+For each `IN_PROGRESS` branch listed in "Merge readiness", compute its touched files dynamically: `git diff --name-only --merge-base <base-branch> <branch>`. Compare the two file lists. If any files overlap, report the overlapping files as a warning. If a branch cannot be resolved locally, warn and skip it rather than failing.
+
+**Limitation:** the other-branch check only sees commits — files that are only staged in another worktree are invisible to it.
+
+Fallback for git < 2.30 (no `--merge-base` option): `git diff --cached --name-only $(git merge-base <base-branch> HEAD)` for this feature, `git diff --name-only $(git merge-base <base-branch> <branch>) <branch>` for other branches.
 
 **Declared dependencies:**
 Are there branches that declare `Waiting for: [this branch]` in "Merge readiness"?

@@ -1,6 +1,6 @@
 # buildit — Multi-Agent Development Workflow
 
-A framework of 9 skills that drive the development loop feature by feature. The default path is `buildit-feature-run` — it orchestrates the full cycle unattended. A manual sequence (start → build → validate → ship) is available for features needing mid-cycle human judgement.
+A framework of 10 skills (9 user-facing + the internal `buildit-worktree`) that drive the development loop feature by feature. The default path is `buildit-feature-run` — it orchestrates the full cycle unattended. A manual sequence (start → build → validate → ship) is available for features needing mid-cycle human judgement.
 
 ## Setup
 
@@ -11,6 +11,20 @@ bash scripts/install-hooks.sh
 ```
 
 This configures git to use `scripts/hooks/` as the hooks directory. Every `git push` will run the full test suite and abort on failure.
+
+---
+
+## Running tests
+
+```bash
+bash tests/run-all.sh
+```
+
+`tests/run-all.sh` runs every `tests/test-*.sh` file and aggregates the results; it exits non-zero on any failure.
+
+**Content-assertion convention:** skills are markdown, so tests assert on their content rather than executing them. Each skill has a `tests/test-<skill>.sh` that checks its `SKILL.md` (and the README or guidelines when a feature documents itself there) for the required instructions, wording and ordering. `tests/test-readme.sh` covers the README.
+
+Shared helpers live in `tests/lib/assertions.sh`: `require_file`, `require_text` (fixed string), `require_regex` (extended regex) and `require_absent` (regex that must not match). Each test file sources it and ends with a `Results: N passed, M failed` line.
 
 ---
 
@@ -56,20 +70,20 @@ For complex features where mid-cycle human judgement is needed, run each skill s
         │
         ▼
 [buildit-feature-build]  ◄───────────────────────────────────┐
-   TDD + implementation                               │
-        │                                             │
-   🔄 CLEAR CONTEXT                                   │
-        │                                             │
-        ▼                                             │
-[buildit-feature-validate]                                    │
-   6-dimension review + acceptance tests              │
-        │                                             │
-   ┌────┴────┐                                        │
-  GO        NO-GO / FAIL                              │
-   │          │                                       │
-   │    updates configs                               │
-   │    writes problems to .scratch/                  │
-   │    🔄 CLEAR CONTEXT ──────────────────────────── ┘
+   TDD + implementation                                      │
+        │                                                    │
+   🔄 CLEAR CONTEXT                                          │
+        │                                                    │
+        ▼                                                    │
+[buildit-feature-validate]                                   │
+   staging guard + 6-dimension review + acceptance tests     │
+        │                                                    │
+   ┌────┴────┐                                               │
+  GO        NO-GO / FAIL                                     │
+   │          │                                              │
+   │    updates configs                                      │
+   │    writes problems to .scratch/                         │
+   │    🔄 CLEAR CONTEXT ────────────────────────────────────┘
    │
    ▼
 [buildit-feature-ship]
@@ -194,6 +208,96 @@ Three `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths
 
 ---
 
+## Project configuration
+
+`.buildit/config.md` holds project-level settings. Each value is the first non-empty, non-comment line after its `## Heading` — no YAML/JSON. Never store secrets (tokens, passwords, API keys) in this file: describe access methods in plain language instead.
+
+| Key | Meaning | When absent or empty | Written by |
+|-----|---------|----------------------|------------|
+| `## Test command` | Shell command that runs the test suite | Validate falls back to ecosystem detection | `buildit-project-bootstrap` (step 4e) |
+| `## Base branch` | Branch the review diff and overlap check compare against | `main` | `buildit-project-bootstrap` (step 4f, from `origin/HEAD`) |
+| `## Task synchronization` | `enabled` or `disabled` | Unconfigured | `buildit-project-bootstrap` (step 6b) or `buildit-plan` |
+| `## Synchronization method` | Plain-language description of tool, target and access method — never a shell command | — | `buildit-project-bootstrap` (step 6b) or `buildit-plan` |
+| `## Synchronization tag` | Tag identifying plan-owned external tickets | `technical` | `buildit-project-bootstrap` (step 6b) or `buildit-plan` |
+
+**Unconfigured, not disabled:** an absent, empty or unrecognized `## Task synchronization` means the choice was never made. Only `buildit-plan` and `buildit-project-bootstrap` prompt to configure it; every other skill treats unconfigured as disabled and never prompts.
+
+Example:
+
+```markdown
+# Project Configuration
+
+## Test command
+bash tests/run-all.sh
+
+## Base branch
+main
+
+## Task synchronization
+enabled
+
+## Synchronization method
+GitHub issues of this repository, via the gh CLI already authenticated on the machine
+
+## Synchronization tag
+technical
+```
+
+---
+
+## Plan files
+
+`buildit-plan` writes its decomposition to `.scratch/plan/`:
+
+- `plan.md` — source reference, epics (3 or more tasks) or a flat list, and one line per task: `- [ ] task-{name} (priority) [ready|needs-scoping] — Title`, with `Progress: X/N done` counters computed from task statuses
+- `task-{name}.md` — one file per task:
+
+```markdown
+# [Title]
+
+## Status
+todo
+
+## Priority
+high
+
+## Parent epic
+none
+
+## Description
+[task description]
+
+## Acceptance tests
+[verifiable criteria]
+
+## Readiness
+ready
+
+## Synchronization
+Link: <tool/target> <stable-ID-or-URL>
+Pending: status → in-progress (24-11-2026)
+```
+
+**Status lifecycle:** `todo` → `in-progress` (when `buildit-feature-run` starts the task) → `done` (after ship).
+
+**Readiness:** `ready` (bounded scope, verifiable acceptance tests) or `needs-scoping` (vague, unbounded, or missing acceptance tests). `buildit-feature-discover` turns a `needs-scoping` task into `ready` and updates the `plan.md` tag accordingly.
+
+**`## Synchronization`** (optional, only once a link to an external ticket is confirmed):
+- `Link:` — external tool/target and the ticket's stable ID or URL, used as identity (never the title)
+- `Pending: <field> → <value> (DD-MM-YYYY)` — an external write that was refused or failed; one line per field, the latest replaces the previous one. Only `buildit-plan` clears them
+
+**Field ownership** — locally and in external writes when synchronization is enabled:
+
+| Skill | Owns |
+|-------|------|
+| `buildit-feature-run` | Status (and the `plan.md` checkbox and counters) |
+| `buildit-feature-discover` | Description, Acceptance tests, Readiness (and the `plan.md` readiness tag) |
+| `buildit-plan` | Full bidirectional reconcile with the external tool (step 5b) |
+
+External writes happen from the orchestrator, never inside a subagent, after one explicit confirmation per invocation, and only for tasks with a `Link:`. A refusal or failure records a `Pending:` entry and never blocks the local flow.
+
+---
+
 ## Skills
 
 ### `buildit-project-bootstrap`
@@ -259,7 +363,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 4. Decomposes into tasks with name, description, acceptance tests, priority, and readiness (`ready` or `needs-scoping`)
 5. Groups tasks into epics if 3 or more tasks; uses flat list otherwise
 6. Creates `.scratch/plan/task-{name}.md` per task and `.scratch/plan/plan.md` with epic index and progress counters
-7. When synchronization is enabled, synchronizes selected tasks with the external tool (step 5b): processes `Pending:` entries first, limits discovery to tickets tagged `[<tag>]` (untagged ones offered as opt-in import), links by stable ID, titles external tickets `[<tag>] <Title>`, and writes only with explicit per-field approval
+7. When synchronization is enabled, synchronizes selected tasks with the external tool (step 5b) — full reconcile, see [Plan files](#plan-files)
 8. On resume: reads existing plan, proposes human-readable titles for slug-only tasks, shows a read-only synchronization drift report, proposes cleanup of `.scratch/done/` files older than 7 days and completed epics, enters coaching mode for modifications, re-syncs progress counters
 
 **Ends with:** explicit handoff listing actionable tasks — suggests `/buildit-feature-discover [task-name]` for `needs-scoping` tasks and `/buildit-feature-run [task-name]` for `ready` tasks.
@@ -283,7 +387,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 6. Produces a structured brief: kebab-case name, technical description, acceptance tests, risks & constraints
 7. Presents the brief for user validation; iterates on contested sections only
 8. On validation, when a plan task is detected: writes the brief (description, acceptance tests, risks & constraints) into the task file, sets its Readiness to `ready`, and switches its `plan.md` tag from `[needs-scoping]` to `[ready]`. Never touches the task Status (owned by `buildit-feature-run`); nothing is written if the brief is not validated
-9. When task synchronization is enabled and the task is linked: after one confirmation, pushes description, acceptance tests and readiness (never status) to the external ticket; a refusal or failure records a `Pending:` entry and the flow continues. Never prompts to configure synchronization
+9. When task synchronization is enabled and the task is linked, pushes its own fields to the external ticket after one confirmation — see [Plan files](#plan-files) for field ownership and `Pending:` entries
 
 **Ends with:** the user chooses between `/buildit-feature-run [feature-name]` (full cycle unattended, recommended) or `/buildit-feature-start [feature-name]` (manual cycle, session by session). When a plan task is detected, `/buildit-feature-run [task-name]` is recommended so the task status is tracked.
 
@@ -296,7 +400,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** the default path for most features. Runs the full cycle (start → build → validate → ship) unattended in a single session. Each phase runs in a fresh subagent for context isolation. Fall back to the manual flow only when mid-cycle human judgement is needed.
 
 **What it does:**
-1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent. When a matching plan task exists (`.scratch/plan/task-{name}.md`), pre-fills inputs and tracks task status automatically. When task synchronization is enabled and the task is linked, asks one confirmation (ticket + status mapping) and pushes only the status (`in-progress` here, `done` after ship) from the orchestrator; a refusal or failure records a `Pending:` entry and never blocks the cycle
+1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent. When a matching plan task exists (`.scratch/plan/task-{name}.md`), pre-fills inputs and tracks task status automatically. When task synchronization is enabled and the task is linked, pushes only the status after one confirmation — see [Plan files](#plan-files)
 2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
 3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
 4. On GO + PASS: delegates `buildit-feature-ship`, updates plan task status to done if applicable, then reminds the user that push and PR creation are manual
@@ -322,13 +426,9 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
 **Ends with:** push and PR creation are manual.
 
-**Design spec:** `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
-
 ---
 
-### Manual flow skills
-
-The following skills are used individually in the manual flow, or invoked internally by `buildit-feature-run`:
+**Manual flow skills** — the following skills are used individually in the manual flow, or invoked internally by `buildit-feature-run`:
 
 ### `buildit-feature-start`
 
@@ -396,7 +496,11 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **Test suite** — runs the project's tests before the review using a two-tier detection: first reads the configured command from `.buildit/config.md` (set by bootstrap); if absent, falls back to ecosystem marker heuristic (same 6 ecosystems as bootstrap). If no test runner is detected, warns and proceeds.
 
-**Review phase** — evaluates the diff (`git diff main...HEAD`) on 6 dimensions without reading the plan (unbiased review):
+**Base branch** — read from `## Base branch` in `.buildit/config.md` (default `main`).
+
+**Staging guard** — before the review, runs `git status --porcelain`; any untracked or unstaged file outside `.scratch/` is an immediate NO-GO listing those files, because code that isn't staged hasn't been reviewed.
+
+**Review phase** — evaluates the staged diff against the base branch (`git diff --cached --merge-base <base-branch>`, covering branch commits and staged changes; fallback for git < 2.30) on 6 dimensions without reading the plan (unbiased review):
 
 | Dimension | Question |
 |-----------|----------|
@@ -435,7 +539,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 **What it does:**
 
 **1. Readiness check** — reads `shared-context.md` in full and checks:
-- File overlap with `IN_PROGRESS` branches
+- File overlap with `IN_PROGRESS` branches — this feature's files come from `git diff --cached --merge-base <base-branch> --name-only` (Base branch from `.buildit/config.md`, default `main`), other branches' from `git diff --name-only --merge-base <base-branch> <branch>`, which only sees their commits
 - Branches declaring they are waiting for this branch
 - APIs modified by other branches not yet accounted for
 - Discovered constraints not addressed in this scope
@@ -463,18 +567,9 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 
 ---
 
-## Continuous improvement loop
+**Internal** — not invoked directly by users:
 
-Guidelines are automatically enriched with each feature, without a dedicated step:
-
-- **`buildit-feature-validate` NO-GO** → updates configs in the same session (before closing)
-- **`buildit-feature-ship`** → migrates durable constraints from `shared-context.md` into the appropriate guidelines
-
-Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md` reflect the real constraints of the project — not anticipations, but accumulated real work.
-
----
-
-### `buildit-worktree` (internal)
+### `buildit-worktree`
 
 **Trigger:** called internally by `buildit-feature-start` — not invoked directly by users.
 
@@ -489,13 +584,22 @@ Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md
 
 **Design rationale:** replaces the external dependency on `superpowers:using-git-worktrees`. Worktree management is now fully internal to the buildit framework, ensuring consistent behaviour regardless of which superpowers skills are installed.
 
+
+## Continuous improvement loop
+
+Guidelines are automatically enriched with each feature, without a dedicated step:
+
+- **`buildit-feature-validate` NO-GO** → updates configs in the same session (before closing)
+- **`buildit-feature-ship`** → migrates durable constraints from `shared-context.md` into the appropriate guidelines
+
+Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md` reflect the real constraints of the project — not anticipations, but accumulated real work.
+
 ---
 
 ## References
 
 - buildit-plan design: `docs/buildit/specs/2026-10-22-buildit-plan-design.md`
 - Plan task synchronization: `docs/buildit/specs/2026-11-24-plan-task-synchronization.md`
-- buildit-feature-run design: `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
 - Generic test runner detection: `docs/buildit/specs/2026-10-14-generic-test-runner-detection.md`
 - Audit parallel pipeline: `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`
 - Audit calibration: `docs/buildit/specs/2026-10-19-audit-calibration.md`

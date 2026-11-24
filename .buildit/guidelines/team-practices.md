@@ -114,6 +114,8 @@ The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_rege
 
 New test files follow the naming pattern `tests/test-<skill-name>.sh`.
 
+README-wide assertions (structure, Project configuration, Plan files, skill count, diagram alignment) live in `tests/test-readme.sh`; per-skill test files keep their existing checks on that skill's README section. When slicing a README section by heading, use a fence-aware extractor so `## ` headings inside fenced example blocks do not end the section.
+
 Section comments that name a range of test IDs (e.g. "AT-I1 through AT-I6") must match the tests actually defined in that section. Update the comment in the same change whenever you add, remove or renumber a test in the section.
 
 ## Review
