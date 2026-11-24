@@ -51,9 +51,9 @@ Read `.scratch/shared-context.md` section "Constraints discovered": are there do
 
 Run the project's test suite before the review phase using a two-tier detection:
 
-**Tier 1 — Configured command:** Read `.buildit/config.md`, extract the first non-empty, non-comment line after the `## Test command` heading. If found and non-empty, use it.
+**Tier 1 — Configured command:** Read `.buildit/config.md`, extract the first non-empty, non-comment line after the `## Test command` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`). If found, use it. If the value is empty, go to Tier 2.
 
-**Tier 2 — Ecosystem fallback heuristic:** If no configured command is found (file absent, heading missing, or no command under it), detect the test runner from ecosystem markers in priority order:
+**Tier 2 — Ecosystem fallback heuristic:** If no configured command is found (file absent, heading missing, or heading empty), detect the test runner from ecosystem markers in priority order:
 1. `tests/run-all.sh` exists -> `bash tests/run-all.sh`
 2. `package.json` exists -> `npm test`
 3. `pom.xml` exists -> `mvn test`
@@ -69,7 +69,7 @@ If all tests pass: proceed to step 3 (review phase).
 
 ### 2c. Resolve the base branch
 
-Read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading as `<base-branch>`. If the file or the heading is absent, or no value sits under it, `<base-branch>` defaults to `main`.
+Read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`.
 
 Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, restore the status to `to-validate` and stop with:
 > "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch, then re-run `/buildit-feature-validate`."

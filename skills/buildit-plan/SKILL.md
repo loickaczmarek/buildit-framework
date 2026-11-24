@@ -19,8 +19,8 @@ Detect your operating mode:
 - Run `ls .claude/ 2>/dev/null` — if the directory exists, you are in **Claude mode**; otherwise **Generic mode**.
 
 Read `.buildit/config.md`, if present. For each heading, the value is the first
-non-empty, non-comment line after it, read only within that heading (stop at the
-next heading):
+non-empty, non-comment line after it, read only within that heading (stop at the next heading); a line starting with `#` is never a value
+(Config value rule, `.buildit/guidelines/language-framework.md`):
 - `## Task synchronization` — `enabled` or `disabled`. An absent, empty,
   commented-out or unrecognized value is unconfigured, not disabled.
 - `## Synchronization method` — a plain-language description of the external

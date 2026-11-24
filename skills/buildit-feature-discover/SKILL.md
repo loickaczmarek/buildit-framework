@@ -144,7 +144,7 @@ Never modify `## Status` — it is owned by `/buildit-feature-run`. Progress cou
 
 After the local writes. The full protocol is `buildit-plan` step 5b; this skill repeats only the brief subset.
 
-- Read `.buildit/config.md` headings `## Task synchronization`, `## Synchronization method` and `## Synchronization tag` (value = first non-empty, non-comment line after the heading). Read `Link:` from the task's `## Synchronization` section.
+- Read `.buildit/config.md` headings `## Task synchronization`, `## Synchronization method` and `## Synchronization tag` (value = first non-empty, non-comment line after the heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value; Config value rule, `.buildit/guidelines/language-framework.md`). Read `Link:` from the task's `## Synchronization` section.
 - If synchronization is disabled, unconfigured, or the method is missing or unclear, or the task has no `Link:` → no external call. Here unconfigured is treated as disabled for this run; never prompt to configure synchronization (that belongs to `buildit-plan` and `buildit-project-bootstrap`).
 - Otherwise ask ONE confirmation showing the linked ticket (`Link:` value) and the fields to push: description, acceptance tests and readiness (readiness only if the tool has a mappable field — confirm the mapping in the same prompt). Never push status, title or priority.
 - On acceptance, write the fields to the linked ticket and re-read it to verify.

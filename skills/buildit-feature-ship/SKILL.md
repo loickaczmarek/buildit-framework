@@ -47,7 +47,7 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 Read `.scratch/shared-context.md` in full.
 
-**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading as `<base-branch>`. If the file or the heading is absent, or no value sits under it, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
+**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
 
 Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 2).
 

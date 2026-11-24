@@ -210,7 +210,7 @@ Three `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths
 
 ## Project configuration
 
-`.buildit/config.md` holds project-level settings. Each value is the first non-empty, non-comment line after its `## Heading` — no YAML/JSON. Never store secrets (tokens, passwords, API keys) in this file: describe access methods in plain language instead.
+`.buildit/config.md` holds project-level settings. Each value is the first non-empty, non-comment line after its `## Heading`, read only within that heading (stop at the next heading); a line starting with `#` is never a value; an empty value is treated as absent — no YAML/JSON. Never store secrets (tokens, passwords, API keys) in this file: describe access methods in plain language instead.
 
 | Key | Meaning | When absent or empty | Written by |
 |-----|---------|----------------------|------------|

@@ -125,7 +125,7 @@ Generate no file in Generic mode.
 
 **Fast path:** If `<guidelines-dir>` already contains `team-practices.md` and `language-framework.md`, and only `<rules-file>` is absent → ask:
 > "Guidelines already exist. Do you want to (1) just regenerate the rules file [fast], or (2) also re-scan the codebase for drift [full]?"
-- Fast → skip steps 3 and 4, go directly to step 5
+- Fast → skip steps 3 and 4a–4d, but still run 4e and 4f — when `.buildit/config.md` already holds a non-empty `## Test command` / `## Base branch` value (Config value rule), propose that existing value for confirmation instead of re-detecting, and preserve it as-is when confirmed; then go to step 5
 - Full → continue with all steps
 
 ---
@@ -416,7 +416,7 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 |--------|--------|--------------------|-------------|
 ~~~
 
-`.buildit/config.md` (create with the test command detected in step 4e, the base branch detected in step 4f, and the synchronization answers from step 6b):
+`.buildit/config.md` (create with the test command detected in step 4e, the base branch detected in step 4f, and the synchronization answers from step 6b). If `.buildit/config.md` already exists, update only the headings whose values changed and preserve every other heading and value:
 
 ~~~markdown
 # Project Configuration
@@ -442,7 +442,7 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 [tag, or empty]
 ~~~
 
-The test command is the raw shell command on a single line after the `## Test command` heading. Convention: first non-empty, non-comment line after the heading is the command. The same convention applies to `## Base branch`, which defaults to `main` when absent or empty, and to the synchronization headings: an empty `## Task synchronization` is unconfigured, not disabled, and an empty `## Synchronization tag` means the default `technical`.
+The test command is the raw shell command on a single line after the `## Test command` heading. Convention: the command is the first non-empty, non-comment line after the heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`); an empty `## Test command` makes validate fall back to ecosystem detection. The same convention applies to `## Base branch`, which defaults to `main` when absent or empty, and to the synchronization headings: an empty `## Task synchronization` is unconfigured, not disabled, and an empty `## Synchronization tag` means the default `technical`.
 
 ---
 
