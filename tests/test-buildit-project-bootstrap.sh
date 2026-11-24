@@ -47,6 +47,16 @@ require_regex "AT-10: user confirmation prompt for test command" "$SKILL" '[Cc]o
 # AT-11: Stores test command in .buildit/config.md
 require_text "AT-11: stores test command in .buildit/config.md" "$SKILL" '.buildit/config.md'
 
+# AT-SYNC-12: optional task synchronization configuration
+require_text "AT-SYNC-12: optional sync step" "$SKILL" '### 6b. Configure task synchronization (optional)'
+TPL=$(awk 'index($0,"# Project Configuration")==1{f=1} f&&index($0,"~~~")==1{exit} f' "$SKILL")
+for h in '## Task synchronization' '## Synchronization method' '## Synchronization tag'; do
+  if grep -qF -- "$h" <<<"$TPL"; then ok "AT-SYNC-12: config template has $h"; else fail "AT-SYNC-12: config template lacks $h"; fi
+done
+require_text "AT-SYNC-12: default tag technical" "$SKILL" 'default `technical`'
+require_text "AT-SYNC-12: unconfigured not disabled" "$SKILL" 'unconfigured, not disabled'
+require_regex "AT-SYNC-12: no secrets" "$SKILL" 'never secrets|no secrets|other secrets'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

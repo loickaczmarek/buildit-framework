@@ -12,6 +12,8 @@ When `buildit-feature-run` receives a `feature-name` argument, it checks for a m
 
 `buildit-feature-discover` applies the same detection when it receives a `feature-name`: it scopes the task starting from its description and acceptance tests, then on brief validation writes the brief into the task file, sets `## Readiness` to `ready`, and switches the plan.md tag from `[needs-scoping]` to `[ready]`. Field ownership is strict: `## Readiness` (and the plan.md readiness tag) is owned by `buildit-feature-discover`; `## Status` (and the plan.md checkbox and progress counters) is owned by `buildit-feature-run`. Neither skill writes the other's field.
 
+Field ownership extends to external writes when task synchronization is enabled (see `buildit-plan` step 5b): `buildit-feature-run` writes only Status, `buildit-feature-discover` writes only Description, Acceptance tests and Readiness, and only `buildit-plan` performs the full bidirectional reconcile. External writes happen from the orchestrator (never inside a subagent), after one explicit confirmation per invocation, and only for tasks with a `Link:`. A refusal or failure writes a `Pending:` entry in the task's `## Synchronization` section and never blocks the local flow. Run and discover never prompt to configure synchronization.
+
 ### Worktree management
 
 Worktree management is handled internally by the `buildit-worktree` skill. Skills and orchestrators must **not** reference `superpowers:using-git-worktrees` or any external worktree tooling. The framework must remain self-contained; an external dependency on `superpowers:using-git-worktrees` creates a fragile coupling that silently breaks worktree isolation when the skill is absent or changes.

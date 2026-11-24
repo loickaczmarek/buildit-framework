@@ -256,6 +256,15 @@ If the stack could not be determined by coring, ask:
 If the stack is known, simply confirm:
 > "Detected stack: [stack]. Is that correct?"
 
+### 6b. Configure task synchronization (optional)
+
+Ask whether `.scratch/plan/` tasks should be synchronized with an external tool (see `buildit-plan` step 5b for the protocol):
+- **Yes** → ask for the synchronization method (a plain-language description of the tool, target and access method — never a shell command, never secrets; authentication stays in the tool) and the tag identifying plan-owned tickets (default `technical`). Store `enabled`, the method and the tag in `.buildit/config.md`.
+- **Explicitly disabled** → store `disabled`.
+- **Skipped** → leave the values empty: unconfigured, not disabled (`buildit-plan` will ask again).
+
+If the headings already exist with values, preserve them unless the user changes them.
+
 ---
 
 ### 7. Create directories if absent
@@ -397,7 +406,7 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 |--------|--------|--------------------|-------------|
 ~~~
 
-`.buildit/config.md` (create with the test command detected in step 4e):
+`.buildit/config.md` (create with the test command detected in step 4e and the synchronization answers from step 6b):
 
 ~~~markdown
 # Project Configuration
@@ -405,9 +414,21 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 ## Test command
 <!-- Auto-detected by bootstrap, confirmed by user -->
 [confirmed test command here, or empty if skipped]
+
+## Task synchronization
+<!-- enabled or disabled; empty = unconfigured (step 6b) -->
+[enabled/disabled, or empty if skipped]
+
+## Synchronization method
+<!-- Plain-language description of tool, target and access method; no shell command, no secrets -->
+[method description, or empty]
+
+## Synchronization tag
+<!-- Identifies plan-owned external tickets; default technical when absent or empty -->
+[tag, or empty]
 ~~~
 
-The test command is the raw shell command on a single line after the `## Test command` heading. Convention: first non-empty, non-comment line after the heading is the command.
+The test command is the raw shell command on a single line after the `## Test command` heading. Convention: first non-empty, non-comment line after the heading is the command. The same convention applies to the synchronization headings: an empty `## Task synchronization` is unconfigured, not disabled, and an empty `## Synchronization tag` means the default `technical`.
 
 ---
 

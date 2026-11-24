@@ -43,6 +43,8 @@ Skills that need configuration (e.g. a test command) read from this file first a
 
 `buildit-project-bootstrap` is responsible for creating and populating this file during project setup: it auto-detects settings, proposes them to the user for confirmation, and writes the confirmed values.
 
+Task synchronization uses three headings: `## Task synchronization` (`enabled`/`disabled`; absent, empty or unrecognized means unconfigured, not disabled), `## Synchronization method` (plain-language description of tool, target and access method — never a shell command) and `## Synchronization tag` (default `technical` when absent or empty). Never store secrets in this file. Only `buildit-plan` and `buildit-project-bootstrap` prompt to configure synchronization; other skills treat unconfigured as disabled.
+
 ## Design decisions
 
 Design specs live in `docs/<domain>/specs/YYYY-MM-DD-kebab-name.md`.

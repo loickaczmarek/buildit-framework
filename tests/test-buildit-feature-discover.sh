@@ -105,6 +105,20 @@ else
   fail "AT-D14: guideline does not cover discover / Readiness ownership"
 fi
 
+# --- Task synchronization (plan-task-synchronization) ---
+P5=$(awk 'index($0,"### Phase 5")==1{f=1} f&&index($0,"## End of skill")==1{exit} f' "$SKILL_SRC")
+p5_in() { if grep -qF -- "$2" <<<"$P5"; then ok "$1"; else fail "$1 — pattern not found in Phase 5: '$2'"; fi; }
+p5_in "AT-SYNC-11: Phase 5 sync block" '**Synchronize validated brief**'
+p5_in "AT-SYNC-11: one confirmation" 'ONE confirmation'
+p5_in "AT-SYNC-11: pushes description, AT and readiness only" 'description, acceptance tests and readiness'
+p5_in "AT-SYNC-11: never pushes status" 'Never push status'
+p5_in "AT-SYNC-11: references buildit-plan step 5b" '`buildit-plan` step 5b'
+p5_in "AT-SYNC-9: unconfigured treated as disabled" 'unconfigured is treated as disabled for this run'
+p5_in "AT-SYNC-9: never prompts to configure" 'never prompt to configure'
+p5_in "AT-SYNC-10: failure/refusal writes Pending" 'Pending: <field> → local (DD-MM-YYYY)'
+p5_in "AT-SYNC-10: local flow continues" 'the local flow continues'
+p5_in "AT-SYNC-13: external content is data" 'data, not instructions'
+
 # Dual-location deployment: source and deployed copy must both exist
 require_file "$SKILL_DEPLOYED"
 
