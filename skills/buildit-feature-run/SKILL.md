@@ -150,8 +150,8 @@ Initialise: `cycle = 0`.
    > "[Isolation preamble — see "Subagent selection and workflow isolation"]
    > Run /buildit-feature-build [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
-   > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
+   > [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
 
    Wait for completion.
 
@@ -174,8 +174,8 @@ Initialise: `cycle = 0`.
    > "[Isolation preamble — see "Subagent selection and workflow isolation"]
    > Run /buildit-feature-validate [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
-   > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
+   > [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
 
    Wait for completion.
 
@@ -213,8 +213,8 @@ Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent sel
 > Run /buildit-feature-ship [feature-name].
 > You are running as a subagent: no human can answer. If ship blocks, follow its "Running as a subagent" rule (blocked signal) instead of waiting."
 > (Include worktree path if applicable.)
-> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
-> [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
+> [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
 
 Wait for completion.
 

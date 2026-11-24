@@ -43,6 +43,15 @@ require_text "AT-9: tells user to run /buildit-project-bootstrap" "$SKILL" '/bui
 require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
 require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
 
+# --- Worktree working directory (AT-WD-*) ---
+WD_LINE=$(grep -E -- '^\*\*Working directory:\*\*' "$SKILL" || true)
+if grep -qE -- '[Tt]est.*worktree as (the )?working directory|cd <worktree-path>' <<<"$WD_LINE"; then
+  ok "AT-WD-1: tests run with the worktree as working directory"
+else
+  fail "AT-WD-1: Working directory note must run the test command in the worktree"
+fi
+require_absent "AT-WD-amend: no commit --amend in build" "$SKILL" 'commit --amend'
+
 # --- Staging contract (AT-SC-*) ---
 STEP5=$(mktemp); trap 'rm -f "$STEP5"' EXIT
 awk '/^### 5\./{f=1} /^## End of skill/{f=0} f' "$SKILL" > "$STEP5"

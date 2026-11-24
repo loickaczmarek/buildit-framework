@@ -77,9 +77,9 @@ require_text "AT-BASE-4: reads ## Base branch" "$SKILL" '## Base branch'
 require_regex "AT-BASE-4: defaults to main" "$SKILL" 'defaults? to `main`|falls? back to `main`'
 
 # --- Staging guard (AT-STAGE-*) ---
-require_text "AT-STAGE-1: staging guard runs git status --porcelain" "$SKILL" 'git status --porcelain'
+require_text "AT-STAGE-1: staging guard runs git status --porcelain" "$SKILL" 'status --porcelain'
 require_regex "AT-STAGE-2: NO-GO listing unstaged/untracked files" "$SKILL" 'NO-GO.*(list|listing).*(untracked|unstaged)|(untracked|unstaged).*NO-GO.*(list|listing)'
-GUARD_LINE=$(grep -nF -- 'git status --porcelain' "$SKILL" | head -1 | cut -d: -f1 || true)
+GUARD_LINE=$(grep -nF -- 'status --porcelain' "$SKILL" | head -1 | cut -d: -f1 || true)
 DIFF_LINE=$(grep -nF -- 'git diff --cached --merge-base' "$SKILL" | head -1 | cut -d: -f1 || true)
 if [[ -n "$GUARD_LINE" && -n "$DIFF_LINE" && "$GUARD_LINE" -lt "$DIFF_LINE" ]]; then
   ok "AT-STAGE-3: staging guard runs before the review diff"
@@ -90,6 +90,24 @@ fi
 # --- Worktree working directory (AT-WT-*) ---
 require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
 require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
+
+# --- Worktree working directory (AT-WD-*) ---
+WD_LINE=$(grep -E -- '^\*\*Working directory:\*\*' "$SKILL" || true)
+if grep -qE -- '[Tt]est.*worktree as (the )?working directory|cd <worktree-path>' <<<"$WD_LINE"; then
+  ok "AT-WD-1: tests run with the worktree as working directory"
+else
+  fail "AT-WD-1: Working directory note must run the test command in the worktree"
+fi
+WD_2B=$(awk '/^### 2b\./{f=1;print;next} /^### /{f=0} f' "$SKILL")
+if grep -qE -- 'worktree' <<<"$WD_2B"; then ok "AT-WD-1: test detection and run happen in the worktree"; else fail "AT-WD-1: step 2b must evaluate markers and run tests in the worktree"; fi
+require_absent "AT-WD-amend: no commit --amend in validate" "$SKILL" 'commit --amend'
+WD_5A=$(awk '/^### 5a\./{f=1;print;next} /^### 5b\./{f=0} f' "$SKILL")
+for pat in 'inside the worktree in worktree mode, in the project root otherwise' 'git [-C <worktree-path>] add' '<rules-file>'; do
+  if grep -qF -- "$pat" <<<"$WD_5A"; then ok "AT-WD-3: 5a contains '$pat'"; else fail "AT-WD-3: 5a must contain '$pat'"; fi
+done
+WD_2A=$(awk '/^### 2a\./{f=1;print;next} /^### 2b\./{f=0} f' "$SKILL")
+if grep -qF -- 'git [-C <worktree-path>] status --porcelain' <<<"$WD_2A"; then ok "AT-WD-4: guard runs status in the worktree"; else fail "AT-WD-4: guard must use git [-C <worktree-path>] status --porcelain"; fi
+if grep -qE -- '5a.*staged|staged.*5a' <<<"$WD_2A"; then ok "AT-WD-4: guard notes 5a stages its own edits"; else fail "AT-WD-4: guard must state step 5a edits are staged"; fi
 
 # --- Staging contract (AT-SC-*) ---
 GUARD_HEAD=$(grep -nE -- '^### .*Staging guard' "$SKILL" | head -1 | cut -d: -f1 || true)

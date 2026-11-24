@@ -235,6 +235,11 @@ if grep -E -- '^- `SHIP_REF`' <<<"$S6" | grep -qF -- '`## Branch`'; then ok "AT-
 README_RUN=$(sync_section README.md '### `buildit-feature-run`' '### `buildit-feature-start`')
 sync_in "AT-SV-README: run section mentions ship verification" "$README_RUN" 'Unexpected state after ship'
 
+# --- Worktree working directory (AT-WD-*) ---
+WD_COUNT=$(grep -cF -- 'Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`)' "$SKILL" || true)
+if [[ "$WD_COUNT" -ge 3 ]]; then ok "AT-WD-2: build, validate and ship prompts run tests in the worktree"; else fail "AT-WD-2: expected >=3 worktree test instructions, found $WD_COUNT"; fi
+require_absent "AT-WD-2b: no unqualified root-relative script instruction" "$SKILL" 'Use relative paths for script invocations\. Do not cd outside the project root'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
