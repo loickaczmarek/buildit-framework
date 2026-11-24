@@ -197,14 +197,24 @@ If no ecosystem marker is detected, ask the user:
 
 Store the confirmed command in `.buildit/config.md` under `## Test command` (see step 8 for the file template).
 
+**4f. Base branch detection**
+
+Detect the branch that validate and ship compare against: run `git symbolic-ref refs/remotes/origin/HEAD` and strip the `refs/remotes/origin/` prefix. If the command fails (no remote, or `origin/HEAD` not set), fall back to `main`.
+
+Propose it for confirmation:
+> "Detected base branch: `[branch]`. Confirm or provide the correct branch:"
+
+Store the confirmed branch in `.buildit/config.md` under `## Base branch` (see step 8 for the file template).
+
 ---
 
-**Coring summary:** at the end of 4a–4e, write a short summary of detected practices, organised as:
+**Coring summary:** at the end of 4a–4f, write a short summary of detected practices, organised as:
 - Architecture / organisation
 - Naming conventions
 - Confirmed stack
 - Test signals
 - Test command (detected or user-provided)
+- Base branch (detected or user-provided)
 
 ---
 
@@ -406,7 +416,7 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 |--------|--------|--------------------|-------------|
 ~~~
 
-`.buildit/config.md` (create with the test command detected in step 4e and the synchronization answers from step 6b):
+`.buildit/config.md` (create with the test command detected in step 4e, the base branch detected in step 4f, and the synchronization answers from step 6b):
 
 ~~~markdown
 # Project Configuration
@@ -414,6 +424,10 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 ## Test command
 <!-- Auto-detected by bootstrap, confirmed by user -->
 [confirmed test command here, or empty if skipped]
+
+## Base branch
+<!-- Branch the review diff and overlap check compare against; auto-detected by bootstrap, default main when absent or empty -->
+[confirmed base branch here]
 
 ## Task synchronization
 <!-- enabled or disabled; empty = unconfigured (step 6b) -->
@@ -428,7 +442,7 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 [tag, or empty]
 ~~~
 
-The test command is the raw shell command on a single line after the `## Test command` heading. Convention: first non-empty, non-comment line after the heading is the command. The same convention applies to the synchronization headings: an empty `## Task synchronization` is unconfigured, not disabled, and an empty `## Synchronization tag` means the default `technical`.
+The test command is the raw shell command on a single line after the `## Test command` heading. Convention: first non-empty, non-comment line after the heading is the command. The same convention applies to `## Base branch`, which defaults to `main` when absent or empty, and to the synchronization headings: an empty `## Task synchronization` is unconfigured, not disabled, and an empty `## Synchronization tag` means the default `technical`.
 
 ---
 

@@ -18,6 +18,8 @@ Field ownership extends to external writes when task synchronization is enabled 
 
 Worktree management is handled internally by the `buildit-worktree` skill. Skills and orchestrators must **not** reference `superpowers:using-git-worktrees` or any external worktree tooling. The framework must remain self-contained; an external dependency on `superpowers:using-git-worktrees` creates a fragile coupling that silently breaks worktree isolation when the skill is absent or changes.
 
+In worktree mode, `.scratch/` and `.buildit/config.md` live in the project root, while feature code lives in the worktree. Build, validate and ship run every git command on feature code with `git -C <worktree-path>`, because each worktree has its own index. At ship, the `.scratch/` changes (archived tracking file, cleaned `shared-context.md`) and guideline migrations are copied or made in the worktree so they land in the feature commit, as without a worktree; the root copy of the archived tracking file is then removed so it does not block the merge.
+
 ### Parallel category subagents
 
 When a skill evaluates independent dimensions or domains, group them into parallel category subagents rather than a single sequential pass. Launch all subagents in a single message with multiple Agent tool calls. Each category's findings should be critiqued independently by a dedicated critique subagent that receives only that category's findings — this ensures deeper, focused critique and prevents cross-category contamination. See `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md` for the full design rationale.
@@ -113,6 +115,8 @@ The library exposes: `ok`, `fail`, `require_file`, `require_text`, `require_rege
 `tests/run-all.sh` is the single entry point: runs all `test-*.sh` files and exits non-zero if any file fails, printing a combined `Total: X passed, Y failed` summary.
 
 New test files follow the naming pattern `tests/test-<skill-name>.sh`.
+
+README-wide assertions (structure, Project configuration, Plan files, skill count, diagram alignment) live in `tests/test-readme.sh`; per-skill test files keep their existing checks on that skill's README section. When slicing a README section by heading, use a fence-aware extractor so `## ` headings inside fenced example blocks do not end the section.
 
 Section comments that name a range of test IDs (e.g. "AT-I1 through AT-I6") must match the tests actually defined in that section. Update the comment in the same change whenever you add, remove or renumber a test in the section.
 

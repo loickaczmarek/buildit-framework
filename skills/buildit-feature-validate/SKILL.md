@@ -41,6 +41,8 @@ If `.scratch/shared-context.md` does not exist, stop with:
 
 Set the status to `validating`.
 
+**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
+
 ### 2. Read known constraints
 
 Read `.scratch/shared-context.md` section "Constraints discovered": are there documented constraints that apply to the scope of this feature?
@@ -65,9 +67,22 @@ If any test fails: set status to `to-fix`, write a "Problems to fix" section in 
 
 If all tests pass: proceed to step 3 (review phase).
 
+### 2c. Resolve the base branch
+
+Read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading as `<base-branch>`. If the file or the heading is absent, or no value sits under it, `<base-branch>` defaults to `main`.
+
+Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, restore the status to `to-validate` and stop with:
+> "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch, then re-run `/buildit-feature-validate`."
+
 ### 3. Review phase
 
-Read the changes: `git diff main...HEAD`
+**Staging guard (before the review):** run `git status --porcelain`. Ignore paths under `.scratch/` (tracking file and `shared-context.md` are workflow state, modified by this skill and committed by ship). Flag every remaining line that is untracked (`??`) or has unstaged changes (second status column non-blank, e.g. ` M`, `MM`, ` D`); staged-only entries (`M `, `A `, `R `, `D `) are fine.
+
+If any file is flagged, the review verdict is **NO-GO**, listing each untracked or unstaged file as a blocking issue: code that isn't staged hasn't been reviewed. Skip the diff review and the acceptance phase (acceptance is not evaluated) and go directly to "If NO-GO or FAIL" — the "Problems to fix" entry lists the files and instructs to stage them.
+
+Read the changes: `git diff --cached --merge-base <base-branch>`. This covers both the branch commits and the staged changes — at validate time the work is staged by build but not yet committed.
+
+Fallback for git < 2.30 (no `--merge-base` option): `git diff --cached $(git merge-base <base-branch> HEAD)`
 
 **Do not read the plan** — the review is about what was done, not what was intended. The absence of bias is what gives value to this step.
 

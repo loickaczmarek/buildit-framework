@@ -68,6 +68,29 @@ else
   fail "AT-I4: §5a fallback missing"
 fi
 
+# --- Base branch and staged review diff (AT-BASE-*) ---
+require_text "AT-BASE-1: review diff covers staged work vs base branch" "$SKILL" 'git diff --cached --merge-base <base-branch>'
+require_text "AT-BASE-2: git < 2.30 fallback" "$SKILL" 'git diff --cached $(git merge-base <base-branch> HEAD)'
+require_text "AT-BASE-2: fallback names git 2.30" "$SKILL" '2.30'
+require_absent "AT-BASE-3: no hardcoded main...HEAD" "$SKILL" 'main\.\.\.HEAD|main\.\.HEAD'
+require_text "AT-BASE-4: reads ## Base branch" "$SKILL" '## Base branch'
+require_regex "AT-BASE-4: defaults to main" "$SKILL" 'defaults? to `main`|falls? back to `main`'
+
+# --- Staging guard (AT-STAGE-*) ---
+require_text "AT-STAGE-1: staging guard runs git status --porcelain" "$SKILL" 'git status --porcelain'
+require_regex "AT-STAGE-2: NO-GO listing unstaged/untracked files" "$SKILL" 'NO-GO.*(list|listing).*(untracked|unstaged)|(untracked|unstaged).*NO-GO.*(list|listing)'
+GUARD_LINE=$(grep -nF -- 'git status --porcelain' "$SKILL" | head -1 | cut -d: -f1)
+DIFF_LINE=$(grep -nF -- 'git diff --cached --merge-base' "$SKILL" | head -1 | cut -d: -f1)
+if [[ -n "$GUARD_LINE" && -n "$DIFF_LINE" && "$GUARD_LINE" -lt "$DIFF_LINE" ]]; then
+  ok "AT-STAGE-3: staging guard runs before the review diff"
+else
+  fail "AT-STAGE-3: staging guard must appear before the review diff"
+fi
+
+# --- Worktree working directory (AT-WT-*) ---
+require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
+require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

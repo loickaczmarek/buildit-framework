@@ -57,6 +57,20 @@ require_text "AT-SYNC-12: default tag technical" "$SKILL" 'default `technical`'
 require_text "AT-SYNC-12: unconfigured not disabled" "$SKILL" 'unconfigured, not disabled'
 require_regex "AT-SYNC-12: no secrets" "$SKILL" 'never secrets|no secrets|other secrets'
 
+# --- Base branch detection (AT-BASE-*) ---
+require_text "AT-BASE-1: detects base branch from origin/HEAD" "$SKILL" 'git symbolic-ref refs/remotes/origin/HEAD'
+require_regex "AT-BASE-1: falls back to main" "$SKILL" 'falls? back to `main`|defaults? to `main`'
+require_text "AT-BASE-2: proposes detected base branch for confirmation" "$SKILL" 'Detected base branch'
+if grep -qF -- '## Base branch' <<<"$TPL"; then ok "AT-BASE-3: config template has ## Base branch"; else fail "AT-BASE-3: config template lacks ## Base branch"; fi
+require_text "AT-BASE-4: language-framework.md documents ## Base branch" ".buildit/guidelines/language-framework.md" '## Base branch'
+
+# --- No hardcoded main diff range in any SKILL.md (AT-BASE-5) ---
+if grep -lE -- 'main\.\.' skills/*/SKILL.md >/dev/null 2>&1; then
+  fail "AT-BASE-5: a SKILL.md still hardcodes main... or main..HEAD: $(grep -lE -- 'main\.\.' skills/*/SKILL.md | tr '\n' ' ')"
+else
+  ok "AT-BASE-5: no SKILL.md hardcodes main... or main..HEAD"
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
