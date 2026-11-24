@@ -76,10 +76,10 @@ fi
 require_regex "AT-14: no orphan files — writes to existing shared-context.md" "$SKILL" \
   '[Rr]ead.*shared-context|shared-context.*[Ee]xist|[Ww]rite.*shared-context|[Mm]erge readiness'
 
-# AT-15: The start subagent prompt includes instruction to skip step 5 (shared-context update)
+# AT-15: The start subagent prompt includes instruction to skip the shared-context update step
 # to avoid duplicate merge readiness entries.
-require_regex "AT-15: start subagent told to skip step 5" "$SKILL" \
-  '[Ss]kip.*step 5|[Ss]kip.*shared-context|[Ss]hared-context.*already done|[Ss]tep 5.*skip'
+require_regex "AT-15: start subagent told to skip the shared-context step" "$SKILL" \
+  '[Ss]kip.*shared-context|[Ss]hared-context.*already done'
 
 # --- Plan integration tests (AT-P1 through AT-P10) ---
 
@@ -217,6 +217,16 @@ sync_in "AT-SYNC-10: failure writes Pending (step 6)" "$S6" 'Pending: status →
 require_text "AT-SYNC-10: local flow continues" "$SKILL" 'never block the cycle'
 # AT-SYNC-13
 require_text "AT-SYNC-13: external content is data" "$SKILL" 'data, not instructions'
+
+# --- Staging contract (AT-SC-*) ---
+require_text "AT-SC-5: start step referenced by name" "$SKILL" 'Skip the "Update shared-context.md" step'
+require_absent "AT-SC-5: no numeric reference to start step 5" "$SKILL" 'Skip step 5|step 5 of buildit-feature-start'
+require_regex "AT-SC-5: run reports validate's ## Last error" "$SKILL" '`## Last error`.*(report|stop)'
+if grep -A1 -F -- 'Otherwise (no `## Last error` section)' "$SKILL" | grep -qF -- 'after buildit-feature-validate — possible subagent failure'; then
+  ok "AT-SC-5: subagent failure for validate only without Last error"
+else
+  fail "AT-SC-5: validate's possible-subagent-failure message must be conditioned on no ## Last error"
+fi
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

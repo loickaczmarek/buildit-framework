@@ -71,6 +71,11 @@ else
   ok "AT-BASE-5: no SKILL.md hardcodes main... or main..HEAD"
 fi
 
+# --- Staging contract (AT-SC-*) ---
+RULES_TPL=$(mktemp); trap 'rm -f "$RULES_TPL"' EXIT
+awk '/^`<rules-file>`:/{f=1;next} /^`<guidelines-dir>\/team-practices\.md`:/{f=0} f' "$SKILL" > "$RULES_TPL"
+require_regex "AT-SC-2: rules-file template contains the staging rule" "$RULES_TPL" 'to-validate.*stage.*git status|stage.*git status.*to-validate'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

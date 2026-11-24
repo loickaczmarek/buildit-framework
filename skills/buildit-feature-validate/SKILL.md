@@ -39,13 +39,19 @@ If `.scratch/shared-context.md` does not exist, stop with:
 - If a `feature-name` was provided as argument (`/buildit-feature-validate feature-name`) → look for `.scratch/*feature-name*.md`
 - Otherwise → scan `.scratch/` and take the most recent `.md` outside of `done/`
 
-Set the status to `validating`.
+Set the status to `validating`. If the tracking file has a `## Last error` section, remove it (it describes a previous run).
 
 **Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
 
 ### 2. Read known constraints
 
 Read `.scratch/shared-context.md` section "Constraints discovered": are there documented constraints that apply to the scope of this feature?
+
+### 2a. Staging guard
+
+Run `git status --porcelain`. Ignore paths under `.scratch/` (tracking file and `shared-context.md` are workflow state, modified by this skill and committed by ship). Flag every remaining line that is untracked (`??`) or has unstaged changes (second status column non-blank, e.g. ` M`, `MM`, ` D`); staged-only entries (`M `, `A `, `R `, `D `) are fine.
+
+If any file is flagged, the verdict is **NO-GO**, listing each untracked or unstaged file as a blocking issue: code that isn't staged hasn't been reviewed. Skip the test suite, the review and the acceptance phase (none of them is evaluated) and go directly to "If NO-GO or FAIL" — the "Problems to fix" entry lists the files and instructs to stage them.
 
 ### 2b. Run test suite
 
@@ -63,7 +69,7 @@ Run the project's test suite before the review phase using a two-tier detection:
 
 **No detection:** If no configured command and no ecosystem marker is found, warn: "No test runner detected — no configured command in `.buildit/config.md` and no ecosystem markers found. Proceeding to review phase without running tests." and continue to step 3.
 
-If any test fails: set status to `to-fix`, write a "Problems to fix" section in the tracking file with the test failure details, and stop — do not proceed to the review phase.
+If any test fails, the verdict is **FAIL (tests)**: skip the review and acceptance phases and go directly to "If NO-GO or FAIL" with the failing tests (names and error excerpt) as the issue list.
 
 If all tests pass: proceed to step 3 (review phase).
 
@@ -71,14 +77,10 @@ If all tests pass: proceed to step 3 (review phase).
 
 Read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`.
 
-Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, restore the status to `to-validate` and stop with:
+Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, restore the status to `to-validate`, add a `## Last error` section to the tracking file with the single line `buildit-feature-validate: base branch <base-branch> not found locally`, and stop with:
 > "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch, then re-run `/buildit-feature-validate`."
 
 ### 3. Review phase
-
-**Staging guard (before the review):** run `git status --porcelain`. Ignore paths under `.scratch/` (tracking file and `shared-context.md` are workflow state, modified by this skill and committed by ship). Flag every remaining line that is untracked (`??`) or has unstaged changes (second status column non-blank, e.g. ` M`, `MM`, ` D`); staged-only entries (`M `, `A `, `R `, `D `) are fine.
-
-If any file is flagged, the review verdict is **NO-GO**, listing each untracked or unstaged file as a blocking issue: code that isn't staged hasn't been reviewed. Skip the diff review and the acceptance phase (acceptance is not evaluated) and go directly to "If NO-GO or FAIL" — the "Problems to fix" entry lists the files and instructs to stage them.
 
 Read the changes: `git diff --cached --merge-base <base-branch>`. This covers both the branch commits and the staged changes — at validate time the work is staged by build but not yet committed.
 
@@ -129,7 +131,7 @@ Before documenting problems, produce a structured list of the issues found — t
 Launch a subagent with the neutral `general-purpose` agent selected in the delegation tool's agent-type parameter. **Fallback:** if `general-purpose` is not available in the harness, use the harness's default unspecialised subagent — never a specialised persona agent — keep the isolation preamble, and warn the user: "`general-purpose` agent not available — using the default unspecialised subagent with the isolation preamble."
 
 Pass the following context:
-- The structured list of issues (from the review and acceptance phases above)
+- The structured list of issues (from whichever phases ran: staging guard, test suite, review, acceptance)
 - The paths `<rules-file>`, `<guidelines-dir>/team-practices.md`, `<guidelines-dir>/language-framework.md`
 - The current content of each of those files
 
@@ -169,14 +171,15 @@ Write a "Problems to fix" section in the tracking file with the precise list of 
 
 ### 5c. Count cycles and warn if needed
 
-Count the number of existing entries in the "Progress" section of the tracking file to determine the current cycle number N.
+Count the `### NO-GO cycle` headings in the "Progress" section of the tracking file (ignore any other entry) to determine the current cycle number N.
 
 Add a new entry in the "Progress" section:
 
 ~~~markdown
 ### NO-GO cycle [N+1] — [DD-MM-YYYY]
-- Review: [GO / NO-GO — key blocking issues if NO-GO]
-- Acceptance: [PASS / FAIL — key failing criteria if FAIL]
+- Tests: [PASS / FAIL — failing tests if FAIL / not run]
+- Review: [GO / NO-GO — key blocking issues if NO-GO / not run]
+- Acceptance: [PASS / FAIL — key failing criteria if FAIL / not run]
 ~~~
 
 ## End of skill (NO-GO / FAIL)

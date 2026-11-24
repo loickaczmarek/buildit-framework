@@ -109,7 +109,7 @@ Store: `feature-name`, `description`, `acceptance-tests`, `use-worktree` (yes/no
 ### 2. Trigger early write permission
 
 <!-- WHY: The first Write operation in the full run cycle normally happens inside the
-     start subagent (step 5 of buildit-feature-start) when it updates shared-context.md.
+     start subagent (the "Update shared-context.md" step of buildit-feature-start).
      If the user has not pre-allowed Write permissions, the permission prompt appears
      midway through the start phase, which is jarring. Moving a real, meaningful Write
      here — before any subagent is launched — ensures the permission prompt fires
@@ -137,7 +137,7 @@ Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent sel
 > Use worktree: [yes/no].
 > Description: [description].
 > Acceptance tests: [acceptance-tests list].
-> Skip step 5 (shared-context update) — the merge readiness entry has already been written by the orchestrator.
+> Skip the "Update shared-context.md" step (merge readiness entry) — the merge readiness entry has already been written by the orchestrator.
 > Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (e.g. `bash tests/…`). Do not cd outside the project root — paths outside require explicit user permission."
 
 Wait for the subagent to complete.
@@ -202,9 +202,11 @@ Initialise: `cycle = 0`.
 
    Read the tracking file status.
 
-   If status has not changed from `to-validate`: stop with message:
-
-   > "Tracking file status unchanged after buildit-feature-validate — possible subagent failure. Manual inspection required."
+   If status has not changed from `to-validate`:
+   - If the tracking file has a `## Last error` section, validate stopped deliberately — stop and report its content:
+     > "buildit-feature-validate stopped: [Last error line]. Fix it, then re-run `/buildit-feature-run [feature-name]` or `/buildit-feature-validate [feature-name]`."
+   - Otherwise (no `## Last error` section), stop with message:
+     > "Tracking file status unchanged after buildit-feature-validate — possible subagent failure. Manual inspection required."
 
    Otherwise, route on the status:
 

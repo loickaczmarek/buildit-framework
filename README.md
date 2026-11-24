@@ -470,7 +470,8 @@ Automatically detects the mode based on the tracking file status. At the end of 
 2. Checks API changes in `shared-context.md`
 3. Writes tests — they must fail for the right reasons
 4. Implements to make the tests pass, re-runs after each significant file
-5. Craft-principles self-review (DRY, KISS, YAGNI — see `.buildit/guidelines/craft-principles.md`) before transitioning to `to-validate`
+5. Craft-principles self-review (DRY, KISS, YAGNI — see `.buildit/guidelines/craft-principles.md`)
+6. Stages every created/modified file (explicit paths, `.scratch/` excluded) and checks `git status --porcelain` before transitioning to `to-validate` — matching validate's staging guard
 
 **Fix mode** (status `to-fix`, "Problems to fix" section present):
 1. Reads the list of problems documented by `buildit-feature-validate`
@@ -494,11 +495,11 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **What it does:**
 
-**Test suite** — runs the project's tests before the review using a two-tier detection: first reads the configured command from `.buildit/config.md` (set by bootstrap); if absent, falls back to ecosystem marker heuristic (same 6 ecosystems as bootstrap). If no test runner is detected, warns and proceeds.
+**Staging guard** — first, runs `git status --porcelain`; any untracked or unstaged file outside `.scratch/` is an immediate NO-GO listing those files (tests, review and acceptance are skipped), because code that isn't staged hasn't been reviewed.
 
-**Base branch** — read from `## Base branch` in `.buildit/config.md` (default `main`).
+**Test suite** — runs the project's tests before the review using a two-tier detection: first reads the configured command from `.buildit/config.md` (set by bootstrap); if absent, falls back to ecosystem marker heuristic (same 6 ecosystems as bootstrap). If no test runner is detected, warns and proceeds. A test failure skips review and acceptance and goes through the same NO-GO path below.
 
-**Staging guard** — before the review, runs `git status --porcelain`; any untracked or unstaged file outside `.scratch/` is an immediate NO-GO listing those files, because code that isn't staged hasn't been reviewed.
+**Base branch** — read from `## Base branch` in `.buildit/config.md` (default `main`). If it does not resolve locally, validate restores `to-validate`, records a `## Last error` line in the tracking file (reported by `buildit-feature-run`) and stops.
 
 **Review phase** — evaluates the staged diff against the base branch (`git diff --cached --merge-base <base-branch>`, covering branch commits and staged changes; fallback for git < 2.30) on 6 dimensions without reading the plan (unbiased review):
 
@@ -520,7 +521,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 **If NO-GO or FAIL (in the same session, before closing):**
 1. Launches a subagent with the structured issue list and current guideline files — subagent produces updated file content, main agent applies it
 2. Status → `to-fix`, writes the "Problems to fix" section with precise locations
-3. Counts build/fix cycles — warns if 3rd cycle or more (risk of contextual noise)
+3. Counts build/fix cycles (`### NO-GO cycle` entries in "Progress") — warns if 3rd cycle or more (risk of contextual noise)
 4. Instruction: close the session and re-run `/buildit-feature-build [feature-name]`
 
 **Use cases:**

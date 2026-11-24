@@ -43,6 +43,21 @@ require_text "AT-9: tells user to run /buildit-project-bootstrap" "$SKILL" '/bui
 require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
 require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
 
+# --- Staging contract (AT-SC-*) ---
+STEP5=$(mktemp); trap 'rm -f "$STEP5"' EXIT
+awk '/^### 5\./{f=1} /^## End of skill/{f=0} f' "$SKILL" > "$STEP5"
+require_text "AT-SC-1: step 5 stages feature files" "$STEP5" 'git [-C <worktree-path>] add'
+require_text "AT-SC-1: step 5 checks status --porcelain" "$STEP5" 'status --porcelain'
+require_regex "AT-SC-1: step 5 excludes .scratch/ from the check" "$STEP5" '`\.scratch/`'
+ADD_L=$(grep -nF -- 'git [-C <worktree-path>] add' "$STEP5" | head -1 | cut -d: -f1 || true)
+POR_L=$(grep -nF -- 'status --porcelain' "$STEP5" | head -1 | cut -d: -f1 || true)
+TOV_L=$(grep -nE -- '[Ss]et the status to `to-validate`' "$STEP5" | head -1 | cut -d: -f1 || true)
+if [[ -n "$ADD_L" && -n "$POR_L" && -n "$TOV_L" && "$ADD_L" -lt "$TOV_L" && "$POR_L" -lt "$TOV_L" ]]; then
+  ok "AT-SC-1: staging and porcelain check happen before setting to-validate"
+else
+  fail "AT-SC-1: staging and porcelain check must precede setting to-validate"
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

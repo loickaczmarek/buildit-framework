@@ -102,10 +102,14 @@ If yes, document in `.scratch/shared-context.md` section "Decisions & Convention
 
 If no, move to the next step without modifying `shared-context.md`.
 
-### 5. Update the tracking file
+### 5. Stage the work and update the tracking file
 
-- Set the status to `to-validate`
-- Clear the "Problems to fix" section if it existed
+`buildit-feature-validate` starts with a staging guard that returns NO-GO on any untracked or unstaged file outside `.scratch/`. Hand over staged work:
+
+1. **Stage** every file created or modified during this build: `git [-C <worktree-path>] add <path>...` with explicit paths — never `git add -A` or `git add .`, which would sweep in unrelated files. Files under `.scratch/` are workflow state committed by ship; do not stage them here.
+2. **Check** with `git [-C <worktree-path>] status --porcelain`, ignoring paths under `.scratch/`: no line may be untracked (`??`) or have unstaged changes (second status column non-blank) — the same criteria as validate's guard. Stage any remaining entry that belongs to the feature. If an entry is unrelated to the feature, do not stage it: leave the status at `building` and stop with:
+   > "Unrelated untracked or unstaged files block validation: [paths]. Stage, ignore, or remove them, then re-run `/buildit-feature-build [feature-name]`."
+3. Set the status to `to-validate` and clear the "Problems to fix" section if it existed.
 
 ## End of skill
 

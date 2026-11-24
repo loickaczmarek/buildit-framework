@@ -79,8 +79,8 @@ require_regex "AT-BASE-4: defaults to main" "$SKILL" 'defaults? to `main`|falls?
 # --- Staging guard (AT-STAGE-*) ---
 require_text "AT-STAGE-1: staging guard runs git status --porcelain" "$SKILL" 'git status --porcelain'
 require_regex "AT-STAGE-2: NO-GO listing unstaged/untracked files" "$SKILL" 'NO-GO.*(list|listing).*(untracked|unstaged)|(untracked|unstaged).*NO-GO.*(list|listing)'
-GUARD_LINE=$(grep -nF -- 'git status --porcelain' "$SKILL" | head -1 | cut -d: -f1)
-DIFF_LINE=$(grep -nF -- 'git diff --cached --merge-base' "$SKILL" | head -1 | cut -d: -f1)
+GUARD_LINE=$(grep -nF -- 'git status --porcelain' "$SKILL" | head -1 | cut -d: -f1 || true)
+DIFF_LINE=$(grep -nF -- 'git diff --cached --merge-base' "$SKILL" | head -1 | cut -d: -f1 || true)
 if [[ -n "$GUARD_LINE" && -n "$DIFF_LINE" && "$GUARD_LINE" -lt "$DIFF_LINE" ]]; then
   ok "AT-STAGE-3: staging guard runs before the review diff"
 else
@@ -90,6 +90,26 @@ fi
 # --- Worktree working directory (AT-WT-*) ---
 require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
 require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
+
+# --- Staging contract (AT-SC-*) ---
+GUARD_HEAD=$(grep -nE -- '^### .*Staging guard' "$SKILL" | head -1 | cut -d: -f1 || true)
+TESTS_HEAD=$(grep -nE -- '^### .*Run test suite' "$SKILL" | head -1 | cut -d: -f1 || true)
+if [[ -n "$GUARD_HEAD" && -n "$TESTS_HEAD" && -n "$GUARD_LINE" && "$GUARD_HEAD" -lt "$TESTS_HEAD" && "$GUARD_LINE" -lt "$TESTS_HEAD" ]]; then
+  ok "AT-SC-3: staging guard runs before the test suite"
+else
+  fail "AT-SC-3: staging guard must be a step placed before the test suite"
+fi
+TESTS_SEC=$(mktemp); C5_SEC=$(mktemp); trap 'rm -f "$TESTS_SEC" "$C5_SEC"' EXIT
+awk '/^### .*Run test suite/{f=1;print;next} /^### /{f=0} f' "$SKILL" > "$TESTS_SEC"
+awk '/^### 5c\./{f=1;print;next} /^## /{f=0} f' "$SKILL" > "$C5_SEC"
+require_regex "AT-SC-4: test failure routes to the NO-GO path" "$TESTS_SEC" '[Tt]est fail.*If NO-GO or FAIL|If NO-GO or FAIL.*test fail'
+require_absent "AT-SC-4: no test-failure shortcut that stops before bookkeeping" "$TESTS_SEC" 'write a "Problems to fix" section.*and stop'
+require_regex "AT-SC-4: 5a issue list includes failing tests" "$SKILL" 'issues.*(test suite|failing tests)'
+require_text "AT-SC-4: 5c counts only NO-GO cycle headings" "$C5_SEC" '`### NO-GO cycle`'
+require_absent "AT-SC-4: 5c no longer counts every Progress entry" "$SKILL" 'Count the number of existing entries in the "Progress" section'
+require_regex "AT-SC-4: Progress entry records tests" "$C5_SEC" '^- Tests:'
+require_regex "AT-SC-5: base-branch failure writes ## Last error" "$SKILL" '`## Last error`.*base branch|base branch.*`## Last error`|Base branch.*`## Last error`'
+require_regex "AT-SC-5: step 1 clears a stale ## Last error" "$SKILL" '`## Last error` section.*remove'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

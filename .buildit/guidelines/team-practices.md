@@ -150,3 +150,5 @@ Move to `.scratch/done/` at the closing commit.
 Tracking file sections: Status · Goal · Acceptance Tests · Plan · Progress · Problems to fix
 Status flow: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
 Progress: one entry per NO-GO cycle, added by feature-validate
+Cycle count: validate counts only the `### NO-GO cycle` headings in Progress (any other Progress entry is ignored), so non-NO-GO notes never inflate the cycle number.
+Last error: a phase skill that stops deliberately without changing the status (e.g. base branch not found) records the reason as one line in a `## Last error` section of the tracking file. `buildit-feature-run` reports that line instead of "possible subagent failure", and validate removes a stale `## Last error` section when it sets `validating`.
