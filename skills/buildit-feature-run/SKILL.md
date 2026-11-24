@@ -106,27 +106,9 @@ In both cases, ask questions in order. Do not launch the start subagent until al
 
 Store: `feature-name`, `description`, `acceptance-tests`, `use-worktree` (yes/no).
 
-### 2. Trigger early write permission
+### 2. Merge readiness row: left to start
 
-<!-- WHY: The first Write operation in the full run cycle normally happens inside the
-     start subagent (the "Update shared-context.md" step of buildit-feature-start).
-     If the user has not pre-allowed Write permissions, the permission prompt appears
-     midway through the start phase, which is jarring. Moving a real, meaningful Write
-     here — before any subagent is launched — ensures the permission prompt fires
-     immediately at the start of the session. Users who have pre-allowed Write see no
-     prompt at all. -->
-
-> **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
-
-Read `.scratch/shared-context.md`. Retrieve the current branch name via `git branch --show-current`.
-
-Write back to `.scratch/shared-context.md`, appending the merge readiness entry for the current branch:
-
-```markdown
-| [branch-name] | IN_PROGRESS | — | — |
-```
-
-This writes to an existing file — no new files are created, so cancelling after this step leaves no orphan files.
+The orchestrator writes nothing to `.scratch/shared-context.md` before start. The start subagent writes the Merge readiness row keyed by the tracking file's `## Branch`, which only exists once start has created the worktree and the tracking file — so a failed or cancelled start leaves no orphan row.
 
 ### 3. Subagent: buildit-feature-start
 
@@ -137,7 +119,6 @@ Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent sel
 > Use worktree: [yes/no].
 > Description: [description].
 > Acceptance tests: [acceptance-tests list].
-> Skip the "Update shared-context.md" step (merge readiness entry) — the merge readiness entry has already been written by the orchestrator.
 > Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (e.g. `bash tests/…`). Do not cd outside the project root — paths outside require explicit user permission."
 
 Wait for the subagent to complete.

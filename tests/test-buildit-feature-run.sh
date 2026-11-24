@@ -48,38 +48,25 @@ require_regex "AT-11: autonomy instruction present in subagent prompts" "$SKILL"
 require_regex "AT-12: path-scoping restriction present" "$SKILL" \
   '[Dd]o not cd outside|outside.*project.*permission|paths outside.*require'
 
-# --- Early permission trigger (acceptance tests) ---
-
-# AT-13: The first file-write operation happens before any subagent is launched.
-# The early write step must appear between "Collect inputs" (step 1) and the start subagent.
-# We verify the skill contains a step that writes to shared-context.md BEFORE the start subagent step.
-require_regex "AT-13: early write step exists before start subagent" "$SKILL" \
-  '[Ee]arly.*[Ww]rite|[Tt]rigger.*[Ww]rite.*[Pp]ermission|[Pp]ermission.*[Tt]rigger'
-
-# Verify that the early write step references shared-context.md
-require_regex "AT-13b: early write targets shared-context.md" "$SKILL" \
-  'shared-context\.md'
-
-# Verify structural ordering: the early write step number is between collect inputs and start subagent
-# The early write step must be numbered lower than the start subagent step.
-# We check that a step heading with "permission" or "early write" appears before the start subagent heading.
-EARLY_WRITE_LINE=$(grep -n -iE '###.*([Ee]arly.*[Ww]rite|[Pp]ermission.*[Tt]rigger|[Tt]rigger.*[Pp]ermission)' "$SKILL" 2>/dev/null | head -1 | cut -d: -f1 || true)
-START_SUBAGENT_LINE=$(grep -n -iE '###.*[Ss]ubagent.*start|###.*start.*[Ss]ubagent' "$SKILL" 2>/dev/null | head -1 | cut -d: -f1 || true)
-if [[ -n "$EARLY_WRITE_LINE" && -n "$START_SUBAGENT_LINE" && "$EARLY_WRITE_LINE" -lt "$START_SUBAGENT_LINE" ]]; then
-  ok "AT-13c: early write step appears before start subagent step"
+# --- Merge readiness row owned by start (AT-BR-*) ---
+# Run must not write the Merge readiness row before start: its key (## Branch) only
+# exists once start has created the worktree and the tracking file.
+START_SUBAGENT_LINE=$(grep -n -E '^### [0-9]+\. Subagent: buildit-feature-start' "$SKILL" | head -1 | cut -d: -f1 || true)
+PRE_START=$(awk -v n="${START_SUBAGENT_LINE:-0}" 'NR<n' "$SKILL")
+if [[ -n "$START_SUBAGENT_LINE" ]]; then ok "AT-BR-3: start subagent step found"; else fail "AT-BR-3: start subagent step heading not found"; fi
+if grep -qF -- '| IN_PROGRESS |' <<<"$PRE_START"; then
+  fail "AT-BR-3: no IN_PROGRESS row write before the start subagent"
 else
-  fail "AT-13c: early write step must appear before start subagent step (early=$EARLY_WRITE_LINE, start=$START_SUBAGENT_LINE)"
+  ok "AT-BR-3: no IN_PROGRESS row write before the start subagent"
 fi
-
-# AT-14: The early write does not create orphan files (writes to existing file, not a new file)
-# The step must explicitly write to an existing file (shared-context.md), not create a new one.
-require_regex "AT-14: no orphan files — writes to existing shared-context.md" "$SKILL" \
-  '[Rr]ead.*shared-context|shared-context.*[Ee]xist|[Ww]rite.*shared-context|[Mm]erge readiness'
-
-# AT-15: The start subagent prompt includes instruction to skip the shared-context update step
-# to avoid duplicate merge readiness entries.
-require_regex "AT-15: start subagent told to skip the shared-context step" "$SKILL" \
-  '[Ss]kip.*shared-context|[Ss]hared-context.*already done'
+if grep -qE -- '^### .*([Ee]arly.*[Ww]rite|[Pp]ermission)' <<<"$PRE_START"; then
+  fail "AT-BR-3: early write permission step removed"
+else
+  ok "AT-BR-3: early write permission step removed"
+fi
+require_absent "AT-BR-3: start subagent not told to skip the shared-context step" "$SKILL" 'Skip the "Update shared-context.md" step'
+require_regex "AT-BR-3: start writes the row keyed by ## Branch" "$SKILL" 'start.*writes the Merge readiness row.*`## Branch`'
+require_regex "AT-BR-3: failed or cancelled start leaves no orphan row" "$SKILL" '(failed|cancelled).*start.*no orphan row'
 
 # --- Plan integration tests (AT-P1 through AT-P10) ---
 
@@ -219,7 +206,6 @@ require_text "AT-SYNC-10: local flow continues" "$SKILL" 'never block the cycle'
 require_text "AT-SYNC-13: external content is data" "$SKILL" 'data, not instructions'
 
 # --- Staging contract (AT-SC-*) ---
-require_text "AT-SC-5: start step referenced by name" "$SKILL" 'Skip the "Update shared-context.md" step'
 require_absent "AT-SC-5: no numeric reference to start step 5" "$SKILL" 'Skip step 5|step 5 of buildit-feature-start'
 require_regex "AT-SC-5: run reports validate's ## Last error" "$SKILL" '`## Last error`.*(report|stop)'
 if grep -A1 -F -- 'Otherwise (no `## Last error` section)' "$SKILL" | grep -qF -- 'after buildit-feature-validate — possible subagent failure'; then

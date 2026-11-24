@@ -44,7 +44,6 @@ done
 WRITERS=(
   buildit-feature-start
   buildit-feature-build
-  buildit-feature-run
   buildit-feature-ship
 )
 

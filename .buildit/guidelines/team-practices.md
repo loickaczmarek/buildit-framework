@@ -4,7 +4,7 @@
 
 ### Orchestrator-level permission trigger
 
-When a skill orchestrates subagents and the first tool-permission-gated operation would otherwise occur inside a subagent, move a real write to an existing coordination file (e.g. `shared-context.md`) into the orchestrator before launching subagents, and pass a "skip" instruction to the subagent to avoid duplication. This surfaces the permission prompt immediately at session start rather than midway through a subagent, improving UX for users who have not pre-allowed permissions.
+When a skill orchestrates subagents and the first tool-permission-gated operation would otherwise occur inside a subagent, move a real write to an existing coordination file (e.g. `shared-context.md`) into the orchestrator before launching subagents, and pass a "skip" instruction to the subagent to avoid duplication. This surfaces the permission prompt immediately at session start rather than midway through a subagent, improving UX for users who have not pre-allowed permissions. Caveat: never pre-write state whose key depends on a subagent's result. `buildit-feature-run` therefore no longer writes the Merge readiness row: its key is the tracking file's `## Branch`, known only once `buildit-feature-start` has created the worktree, so a pre-written row would be mis-keyed (e.g. `main` in worktree mode) and orphaned when start fails.
 
 ### Plan-task integration in orchestrators
 
@@ -147,7 +147,8 @@ The commit description explains the WHY, not the what.
 File name format: `DD-MM-YYYY-feature-name.md`
 Move to `.scratch/done/` at the closing commit.
 
-Tracking file sections: Status · Goal · Acceptance Tests · Plan · Progress · Problems to fix
+Tracking file sections: Status · Branch · Worktree path · Goal · Acceptance Tests · Plan · Progress · Problems to fix
+Branch: the line below `## Branch` is a bare branch name (no backticks), placed after `## Status`. Written once by `buildit-feature-start` (from `buildit-worktree`'s `Branch:` line in worktree mode, `git branch --show-current` otherwise) and never rewritten. It keys the Merge readiness row: start writes the row with it, ship removes that row and skips it in the overlap check. Never key the row with `git branch --show-current` in the project root — in worktree mode the root is on another branch.
 Status flow: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
 Progress: one entry per NO-GO cycle, added by feature-validate
 Cycle count: validate counts only the `### NO-GO cycle` headings in Progress (any other Progress entry is ignored), so non-NO-GO notes never inflate the cycle number.

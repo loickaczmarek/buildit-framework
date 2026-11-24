@@ -67,15 +67,16 @@ WORKTREE_PATH=$(realpath "$WORKTREE_REL" 2>/dev/null || (cd "$WORKTREE_REL" && p
 
 Store `WORKTREE_PATH` as the canonical absolute path to the worktree.
 
-### 4. Return the path to the calling agent
+### 4. Return the path and branch to the calling agent
 
-Output exactly:
+Output exactly these two lines:
 
 ```
 Worktree created at: <WORKTREE_PATH>
+Branch: <BRANCH>
 ```
 
-The calling agent must capture this line to record the path in the tracking file.
+The calling agent must capture both lines: the path goes into the tracking file's `## Worktree path`, the branch into its `## Branch`.
 
 ### 5. Instruct the calling agent on git usage
 

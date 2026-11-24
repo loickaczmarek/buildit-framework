@@ -440,10 +440,10 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 1. Proposes working in an isolated worktree (recommended for non-trivial features) — if yes, calls the internal `buildit-worktree` skill to create and configure it (no external dependency)
 2. Reads `shared-context.md` to detect changed APIs, constraints and decisions/conventions introduced by other branches that affect the plan
 3. Collects the feature name, description and acceptance tests (or uses the provided argument)
-4. Generates the tracking file `.scratch/DD-MM-YYYY-[feature-name].md` with the plan, including the worktree path in a dedicated `## Worktree path` field
+4. Generates the tracking file `.scratch/DD-MM-YYYY-[feature-name].md` with the plan, including the feature branch in `## Branch` and the worktree path in a dedicated `## Worktree path` field
 5. Critiques the plan: wrong assumptions, edge cases, vague steps, underestimated risks
 6. Updates the plan with the corrections
-7. Adds the branch in `shared-context.md` section "Merge readiness" (`IN_PROGRESS`)
+7. Adds the branch (the `## Branch` value) in `shared-context.md` section "Merge readiness" (`IN_PROGRESS`)
 
 **Ends with:** instruction to close the session and run `/buildit-feature-build [feature-name]`.
 
@@ -540,7 +540,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 **What it does:**
 
 **1. Readiness check** — reads `shared-context.md` in full and checks:
-- File overlap with `IN_PROGRESS` branches — this feature's files come from `git diff --cached --merge-base <base-branch> --name-only` (Base branch from `.buildit/config.md`, default `main`), other branches' from `git diff --name-only --merge-base <base-branch> <branch>`, which only sees their commits
+- File overlap with the other `IN_PROGRESS` branches (this feature's own `## Branch` row is skipped) — this feature's files come from `git diff --cached --merge-base <base-branch> --name-only` (Base branch from `.buildit/config.md`, default `main`), other branches' from `git diff --name-only --merge-base <base-branch> <branch>`, which only sees their commits
 - Branches declaring they are waiting for this branch
 - APIs modified by other branches not yet accounted for
 - Discovered constraints not addressed in this scope
@@ -550,7 +550,7 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 **2. Commit** — format `type(scope): description` (the WHY, not the what). Moves the tracking file to `.scratch/done/`.
 
 **3. Shared-context.md cleanup** (in the same commit):
-- "Merge readiness" → removes the line for this branch
+- "Merge readiness" → removes the line for this branch (`## Branch`)
 - "API & Contracts modified" → removes the section for this branch
 - "Constraints discovered" → decision tree:
   - Feature-specific → delete

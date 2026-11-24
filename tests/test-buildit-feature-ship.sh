@@ -61,6 +61,16 @@ else
   fail "AT-SV-README: README ship section must document SHIP BLOCKED"
 fi
 
+# --- ## Branch contract (AT-BR-*) ---
+sec() { awk -v a="$2" -v b="$3" 'index($0,a)==1{f=1;next} f&&index($0,b)==1{exit} f' "$1"; }
+SH0=$(sec "$SKILL" '### 0. ' '### 0a.')
+SH1=$(sec "$SKILL" '### 1. ' '### 2. ')
+SH3=$(sec "$SKILL" '### 3. ' '### 3b.')
+if grep -qF -- '`## Branch`' <<<"$SH0" && grep -qF -- '<feature-branch>' <<<"$SH0"; then ok "AT-BR-4: step 0 reads ## Branch as <feature-branch>"; else fail "AT-BR-4: step 0 must read ## Branch as <feature-branch>"; fi
+if grep -qiE -- 'legacy|fall back|falls back' <<<"$SH0" && grep -qF -- 'branch --show-current' <<<"$SH0"; then ok "AT-BR-4: legacy fallback when ## Branch is missing"; else fail "AT-BR-4: step 0 must define a legacy fallback when ## Branch is missing"; fi
+if grep -qE -- 'other than `<feature-branch>`|skip.*<feature-branch>|<feature-branch>.*skip' <<<"$SH1"; then ok "AT-BR-4: overlap loop skips this feature's own branch"; else fail "AT-BR-4: overlap loop must skip <feature-branch>"; fi
+if grep -qE -- 'Merge readiness.*remove.*<feature-branch>' <<<"$SH3"; then ok "AT-BR-4: step 3 removes the row for <feature-branch>"; else fail "AT-BR-4: step 3 must remove the Merge readiness row for <feature-branch>"; fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

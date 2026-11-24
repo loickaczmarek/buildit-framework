@@ -29,6 +29,8 @@ If the most recent file does not have status `to-ship`, warn: "The most recent f
 
 If the tracking file has a `## Last error` section, remove it: it describes a previous run.
 
+**Feature branch:** read the `## Branch` value from the tracking file (the line below the heading, a bare branch name — contract in `buildit-feature-start` step 3) and store it as `<feature-branch>`. Legacy tracking file without `## Branch`: fall back to `git -C <worktree-path> branch --show-current` in worktree mode, `git branch --show-current` otherwise, and warn once: "No `## Branch` in the tracking file — using the checked-out branch `<feature-branch>`."
+
 **Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
 
 ### 0a. Prerequisite check
@@ -61,7 +63,7 @@ Read `.scratch/shared-context.md` in full.
 Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 2).
 
 **File overlap — dynamic computation:**
-For each `IN_PROGRESS` branch listed in "Merge readiness", compute its touched files dynamically: `git diff --name-only --merge-base <base-branch> <branch>`. Compare the two file lists. If any files overlap, report the overlapping files as a warning. If a branch cannot be resolved locally, warn and skip it rather than failing.
+For each `IN_PROGRESS` branch listed in "Merge readiness" other than `<feature-branch>` (skip this feature's own row), compute its touched files dynamically: `git diff --name-only --merge-base <base-branch> <branch>`. Compare the two file lists. If any files overlap, report the overlapping files as a warning. If a branch cannot be resolved locally, warn and skip it rather than failing.
 
 **Limitation:** the other-branch check only sees commits — files that are only staged in another worktree are invisible to it.
 
@@ -99,7 +101,7 @@ The shared-context.md cleanup (step 3) is included in this same commit.
 
 > **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
 
-**"Merge readiness" section** → remove the line for this branch.
+**"Merge readiness" section** → remove the line for `<feature-branch>` (this feature's own row only).
 
 **"API & Contracts modified" section** → remove the section for this branch (the change is now in the committed code).
 

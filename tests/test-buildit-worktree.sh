@@ -40,6 +40,10 @@ require_text "AT-8: buildit-project-bootstrap mentions Bash(cd */.worktrees/*)" 
 # AT-9: README mentions buildit-worktree as internal skill
 require_text "AT-9: README mentions buildit-worktree" "$README" 'buildit-worktree'
 
+# AT-BR-1: buildit-worktree returns a machine-readable Branch: line
+require_text "AT-BR-1: buildit-worktree outputs a Branch: <BRANCH> line" "skills/buildit-worktree/SKILL.md" 'Branch: <BRANCH>'
+require_text "AT-BR-1: caller records the branch in ## Branch" "skills/buildit-worktree/SKILL.md" '`## Branch`'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
