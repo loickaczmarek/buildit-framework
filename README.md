@@ -215,8 +215,9 @@ Three `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths
 4. Asks whether a directory or document of existing practices exists, and if so proposes to **merge** it into the guidelines or **reference** it (link at the top of the guideline)
 5. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files, and **test command detection** — auto-detects the project's test runner from ecosystem markers (`tests/run-all.sh`, `package.json`, `pom.xml`, `build.gradle`, `pyproject.toml`, `Makefile`), proposes the command for user confirmation, and stores it in `.buildit/config.md`
 6. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
-7. Creates or updates the workflow files integrating what was detected — including `.buildit/config.md` with the confirmed test command
-8. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
+7. Optionally configures task synchronization with an external tool (enabled/disabled, plain-language method, tag — default `technical`); skipping leaves it unconfigured
+8. Creates or updates the workflow files integrating what was detected — including `.buildit/config.md` with the confirmed test command and synchronization headings
+9. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
 
 For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
@@ -252,17 +253,18 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** before starting a batch of features, when the scope is larger than a single feature. Decomposes a PRD, spec, or ad-hoc request into ordered tasks with progress tracking. If the request is already a single well-defined feature, skip this and use `/buildit-feature-discover` or `/buildit-feature-start` directly.
 
 **What it does:**
-1. Detects mode (Claude vs generic) and checks for an existing plan (resume detection)
+1. Detects mode (Claude vs generic), reads the task synchronization configuration from `.buildit/config.md` (asks to configure it when unconfigured), and checks for an existing plan (resume detection)
 2. Collects input: any structured document (PRD, specs, user stories, bullet points) or ad-hoc request
 3. Offers two decomposition paths: fast (auto-decompose then validate) or coaching (collaborative question-driven)
 4. Decomposes into tasks with name, description, acceptance tests, priority, and readiness (`ready` or `needs-scoping`)
 5. Groups tasks into epics if 3 or more tasks; uses flat list otherwise
 6. Creates `.scratch/plan/task-{name}.md` per task and `.scratch/plan/plan.md` with epic index and progress counters
-7. On resume: reads existing plan, proposes cleanup of `.scratch/done/` files older than 7 days and completed epics, enters coaching mode for modifications, re-syncs progress counters
+7. When synchronization is enabled, synchronizes selected tasks with the external tool (step 5b): processes `Pending:` entries first, limits discovery to tickets tagged `[<tag>]` (untagged ones offered as opt-in import), links by stable ID, titles external tickets `[<tag>] <Title>`, and writes only with explicit per-field approval
+8. On resume: reads existing plan, proposes human-readable titles for slug-only tasks, shows a read-only synchronization drift report, proposes cleanup of `.scratch/done/` files older than 7 days and completed epics, enters coaching mode for modifications, re-syncs progress counters
 
 **Ends with:** explicit handoff listing actionable tasks — suggests `/buildit-feature-discover [task-name]` for `needs-scoping` tasks and `/buildit-feature-run [task-name]` for `ready` tasks.
 
-**Design spec:** `docs/buildit/specs/2026-10-22-buildit-plan-design.md`
+**Design specs:** `docs/buildit/specs/2026-10-22-buildit-plan-design.md`, `docs/buildit/specs/2026-11-24-plan-task-synchronization.md`
 
 ---
 
@@ -281,6 +283,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 6. Produces a structured brief: kebab-case name, technical description, acceptance tests, risks & constraints
 7. Presents the brief for user validation; iterates on contested sections only
 8. On validation, when a plan task is detected: writes the brief (description, acceptance tests, risks & constraints) into the task file, sets its Readiness to `ready`, and switches its `plan.md` tag from `[needs-scoping]` to `[ready]`. Never touches the task Status (owned by `buildit-feature-run`); nothing is written if the brief is not validated
+9. When task synchronization is enabled and the task is linked: after one confirmation, pushes description, acceptance tests and readiness (never status) to the external ticket; a refusal or failure records a `Pending:` entry and the flow continues. Never prompts to configure synchronization
 
 **Ends with:** the user chooses between `/buildit-feature-run [feature-name]` (full cycle unattended, recommended) or `/buildit-feature-start [feature-name]` (manual cycle, session by session). When a plan task is detected, `/buildit-feature-run [task-name]` is recommended so the task status is tracked.
 
@@ -293,7 +296,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** the default path for most features. Runs the full cycle (start → build → validate → ship) unattended in a single session. Each phase runs in a fresh subagent for context isolation. Fall back to the manual flow only when mid-cycle human judgement is needed.
 
 **What it does:**
-1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent. When a matching plan task exists (`.scratch/plan/task-{name}.md`), pre-fills inputs and tracks task status automatically
+1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent. When a matching plan task exists (`.scratch/plan/task-{name}.md`), pre-fills inputs and tracks task status automatically. When task synchronization is enabled and the task is linked, asks one confirmation (ticket + status mapping) and pushes only the status (`in-progress` here, `done` after ship) from the orchestrator; a refusal or failure records a `Pending:` entry and never blocks the cycle
 2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
 3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
 4. On GO + PASS: delegates `buildit-feature-ship`, updates plan task status to done if applicable, then reminds the user that push and PR creation are manual
@@ -491,6 +494,7 @@ Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md
 ## References
 
 - buildit-plan design: `docs/buildit/specs/2026-10-22-buildit-plan-design.md`
+- Plan task synchronization: `docs/buildit/specs/2026-11-24-plan-task-synchronization.md`
 - buildit-feature-run design: `docs/buildit/specs/2026-09-08-buildit-feature-run-design.md`
 - Generic test runner detection: `docs/buildit/specs/2026-10-14-generic-test-runner-detection.md`
 - Audit parallel pipeline: `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`

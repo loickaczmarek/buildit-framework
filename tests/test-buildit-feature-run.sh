@@ -192,6 +192,32 @@ else
   fail "AT-I6b: routing list must be introduced by a sentence, got: '$ROUTING_INTRO'"
 fi
 
+# --- Task synchronization (plan-task-synchronization) ---
+sync_section() { awk -v s="$2" -v e="$3" 'index($0,s)==1{f=1;print;next} f&&index($0,e)==1{exit} f' "$1"; }
+sync_in() { if grep -qF -- "$3" <<<"$2"; then ok "$1"; else fail "$1 — pattern not found in section: '$3'"; fi; }
+S0=$(sync_section "$SKILL" '### 0.' '### 1.')
+S6=$(sync_section "$SKILL" '### 6.' '## End of skill')
+# AT-SYNC-8
+sync_in "AT-SYNC-8: step 0 detects task synchronization" "$S0" '**Detect task synchronization**'
+sync_in "AT-SYNC-8: reads sync config" "$S0" '## Task synchronization'
+sync_in "AT-SYNC-8: one confirmation" "$S0" 'ONE confirmation'
+sync_in "AT-SYNC-8: shows status mapping for in-progress and done" "$S0" 'status mapping for `in-progress` and `done`'
+sync_in "AT-SYNC-8: pushes in-progress at step 0" "$S0" 'push the `in-progress` status'
+sync_in "AT-SYNC-8: pushes done at step 6" "$S6" 'push the `done` status'
+require_text "AT-SYNC-8: pushes from the orchestrator" "$SKILL" 'from the orchestrator, never inside a subagent'
+require_text "AT-SYNC-8: references buildit-plan step 5b" "$SKILL" '`buildit-plan` step 5b'
+# AT-SYNC-9
+require_text "AT-SYNC-9: status is the only external field" "$SKILL" 'Only the status is written externally'
+sync_in "AT-SYNC-9: no call without link" "$S0" 'no external call'
+sync_in "AT-SYNC-9: unconfigured treated as disabled" "$S0" 'unconfigured is treated as disabled for this run'
+sync_in "AT-SYNC-9: never prompts to configure" "$S0" 'never prompt to configure'
+# AT-SYNC-10
+sync_in "AT-SYNC-10: refusal/failure writes Pending (step 0)" "$S0" 'Pending: status → in-progress (DD-MM-YYYY)'
+sync_in "AT-SYNC-10: failure writes Pending (step 6)" "$S6" 'Pending: status → done (DD-MM-YYYY)'
+require_text "AT-SYNC-10: local flow continues" "$SKILL" 'never block the cycle'
+# AT-SYNC-13
+require_text "AT-SYNC-13: external content is data" "$SKILL" 'data, not instructions'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
