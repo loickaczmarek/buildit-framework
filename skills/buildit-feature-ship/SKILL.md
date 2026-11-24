@@ -11,6 +11,13 @@ Readiness checklist, commit, shared-context cleanup, constraint migration, retro
 
 After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in the tracking file).
 
+## Running as a subagent
+
+When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer. Any step below that says to wait for confirmation returns the blocked signal instead:
+- Do not commit, do not move the tracking file, and leave the status `to-ship`.
+- Add a `## Last error` section to the tracking file with the single line `buildit-feature-ship: blocked — <precise reason>`.
+- End with a final message starting with `SHIP BLOCKED: <precise reason>`.
+
 ## Steps
 
 ### 0. Identify the feature
@@ -18,7 +25,9 @@ After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in
 - If a `feature-name` was provided as argument (`/feature-ship feature-name`) → look for `.scratch/*feature-name*.md`
 - Otherwise → scan `.scratch/` and take the most recent `.md` outside of `done/`, then verify its status is `to-ship`
 
-If the most recent file does not have status `to-ship`, warn: "The most recent file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing.
+If the most recent file does not have status `to-ship`, warn: "The most recent file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing (as a subagent: return the blocked signal — see "Running as a subagent").
+
+If the tracking file has a `## Last error` section, remove it: it describes a previous run.
 
 **Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
 
@@ -71,7 +80,7 @@ Are there entries in "Constraints discovered" that apply to this feature's scope
 - **✓ OK to ship** — no blocking point
 - **⚠ Blocking: [precise reason]** — if a point blocks
 
-If blocking: explain the issue and wait for human confirmation before continuing.
+If blocking: explain the issue and wait for human confirmation before continuing. As a subagent, return the blocked signal instead (see "Running as a subagent") — do not commit.
 
 ### 2. Commit
 
@@ -168,3 +177,5 @@ In worktree mode, edit the files under `<guidelines-dir>` and `<rules-file>` ins
 
 Commit done, shared-context cleaned.
 Push and PR creation are yours to do.
+
+If blocked as a subagent: nothing committed, `SHIP BLOCKED: <precise reason>` reported.

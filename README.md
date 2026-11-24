@@ -403,7 +403,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent. When a matching plan task exists (`.scratch/plan/task-{name}.md`), pre-fills inputs and tracks task status automatically. When task synchronization is enabled and the task is linked, pushes only the status after one confirmation — see [Plan files](#plan-files)
 2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
 3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
-4. On GO + PASS: delegates `buildit-feature-ship`, updates plan task status to done if applicable, then reminds the user that push and PR creation are manual
+4. On GO + PASS: delegates `buildit-feature-ship`, then verifies that ship committed (new commit on the feature branch + tracking file archived in `.scratch/done/`) — otherwise stops with "Unexpected state after ship" and leaves the plan task and external ticket unchanged — then updates plan task status to done if applicable, then reminds the user that push and PR creation are manual
 
 **Guards:**
 - Stops if the tracking file is not found after start (possible subagent failure)
@@ -545,7 +545,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 - APIs modified by other branches not yet accounted for
 - Discovered constraints not addressed in this scope
 
-Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, waits for human confirmation.
+Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, waits for human confirmation — or, when running as a subagent, commits nothing, records the reason in `## Last error` and returns `SHIP BLOCKED: <reason>`.
 
 **2. Commit** — format `type(scope): description` (the WHY, not the what). Moves the tracking file to `.scratch/done/`.
 

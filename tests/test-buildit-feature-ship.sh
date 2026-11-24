@@ -47,6 +47,20 @@ require_regex "AT-WT-3: copies .scratch/ changes into the worktree before the co
 require_regex "AT-WT-4: guideline migrations and amend happen in the worktree" "$SKILL" '<guidelines-dir>.*worktree|worktree.*<guidelines-dir>'
 require_regex "AT-WT-5: removes root copy of the archived tracking file after commit" "$SKILL" '(remove|delete).*root copy'
 
+# --- Blocked signal as a subagent (AT-SV-*) ---
+require_text "AT-SV-2a: Running as a subagent section" "$SKILL" '## Running as a subagent'
+require_text "AT-SV-2b: SHIP BLOCKED final message" "$SKILL" 'SHIP BLOCKED: <precise reason>'
+require_text "AT-SV-2c: Last error line format" "$SKILL" 'buildit-feature-ship: blocked — <precise reason>'
+require_text "AT-SV-2c: writes ## Last error" "$SKILL" '## Last error'
+require_regex "AT-SV-2d: blocking verdict references the subagent rule" "$SKILL" 'If blocking.*subagent'
+require_regex "AT-SV-2e: blocked path does not commit" "$SKILL" '[Dd]o not commit'
+require_regex "AT-SV-2f: stale ## Last error removed at start" "$SKILL" 'remove.*## Last error|## Last error.*remove'
+if awk '/^### `buildit-feature-ship`/{f=1;next} f&&/^### /{exit} f' README.md | grep -qF 'SHIP BLOCKED'; then
+  ok "AT-SV-README: README ship section documents the blocked signal"
+else
+  fail "AT-SV-README: README ship section must document SHIP BLOCKED"
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

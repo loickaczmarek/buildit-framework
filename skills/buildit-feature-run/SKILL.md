@@ -217,17 +217,37 @@ Initialise: `cycle = 0`.
 
 ### 6. On GO: subagent buildit-feature-ship + manual reminder
 
+**Record the pre-ship state**
+
+Before launching the ship subagent, record:
+- `SHIP_REF` — the feature branch: `git branch --show-current`, or `git -C <worktree-path> branch --show-current` in worktree mode. If empty (detached HEAD, no worktree), use `HEAD`. A branch ref stays resolvable after ship removes the worktree.
+- `PRE_SHIP_HEAD` — `git rev-parse <SHIP_REF>`.
+- `TRACKING_FILE` — the file name (without directory) of the tracking file found at step 4.
+
 **Subagent: buildit-feature-ship**
 
 Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
 
 > "[Isolation preamble — see "Subagent selection and workflow isolation"]
-> Run /buildit-feature-ship [feature-name]."
+> Run /buildit-feature-ship [feature-name].
+> You are running as a subagent: no human can answer. If ship blocks, follow its "Running as a subagent" rule (blocked signal) instead of waiting."
 > (Include worktree path if applicable.)
 > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
 > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
 
 Wait for completion.
+
+**Verify ship before closing the task**
+
+Do not trust the subagent's prose; check git and `.scratch/`:
+1. `git rev-parse <SHIP_REF>` differs from `PRE_SHIP_HEAD` (ship created a new commit).
+2. `git cat-file -e <SHIP_REF>:.scratch/done/<TRACKING_FILE>` succeeds (the tracking file was archived in the feature commit — checked in the commit because worktree mode removes the root copy).
+3. `.scratch/<TRACKING_FILE>` no longer exists outside `done/`.
+
+If any check fails, stop with:
+> "Unexpected state after ship: [failed check(s)][ — ship reported: [`## Last error` line of the tracking file, or the subagent's `SHIP BLOCKED:` line]]. The plan task and external ticket were left unchanged. Inspect `.scratch/` and `git log`, then re-run `/buildit-feature-ship [feature-name]` manually."
+
+On this path, do not update the task file, `plan.md` or the external ticket, and write no `Pending:` entry (no `done` transition happened). Continue below only when all three checks pass.
 
 **Update plan task on completion**
 
@@ -240,7 +260,7 @@ If `PLAN_TASK_FILE` is set (not `none`):
 - If `.scratch/plan/plan.md` does not exist: update task file only — no error.
 - If `SYNC=on`, push the `done` status the same way as at step 0 (orchestrator, verify). On failure — or if `SYNC=off-refused` — write `Pending: status → done (DD-MM-YYYY)`, replacing the previous status line. If `SYNC=off` (disabled, unconfigured or unlinked), do nothing.
 
-Once the ship subagent completes (and plan updates are done, if applicable), inform the user:
+Once the ship verification has passed (and plan updates are done, if applicable), inform the user:
 
 > "Feature '[feature-name]' shipped successfully after [cycle] cycle(s).
 >

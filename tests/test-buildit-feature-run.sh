@@ -228,6 +228,26 @@ else
   fail "AT-SC-5: validate's possible-subagent-failure message must be conditioned on no ## Last error"
 fi
 
+# --- Ship verification (AT-SV-*) ---
+line_of() { grep -nF -- "$2" "$1" | head -1 | cut -d: -f1 || true; }
+before() {
+  local label="$1" a b; a=$(line_of "$SKILL" "$2"); b=$(line_of "$SKILL" "$3")
+  if [[ -n "$a" && -n "$b" && "$a" -lt "$b" ]]; then ok "$label"; else fail "$label — '$2' (line ${a:-none}) must precede '$3' (line ${b:-none})"; fi
+}
+require_text "AT-SV-1a: records PRE_SHIP_HEAD" "$SKILL" 'PRE_SHIP_HEAD'
+require_text "AT-SV-1a: uses git rev-parse" "$SKILL" 'git rev-parse <SHIP_REF>'
+before "AT-SV-1a: pre-ship state recorded before launching ship" 'PRE_SHIP_HEAD' 'Run /buildit-feature-ship'
+sync_in "AT-SV-1b: step 6 checks .scratch/done/" "$S6" '.scratch/done/'
+sync_in "AT-SV-1b: step 6 checks the committed archived file" "$S6" 'git cat-file -e <SHIP_REF>:.scratch/done/'
+sync_in "AT-SV-1c: unexpected state message" "$S6" 'Unexpected state after ship'
+sync_in "AT-SV-1d: plan task and external ticket left unchanged" "$S6" 'The plan task and external ticket were left unchanged'
+before "AT-SV-1e: verification precedes plan task update" 'Unexpected state after ship' '**Update plan task on completion**'
+before "AT-SV-1e: verification precedes success message" 'Unexpected state after ship' 'shipped successfully'
+sync_in "AT-SV-1f: ship prompt states it runs as a subagent" "$S6" 'You are running as a subagent'
+sync_in "AT-SV-1g: no Pending entry on failed verification" "$S6" 'write no `Pending:` entry'
+README_RUN=$(sync_section README.md '### `buildit-feature-run`' '### `buildit-feature-start`')
+sync_in "AT-SV-README: run section mentions ship verification" "$README_RUN" 'Unexpected state after ship'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
