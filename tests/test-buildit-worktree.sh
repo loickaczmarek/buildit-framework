@@ -44,6 +44,14 @@ require_text "AT-9: README mentions buildit-worktree" "$README" 'buildit-worktre
 require_text "AT-BR-1: buildit-worktree outputs a Branch: <BRANCH> line" "skills/buildit-worktree/SKILL.md" 'Branch: <BRANCH>'
 require_text "AT-BR-1: caller records the branch in ## Branch" "skills/buildit-worktree/SKILL.md" '`## Branch`'
 
+# AT-EMPTY: refuses an empty feature name before creating anything
+require_regex "AT-EMPTY: refuses an empty feature name" "$SKILL" '[Ee]mpty feature name.*stop|stop.*[Ee]mpty feature name'
+require_regex "AT-EMPTY: nothing is created on refusal" "$SKILL" 'create nothing|creates nothing'
+
+# AT-COMMIT: the .gitignore commit is restricted to .gitignore by pathspec
+require_text "AT-COMMIT: .gitignore commit uses a pathspec" "$SKILL" 'git commit -m "chore(git): ignore .worktrees/ directory (worktree isolation)" -- .gitignore'
+require_absent "AT-COMMIT: no plain .gitignore commit without pathspec" "$SKILL" 'git commit -m "chore\(git\): ignore \.worktrees/ directory \(worktree isolation\)"$'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

@@ -437,13 +437,14 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** at the start of each new feature, from the main branch or a dedicated branch, before creating the implementation worktree.
 
 **What it does:**
-1. Proposes working in an isolated worktree (recommended for non-trivial features) — if yes, calls the internal `buildit-worktree` skill to create and configure it (no external dependency)
+1. Checks that `.scratch/shared-context.md` exists (otherwise points to `/buildit-project-bootstrap`)
 2. Reads `shared-context.md` to detect changed APIs, constraints and decisions/conventions introduced by other branches that affect the plan
-3. Collects the feature name, description and acceptance tests (or uses the provided argument)
-4. Generates the tracking file `.scratch/DD-MM-YYYY-[feature-name].md` with the plan, including the feature branch in `## Branch` and the worktree path in a dedicated `## Worktree path` field
-5. Critiques the plan: wrong assumptions, edge cases, vague steps, underestimated risks
-6. Updates the plan with the corrections
-7. Adds the branch (the `## Branch` value) in `shared-context.md` section "Merge readiness" (`IN_PROGRESS`)
+3. Collects the feature name, description and acceptance tests (or uses the provided argument; an empty name is asked again)
+4. Only then proposes working in an isolated worktree (recommended for non-trivial features) — if yes, calls the internal `buildit-worktree` skill to create and configure it (no external dependency), so a failed start leaves no orphan worktree
+5. Generates the tracking file `.scratch/DD-MM-YYYY-[feature-name].md` with the plan, including the feature branch in `## Branch` and the worktree path in a dedicated `## Worktree path` field
+6. Critiques the plan: wrong assumptions, edge cases, vague steps, underestimated risks
+7. Updates the plan with the corrections
+8. Adds the branch (the `## Branch` value) in `shared-context.md` section "Merge readiness" (`IN_PROGRESS`)
 
 **Ends with:** instruction to close the session and run `/buildit-feature-build [feature-name]`.
 
@@ -581,8 +582,8 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 **When to use:** automatically invoked when the user opts into worktree isolation during `buildit-feature-start`. Can also be invoked standalone when setting up a worktree outside the standard cycle.
 
 **What it does:**
-1. Derives the branch name `feature/YYYY-MM-DD-[feature-name]` from the current date
-2. Ensures `.worktrees/` is listed in `.gitignore` (appends and commits if absent)
+1. Derives the branch name `feature/YYYY-MM-DD-[feature-name]` from the current date — refuses an empty feature name and creates nothing
+2. Ensures `.worktrees/` is listed in `.gitignore` (appends and commits if absent — `git commit ... -- .gitignore`, so already-staged changes are never swept in)
 3. Creates the worktree: `git worktree add .worktrees/feature/YYYY-MM-DD-[feature-name] -b feature/...`
 4. Resolves and returns the absolute worktree path (`WORKTREE_PATH`)
 5. Instructs the calling agent to use `git -C <WORKTREE_PATH>` for all git commands inside the worktree

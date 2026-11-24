@@ -47,6 +47,25 @@ if grep -qF -- '`## Branch`' <<<"$S5"; then ok "AT-BR-2: step 5 keys the row wit
 if grep -qF -- 'git branch --show-current' <<<"$S5"; then fail "AT-BR-2: step 5 must not read git branch --show-current"; else ok "AT-BR-2: step 5 does not read git branch --show-current"; fi
 if grep -qE -- 'after the worktree' <<<"$S5"; then ok "AT-BR-2: step 5 runs after the worktree exists"; else fail "AT-BR-2: step 5 must state it runs after the worktree exists"; fi
 
+# --- Step ordering (AT-ORD-*) ---
+L_PRE=$(grep -nE '^### [0-9]+b?\. Prerequisite check' "$SKILL" | head -1 | cut -d: -f1 || true)
+L_COLLECT=$(grep -nE '^### [0-9]+b?\. Collect feature information' "$SKILL" | head -1 | cut -d: -f1 || true)
+L_WTSTEP=$(grep -nE '^### [0-9]+b?\. Worktree' "$SKILL" | head -1 | cut -d: -f1 || true)
+L_INVOKE=$(grep -nF -- 'buildit-worktree [feature-name]' "$SKILL" | head -1 | cut -d: -f1 || true)
+if [[ -n "$L_PRE" && -n "$L_COLLECT" && -n "$L_WTSTEP" && "$L_PRE" -lt "$L_COLLECT" && "$L_COLLECT" -lt "$L_WTSTEP" ]]; then
+  ok "AT-ORD-1: prerequisite check → feature name collection → worktree step"
+else
+  fail "AT-ORD-1: order must be prerequisite check → collect → worktree (pre=$L_PRE collect=$L_COLLECT worktree=$L_WTSTEP)"
+fi
+require_absent "AT-ORD-1: worktree step is not step 0" "$SKILL" '^### 0\. Worktree'
+if [[ -n "$L_INVOKE" && -n "$L_WTSTEP" && "$L_INVOKE" -gt "$L_WTSTEP" ]]; then
+  ok "AT-ORD-1: buildit-worktree is invoked within the worktree step"
+else
+  fail "AT-ORD-1: buildit-worktree must be invoked within the worktree step (invoke=$L_INVOKE worktree=$L_WTSTEP)"
+fi
+require_regex "AT-ORD-2: worktree step runs once the feature name is collected" "$SKILL" 'feature name is (already )?(collected|known)'
+require_regex "AT-ORD-2: empty feature name is re-asked" "$SKILL" '[Ee]mpty.*(ask again|re-ask)'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

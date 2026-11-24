@@ -23,6 +23,8 @@ Called internally by `buildit-feature-start` when the user opts into worktree is
 
 ### 0. Derive branch name
 
+If `feature-name` is empty or whitespace-only, stop with: "Empty feature name — pass a kebab-case slug: `/buildit-worktree <feature-name>`." and create nothing — no branch, no worktree, no `.gitignore` change.
+
 Run `date +%Y-%m-%d` to get today's date. Derive:
 
 ```
@@ -46,8 +48,10 @@ grep -q '\.worktrees/' .gitignore 2>/dev/null
 ```bash
 echo '.worktrees/' >> .gitignore
 git add .gitignore
-git commit -m "chore(git): ignore .worktrees/ directory (worktree isolation)"
+git commit -m "chore(git): ignore .worktrees/ directory (worktree isolation)" -- .gitignore
 ```
+
+The `-- .gitignore` pathspec commits only `.gitignore`, never other changes the user had already staged.
 
 ### 2. Create the worktree
 
