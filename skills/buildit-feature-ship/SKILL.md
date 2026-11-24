@@ -22,10 +22,16 @@ When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer
 
 ### 0. Identify the feature
 
-- If a `feature-name` was provided as argument (`/feature-ship feature-name`) → look for `.scratch/*feature-name*.md`
-- Otherwise → scan `.scratch/` and take the most recent `.md` outside of `done/`, then verify its status is `to-ship`
+**Tracking file discovery rule**
+1. Search only the top level of the project root `.scratch/`: never its subdirectories (`done/`, `plan/`, `audits/`) and never a worktree's `.scratch/`.
+2. A candidate is a file named `DD-MM-YYYY-<slug>.md` (two-digit day, two-digit month, four-digit year, a dash, a non-empty slug) whose content has a `## Status` heading followed by a feature status: `to-build`, `building`, `to-validate`, `validating`, `to-fix` or `to-ship`. `shared-context.md`, audit reports (`.scratch/audits/`) and plan files (`.scratch/plan/`) can therefore never be selected.
+3. With a `feature-name` argument: select the candidate named exactly `DD-MM-YYYY-<feature-name>.md` — the whole slug equals the name, never a substring match (`context` does not match `shared-context.md` nor `24-11-2026-my-context-x.md`).
+4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
+5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
 
-If the most recent file does not have status `to-ship`, warn: "The most recent file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing (as a subagent: return the blocked signal — see "Running as a subagent").
+As a subagent, a stop from this rule ends with a final message starting with `SHIP BLOCKED: <precise reason>` (no tracking file is selected, so there is no `## Last error` to write).
+
+If the selected file does not have status `to-ship`, warn: "The selected file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing (as a subagent: return the blocked signal — see "Running as a subagent").
 
 If the tracking file has a `## Last error` section, remove it: it describes a previous run.
 

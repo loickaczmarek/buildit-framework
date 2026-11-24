@@ -336,7 +336,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **What it does:**
 1. Detects agent identity (Claude vs other agent) and checks for `.scratch/shared-context.md`
 2. Determines audit scope: uses the provided argument (file, directory, keyword) or launches a subagent for hotspot analysis (git churn + complexity heuristics, capped at top 10 files)
-3. Writes a placeholder to `.scratch/DD-MM-YYYY-audit-issues.md` to trigger file-write permission early (before subagent work begins)
+3. Writes a placeholder to `.scratch/audits/DD-MM-YYYY-audit-issues.md` to trigger file-write permission early (before subagent work begins)
 4. Defines severity criteria (Critical/High/Medium/Low) with evidence requirements — all downstream subagents enforce these
 5. Launches 3 parallel category subagents — code quality (6 dimensions), architecture health, and project health — each returning structured findings
 6. As each category completes, launches a per-category critique subagent (receives only that category's findings, enforces evidence-based downgrading) and presents the critiqued results progressively

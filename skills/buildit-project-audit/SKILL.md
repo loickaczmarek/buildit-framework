@@ -5,7 +5,7 @@ description: "Use when auditing codebase health — evaluates code quality, arch
 
 # Project Audit
 
-Audits the codebase for code quality, architecture health, guideline compliance, and documentation gaps. Scope is determined either by an explicit argument or via hotspot analysis in a subagent. The audit runs as 3 parallel category subagents (code quality, architecture health, project health). Each category is critiqued independently by a dedicated critique subagent upon completion, with findings presented progressively. After all categories complete, a cross-cutting execution trace subagent catches cross-file interaction bugs, then a calibration subagent normalizes severity ratings across the full report. Output is a `.scratch/DD-MM-YYYY-audit-issues.md` file.
+Audits the codebase for code quality, architecture health, guideline compliance, and documentation gaps. Scope is determined either by an explicit argument or via hotspot analysis in a subagent. The audit runs as 3 parallel category subagents (code quality, architecture health, project health). Each category is critiqued independently by a dedicated critique subagent upon completion, with findings presented progressively. After all categories complete, a cross-cutting execution trace subagent catches cross-file interaction bugs, then a calibration subagent normalizes severity ratings across the full report. Output is a `.scratch/audits/DD-MM-YYYY-audit-issues.md` file.
 
 **Boundary with `buildit-project-bootstrap`:** bootstrap handles project setup and configuration scaffolding (generating workflow files, detecting the stack, creating `.buildit/config.md`). This skill handles ongoing code health assessment — it reads the existing codebase and guidelines, evaluates quality, and produces actionable findings. Bootstrap sets up the project; audit examines it.
 
@@ -63,7 +63,7 @@ If `.scratch/shared-context.md` does not exist, stop with:
 
 ### 2. Early write permission trigger
 
-Before launching any subagent, write a placeholder header to `.scratch/DD-MM-YYYY-audit-issues.md`:
+Before launching any subagent, create `.scratch/audits/` if missing and write a placeholder header to `.scratch/audits/DD-MM-YYYY-audit-issues.md`:
 
 ```markdown
 # Audit — DD-MM-YYYY
@@ -190,7 +190,7 @@ Returns a list of severity adjustments, each with: finding reference, original s
 
 ### 8. Compile final report
 
-After all category+critique pairs, execution trace, and calibration are complete, merge all findings into `.scratch/DD-MM-YYYY-audit-issues.md`. Apply calibration severity adjustments before grouping. Group by severity (Critical > High > Medium > Low), not by category. Follow this format:
+After all category+critique pairs, execution trace, and calibration are complete, merge all findings into `.scratch/audits/DD-MM-YYYY-audit-issues.md`. Apply calibration severity adjustments before grouping. Group by severity (Critical > High > Medium > Low), not by category. Follow this format:
 
 ```markdown
 # Audit — DD-MM-YYYY
@@ -245,7 +245,7 @@ Present the final report path and a summary table.
 
 ## End of skill
 
-> "Audit complete. Report written to `.scratch/DD-MM-YYYY-audit-issues.md`."
+> "Audit complete. Report written to `.scratch/audits/DD-MM-YYYY-audit-issues.md`."
 > "This is a standalone assessment — no status transition. Use the findings to plan fixes via `/buildit-feature-start` or `/buildit-feature-run`."
 
 > If critique led to changes: "The independent critique modified N findings and added M new ones — see the 'Critique integration' section for details."

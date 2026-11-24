@@ -30,8 +30,8 @@ require_regex "AT-5: architecture dimension" "$SKILL" '[Aa]rchitecture|[Cc]oupli
 require_regex "AT-5: documentation gaps dimension" "$SKILL" '[Dd]ocumentation.*gap'
 require_regex "AT-5: config/setup health dimension" "$SKILL" '[Cc]onfig.*health|[Ss]etup.*health|[Cc]onfig/setup'
 
-# AT-6: Draft report in .scratch/
-require_regex "AT-6: report output in .scratch/" "$SKILL" '\.scratch/.*audit-issues\.md'
+# AT-6: Draft report in .scratch/audits/
+require_regex "AT-6: report output in .scratch/audits/" "$SKILL" '\.scratch/audits/[^ ]*audit-issues\.md'
 
 # AT-7: Independent critique subagent
 require_regex "AT-7: critique by independent subagent" "$SKILL" '[Cc]ritique.*subagent|subagent.*[Cc]ritique|[Ii]ndependent.*critique|critique.*independent'

@@ -40,6 +40,8 @@ Both files must be kept in sync at every commit. Changes to a skill are always m
 
 **Single source of truth for guideline references.** When a skill needs to document a concept or definition (e.g. craft principles, naming conventions), the canonical text lives in the appropriate guideline file under `.buildit/guidelines/`. The skill file references that guideline by path — it does not copy the content. This avoids DRY violations (diverging definitions) and ensures a single edit point when definitions evolve.
 
+**Rules shared between independently deployed skills.** When several skills must apply the same procedural rule (e.g. the `**Tracking file discovery rule**` in build, validate, ship and run), each skill is deployed standalone and cannot rely on a file the target project may lack. Copy the rule verbatim into each skill as one block (bold heading followed by a contiguous list, no blank line inside), and add a test that extracts each copy (heading to first blank line) and asserts the copies are byte-identical — that test is what keeps it "one rule".
+
 All skill files must be authored in English. User-facing messages, field labels, step descriptions, and inline comments must not contain strings in any other language.
 
 ### Path and mode conventions
