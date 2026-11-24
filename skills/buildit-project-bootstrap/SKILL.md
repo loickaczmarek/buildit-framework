@@ -1,11 +1,11 @@
 ---
 name: buildit-project-bootstrap
-description: "Use when starting a new project or auditing an existing one — scans guidelines, existing practices, and does a light coring of the codebase before generating or updating the configuration kit."
+description: "Use when starting a new project or resynchronising an existing one — scans guidelines, existing practices, and does a light coring of the codebase before generating or updating the configuration kit."
 ---
 
 # Project Bootstrap
 
-Scans the actual state of the project (guidelines, existing practices, source code) before generating or updating the multi-agent workflow v2 configuration kit.
+Scans the actual state of the project (guidelines, existing practices, source code) before generating or updating the multi-agent workflow configuration kit.
 
 ## Instruction-layer constraints
 
@@ -37,11 +37,11 @@ Use the confirmed mode for `<rules-file>` and `<guidelines-dir>` as shorthand in
 
 ### 1. Scan existing guidelines
 
-List all files present in `<guidelines-dir>` (not just the 2 expected by the template).
+List all files present in `<guidelines-dir>` (not just the 3 expected by the template).
 
 For each file found, note:
 - Its name and apparent role
-- Whether it belongs to the workflow templates (`team-practices.md`, `language-framework.md`) or is project-specific (e.g. `figma.md`, `jira.md`, `design-system.md`)
+- Whether it belongs to the workflow templates (`team-practices.md`, `language-framework.md`, `craft-principles.md`) or is project-specific (e.g. `figma.md`, `jira.md`, `design-system.md`)
 
 If `<guidelines-dir>` does not exist or is empty → note the absence and continue.
 
@@ -49,10 +49,11 @@ If `<guidelines-dir>` does not exist or is empty → note the absence and contin
 
 ### 2. Detect workflow configuration files
 
-Check for the existence of the 4 workflow files:
+Check for the existence of the 5 workflow files:
 - `<rules-file>`
 - `<guidelines-dir>/team-practices.md`
 - `<guidelines-dir>/language-framework.md`
+- `<guidelines-dir>/craft-principles.md`
 - `.scratch/shared-context.md`
 
 ---
@@ -77,7 +78,8 @@ Check whether `.claude/settings.json` exists in the project root.
 {
   "permissions": {
     "allow": [
-      "Bash(cd <project-root>*)",
+      "Bash(cd <project-root>)",
+      "Bash(cd <project-root>/*)",
       "Bash(cd ./*)",
       "Bash(cd */.worktrees/*)",
       "Bash(git *)",
@@ -97,10 +99,10 @@ Check whether `.claude/settings.json` exists in the project root.
 }
 ~~~
 
-  Note: three `cd` patterns work together — absolute paths scoped to the project root, `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. None allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
+  Note: the `cd` patterns reduce permission prompts — `Bash(cd <project-root>)` and `Bash(cd <project-root>/*)` for absolute paths anchored on the project root (siblings such as `<project-root>-old` do not match), `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. The broad `Bash(cd *)` pattern is intentionally excluded. Claude Code checks each `&&` subcommand against the allow rules separately: a `cd` rule covers only the `cd` part of `cd <path> && <command>`, and the chained command needs its own rule (e.g. `Bash(npm *)` above, or add `Bash(bash *)` when the test command is `bash tests/run-all.sh`). This allowlist is navigation hygiene, not a security boundary: the patterns match text, so `<project-root>/*` still matches `<project-root>/../elsewhere`, and rules such as `Bash(git *)`, `Bash(python3 *)` or `Bash(docker *)` already allow arbitrary execution.
 
 - **Found** → Read the file and audit the `permissions.allow` array for these essential rules:
-  - `"Bash(cd <project-root>*)"` — covers `cd /abs/path && git ...` in the project and its worktrees
+  - `"Bash(cd <project-root>)"` and `"Bash(cd <project-root>/*)"` — cover the `cd` part of `cd /abs/path && ...` in the project and its worktrees
   - `"Bash(cd ./*)"` — covers relative navigation
   - `"Bash(cd */.worktrees/*)"` — covers subagents running inside git worktrees (required for worktree isolation)
   - `"Bash(git *)"` — covers bare git commands
@@ -208,7 +210,7 @@ Store the confirmed branch in `.buildit/config.md` under `## Base branch` (see s
 
 ---
 
-**Coring summary:** at the end of 4a–4f, write a short summary of detected practices, organised as:
+**Coring summary:** at the end of the coring steps actually run (full path: 4a–4f; fast path: 4e and 4f only, so the summary holds only the test command and base branch), write a short summary of detected practices, organised as:
 - Architecture / organisation
 - Naming conventions
 - Confirmed stack
@@ -293,6 +295,8 @@ Apply the actions announced in the diagnostic. All paths below use `<rules-file>
 - File absent → create from template
 - File present → update: preserve accumulated content, fill missing sections, fix identified drift
 
+**For `<guidelines-dir>/craft-principles.md` specifically:** create it from the template when absent — on the fast path too — and never overwrite an existing one (it accumulates project-specific violation signs).
+
 **For `shared-context.md` specifically:**
 - Do not touch the "Merge readiness" section if features are active (`IN_PROGRESS`)
 - Add the "Decisions & Conventions" section if it is absent (section introduced after workflow v1)
@@ -323,6 +327,7 @@ Apply the actions announced in the diagnostic. All paths below use `<rules-file>
 Project guidelines are shared across agents in `.buildit/guidelines/`:
 - `.buildit/guidelines/team-practices.md` — team conventions, test patterns, naming
 - `.buildit/guidelines/language-framework.md` — stack constraints, APIs, versions
+- `.buildit/guidelines/craft-principles.md` — DRY, KISS, YAGNI definitions used by build and validate
 
 ## Agent workflow
 - Development loop: plan → self-critic → failing tests → execute → review → acceptance → commit
@@ -357,6 +362,7 @@ Mandatory evaluation dimensions:
 - Security: injection vectors, data exposure?
 - Style: project conventions respected?
 - Test coverage: edge cases tested?
+- Craft principles: DRY, KISS and YAGNI respected? (see craft-principles.md)
 
 ## Commits
 Format: type(scope): short description
@@ -372,9 +378,10 @@ The commit description explains the WHY, not the what.
 File name format: DD-MM-YYYY-feature-name.md
 Move to .scratch/done/ at the closing commit.
 
-Tracking file sections: Status · Goal · Acceptance Tests · Plan · Progress
+Tracking file sections: Status · Branch · Worktree path · Goal · Acceptance Tests · Plan · Progress · Problems to fix · Last error
 Status flow: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
-Progress: one entry per NO-GO cycle, added by feature-validate
+Progress: one entry per NO-GO cycle, added by feature-validate; the cycle count is the number of `### NO-GO cycle` headings in Progress (other Progress entries are ignored)
+Last error: a phase that stops deliberately without changing the status records the reason as one line in a `## Last error` section; feature-run reports it, and validate removes a stale one when it sets validating
 ~~~
 
 `<guidelines-dir>/language-framework.md` (fill Stack with collected information):
@@ -395,6 +402,26 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 
 ## Known behaviours / constraints
 [automatically enriched via shared-context.md at merge]
+~~~
+
+`<guidelines-dir>/craft-principles.md`:
+
+~~~markdown
+# Craft Principles
+
+Canonical definitions used by the build and validate phases. Skills reference this file instead of repeating the definitions.
+
+## DRY — Don't Repeat Yourself
+Each piece of knowledge or logic has one authoritative place.
+Violation signs: duplicated logic, copy-pasted blocks, the same rule encoded in several files.
+
+## KISS — Keep It Simple, Stupid
+Prefer the simplest solution that correctly solves the problem.
+Violation signs: needless abstractions, premature generalisation, indirection with no caller benefit.
+
+## YAGNI — You Aren't Gonna Need It
+Implement only what is required now.
+Violation signs: unused parameters, untested code paths, options with no consumer, speculative future-proofing.
 ~~~
 
 `.scratch/shared-context.md`:
@@ -451,15 +478,21 @@ The test command is the raw shell command on a single line after the `## Test co
 
 For Generic mode re-bootstrap: if `.agents/guidelines/team-practices.md` or `.agents/guidelines/language-framework.md` exist, remove them first (legacy format).
 
+Claude mode: if `.gitignore` does not already list `.claude/settings.local.json`, append it (personal permissions must never be committed).
+
+Stage explicit paths only — never a whole directory, which would sweep in unrelated files. From the lists below, stage only the files this run created or modified:
+
 ```bash
 # Claude mode:
-git add .claude/ .buildit/ .scratch/
+git add .gitignore
+git add .claude/CLAUDE.md .claude/settings.json .buildit/guidelines/team-practices.md .buildit/guidelines/language-framework.md .buildit/guidelines/craft-principles.md .buildit/config.md .scratch/shared-context.md
 # Generic mode:
 git rm --ignore-unmatch .agents/guidelines/team-practices.md .agents/guidelines/language-framework.md
-git add .agents/guidelines/project-rules.md .buildit/ .scratch/
-git commit -m "chore(config): bootstrap project configuration from workflow v2"
+git add .agents/guidelines/project-rules.md .buildit/guidelines/team-practices.md .buildit/guidelines/language-framework.md .buildit/guidelines/craft-principles.md .buildit/config.md .scratch/shared-context.md
+# Both modes:
+git commit -m "chore(config): bootstrap buildit project configuration"
 ```
 
 ## End of skill
 
-> "Bootstrap complete. You can now run `/buildit-feature-start` for your first feature."
+> "Bootstrap complete. Run `/buildit-feature-run` for your first feature (full cycle), or `/buildit-feature-start` to drive the phases manually."

@@ -19,6 +19,8 @@ Implements the feature (TDD mode) or fixes issues identified by feature-validate
 If `.scratch/shared-context.md` does not exist, stop with:
 > "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
 
+Path shorthand used below: `<guidelines-dir>` = `.buildit/guidelines/` (in the project root, or in the worktree in worktree mode).
+
 ### 1. Identify the tracking file and detect the mode
 
 **Tracking file discovery rule**

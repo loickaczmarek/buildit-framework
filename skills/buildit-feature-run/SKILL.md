@@ -33,6 +33,13 @@ For every phase (start, build/fix, validate, and ship), explicitly select the ne
 
 The ban does not block the buildit skills and subagents a phase skill explicitly references or instructs the subagent to launch (e.g. `buildit-feature-start` → `buildit-worktree`, `buildit-feature-validate` §5a → config-update subagent); everything else stays forbidden. Repository project rules and guidelines still apply.
 
+## Subagent autonomy block
+
+Defined once here; steps 3, 5.2, 5.4 and 6 reference it as `[Autonomy block — see "Subagent autonomy block"]`. Append it to every phase subagent prompt with `[PROJECT_ROOT]`, `[MODE]` and `<worktree-path>` substituted; include the worktree paragraph only when `use-worktree` is yes.
+
+> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
+> [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. Claude Code checks each `&&` subcommand against the allow rules separately: `Bash(cd */.worktrees/*)` in settings.json covers the `cd` part, and the chained command needs its own rule (e.g. `Bash(bash *)`)."
+
 ## Steps
 
 ### 0. Initialise
@@ -51,7 +58,7 @@ Run `pwd` and store the result as `PROJECT_ROOT`. Never hardcode this path — i
 
 Run `ls .claude/ 2>/dev/null`. If the directory exists → **Claude mode**; otherwise → **Generic mode**. Store as `MODE`.
 
-Use `PROJECT_ROOT` and `MODE` in all subsequent subagent autonomy instructions.
+Use `PROJECT_ROOT` and `MODE` in the Subagent autonomy block.
 
 **Detect plan task**
 
@@ -119,7 +126,7 @@ Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent sel
 > Use worktree: [yes/no].
 > Description: [description].
 > Acceptance tests: [acceptance-tests list].
-> Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (e.g. `bash tests/…`). Do not cd outside the project root — paths outside require explicit user permission."
+> [Autonomy block — see "Subagent autonomy block"]"
 
 Wait for the subagent to complete.
 
@@ -157,8 +164,7 @@ Initialise: `cycle = 0`.
    > "[Isolation preamble — see "Subagent selection and workflow isolation"]
    > Run /buildit-feature-build [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
-   > [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+   > "[Autonomy block — see "Subagent autonomy block"]"
 
    Wait for completion.
 
@@ -181,8 +187,7 @@ Initialise: `cycle = 0`.
    > "[Isolation preamble — see "Subagent selection and workflow isolation"]
    > Run /buildit-feature-validate [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
-   > [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+   > "[Autonomy block — see "Subagent autonomy block"]"
 
    Wait for completion.
 
@@ -220,8 +225,7 @@ Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent sel
 > Run /buildit-feature-ship [feature-name].
 > You are running as a subagent: no human can answer. If ship blocks, follow its "Running as a subagent" rule (blocked signal) instead of waiting."
 > (Include worktree path if applicable.)
-> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
-> [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+> "[Autonomy block — see "Subagent autonomy block"]"
 
 Wait for completion.
 

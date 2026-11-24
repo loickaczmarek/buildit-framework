@@ -67,6 +67,17 @@ else
   fail "AT-SC-1: staging and porcelain check must precede setting to-validate"
 fi
 
+# --- <guidelines-dir> definition (AT-GD-*) ---
+GD_L=$(grep -nE -- '`<guidelines-dir>` *=' "$SKILL" | head -1 | cut -d: -f1 || true)
+S0_L=$(grep -nE -- '^### 0\.' "$SKILL" | head -1 | cut -d: -f1 || true)
+S1_L=$(grep -nE -- '^### 1\.' "$SKILL" | head -1 | cut -d: -f1 || true)
+if [[ -n "$GD_L" && -n "$S0_L" && -n "$S1_L" && "$S0_L" -lt "$GD_L" && "$GD_L" -lt "$S1_L" ]]; then
+  ok "AT-GD-1: <guidelines-dir> is defined in step 0"
+else
+  fail "AT-GD-1: <guidelines-dir> must be defined in step 0 (def line ${GD_L:-none})"
+fi
+require_regex "AT-GD-1: <guidelines-dir> resolves to .buildit/guidelines/" "$SKILL" '`<guidelines-dir>` *= *`\.buildit/guidelines/`'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

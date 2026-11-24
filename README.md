@@ -159,12 +159,15 @@ This file must be empty between parallel sprints. Cleanup happens in each featur
 
 ### Subagent autonomy instruction
 
-Each subagent receives this block in its prompt (with `[PROJECT_ROOT]` and `[MODE]` substituted at runtime):
+The skill defines this block once (section "Subagent autonomy block") and every phase prompt references it, with `[PROJECT_ROOT]`, `[MODE]` and `<worktree-path>` substituted at runtime; the worktree paragraph is included only in worktree mode:
 
 ```
 Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]).
-Execute bash, python3, and cd commands freely within this directory and its subdirectories.
-Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
+Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`).
+Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
+[If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root.
+For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. Claude Code checks each `&&` subcommand separately:
+`Bash(cd */.worktrees/*)` covers the `cd` part, and the chained command needs its own rule (e.g. `Bash(bash *)`).
 ```
 
 - **`PROJECT_ROOT`** — absolute path detected via `pwd` at orchestrator start
@@ -184,7 +187,8 @@ Template (substitute `<project-root>` with the absolute project path):
 {
   "permissions": {
     "allow": [
-      "Bash(cd <project-root>*)",
+      "Bash(cd <project-root>)",
+      "Bash(cd <project-root>/*)",
       "Bash(cd ./*)",
       "Bash(cd */.worktrees/*)",
       "Bash(git *)",
@@ -204,7 +208,7 @@ Template (substitute `<project-root>` with the absolute project path):
 }
 ```
 
-Three `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths scoped to the project root, `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. None allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
+The `cd` patterns reduce permission prompts: `Bash(cd <project-root>)` and `Bash(cd <project-root>/*)` for absolute paths anchored on the project root (siblings such as `<project-root>-old` do not match), `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. The broad `Bash(cd *)` pattern is intentionally excluded. Claude Code checks each `&&` subcommand against the allow rules separately: a `cd` rule covers only the `cd` part of `cd <path> && <command>`, and the chained command needs its own rule (e.g. `Bash(npm *)`, or `Bash(bash *)` for `bash tests/run-all.sh`). This allowlist is navigation hygiene, not a security boundary: the patterns match text, so `<project-root>/*` still matches `<project-root>/../elsewhere`, and rules such as `Bash(git *)`, `Bash(python3 *)` or `Bash(docker *)` already allow arbitrary execution. `.claude/settings.local.json` holds personal permissions and is gitignored by bootstrap.
 
 ---
 
@@ -320,8 +324,8 @@ External writes happen from the orchestrator, never inside a subagent, after one
 5. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files, and **test command detection** — auto-detects the project's test runner from ecosystem markers (`tests/run-all.sh`, `package.json`, `pom.xml`, `build.gradle`, `pyproject.toml`, `Makefile`), proposes the command for user confirmation, and stores it in `.buildit/config.md`
 6. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
 7. Optionally configures task synchronization with an external tool (enabled/disabled, plain-language method, tag — default `technical`); skipping leaves it unconfigured
-8. Creates or updates the workflow files integrating what was detected — including `.buildit/config.md` with the confirmed test command and synchronization headings
-9. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
+8. Creates or updates the workflow files integrating what was detected — including `.buildit/guidelines/craft-principles.md` (created when absent, never overwritten), and `.buildit/config.md` with the confirmed test command and synchronization headings
+9. Ensures `.claude/settings.local.json` is gitignored (Claude mode), stages the files it wrote by explicit path (never whole directories) and commits: `chore(config): bootstrap buildit project configuration`
 
 For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 

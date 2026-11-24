@@ -237,8 +237,16 @@ sync_in "AT-SV-README: run section mentions ship verification" "$README_RUN" 'Un
 
 # --- Worktree working directory (AT-WD-*) ---
 WD_COUNT=$(grep -cF -- 'Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`)' "$SKILL" || true)
-if [[ "$WD_COUNT" -ge 3 ]]; then ok "AT-WD-2: build, validate and ship prompts run tests in the worktree"; else fail "AT-WD-2: expected >=3 worktree test instructions, found $WD_COUNT"; fi
+# The instruction lives once in the Subagent autonomy block, referenced by every phase prompt (AT-AB-*).
+if [[ "$WD_COUNT" -eq 1 ]]; then ok "AT-WD-2: autonomy block runs tests in the worktree"; else fail "AT-WD-2: expected exactly 1 worktree test instruction (autonomy block), found $WD_COUNT"; fi
 require_absent "AT-WD-2b: no unqualified root-relative script instruction" "$SKILL" 'Use relative paths for script invocations\. Do not cd outside the project root'
+
+# --- Autonomy block defined once (AT-AB-*) ---
+AB_COUNT=$(grep -cF -- 'Autonomy: you are operating within the project directory' "$SKILL" || true)
+if [[ "$AB_COUNT" -eq 1 ]]; then ok "AT-AB-1: autonomy text defined exactly once"; else fail "AT-AB-1: expected 1 autonomy text, found $AB_COUNT"; fi
+REF_COUNT=$(grep -cF -- '[Autonomy block — see "Subagent autonomy block"]' "$SKILL" || true)
+if [[ "$REF_COUNT" -ge 4 ]]; then ok "AT-AB-2: start, build, validate and ship prompts reference the autonomy block"; else fail "AT-AB-2: expected >=4 autonomy block references, found $REF_COUNT"; fi
+require_text "AT-AB-3: named autonomy block section" "$SKILL" '## Subagent autonomy block'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
