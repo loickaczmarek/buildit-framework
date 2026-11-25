@@ -111,6 +111,22 @@ SETTINGS=$(section "$README" '### settings.json permission file (Claude mode onl
 in_text "AT-R14b: the explanation is in the settings.json section" "$SETTINGS" 'each `&&` subcommand'
 absent_in_text "AT-R14b: the README autonomy block carries no allow-rule explanation" "$README_BLOCK" 'subcommand|allow rules'
 in_text "AT-R14b: autonomy instruction points to the settings.json section" "$(section "$README" '### Subagent autonomy instruction')" 'settings.json permission file (Claude mode only)'
+# AT-FU-4: the full && / allow-rule explanation exists once across docs, guidelines and skills.
+FU_DOCS=("$README" .buildit/guidelines/*.md docs/buildit/specs/*.md skills/*/SKILL.md)
+for phrase in 'subcommand' 'navigation hygiene'; do
+  same "AT-FU-4: '$phrase' appears once across README, guidelines, specs and skills" "$(cat "${FU_DOCS[@]}" | grep -c -- "$phrase" || true)" 1
+  in_text "AT-FU-4: '$phrase' lives in the README settings.json section" "$SETTINGS" "$phrase"
+done
+LF_BULLET=$(grep -F -- '**Claude Code permission matching**' .buildit/guidelines/language-framework.md || true)
+in_text "AT-FU-4: language-framework bullet points to the README section" "$LF_BULLET" '../../README.md#settingsjson-permission-file-claude-mode-only'
+in_text "AT-FU-4: language-framework bullet keeps the authoring rule" "$LF_BULLET" 'do not repeat it in skills'
+absent_in_text "AT-FU-4: language-framework bullet carries no explanation" "$LF_BULLET" 'subcommand|navigation hygiene|<root>/\.\./x'
+WT_PERM=$(section docs/buildit/specs/2026-11-24-worktree-mode-design.md '### Permissions (Claude mode)')
+in_text "AT-FU-4: worktree spec points to the README section" "$WT_PERM" '../../../README.md#settingsjson-permission-file-claude-mode-only'
+absent_in_text "AT-FU-4: worktree spec carries no explanation" "$WT_PERM" 'subcommand|chained command needs'
+# AT-FU-5: README audit and discover sections reflect that shared-context.md may be missing.
+absent_in_text "AT-FU-5: README audit section no longer checks for shared-context.md" "$(section "$README" '### `buildit-project-audit`')" 'shared-context'
+in_text "AT-FU-5: README discover section treats a missing shared-context.md as empty" "$(section "$README" '### `buildit-feature-discover`' | normalize)" 'Reads `shared-context.md` (a missing file is treated as empty)'
 LE_TPL=$(grep -F -- '[optional — one line written by a phase that stops deliberately' <<<"$TRACKING" || true)
 in_text "AT-R12b: Last error is cleared only by feature-run" "$LE_TPL" 'cleared only by `buildit-feature-run` before each phase'
 absent_in_text "AT-R12b: Last error is no longer cleared by phases" "$LE_TPL" 'when build or validate starts|ship step 0'

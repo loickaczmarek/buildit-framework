@@ -354,7 +354,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** for periodic health checks, before major refactoring, after shipping a batch of features, or to assess a specific file/directory/concern area on demand. Not for project setup — use `buildit-project-bootstrap` for that.
 
 **What it does:**
-1. Detects agent identity (Claude vs other agent) and checks for `.scratch/shared-context.md`
+1. Detects agent identity (Claude vs other agent)
 2. Determines audit scope: uses the provided argument (file, directory, keyword) or launches a subagent for hotspot analysis (git churn + complexity heuristics, capped at top 10 files)
 3. Writes a placeholder to `.scratch/audits/DD-MM-YYYY-audit-issues.md` to trigger file-write permission early (before subagent work begins)
 4. Defines severity criteria (Critical/High/Medium/Low) with evidence requirements — all downstream subagents enforce these
@@ -400,7 +400,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
 **What it does:**
 1. Detects a matching plan task (`.scratch/plan/task-{name}.md`, created by `/buildit-plan`; a leading `task-` in the argument is stripped when only the bare name matches): locks the feature name to the task name, warns and asks confirmation if the task is already `in-progress` or `done`, and short-circuits to `/buildit-feature-run {name}` if the task is already `ready` (re-scope remains possible). Otherwise, short-circuits if a complete brief is already provided as argument
-2. Reads `shared-context.md`, guidelines, and scans the project modules (source directories detected from the repository layout — skills in a skills framework) to extract constraints, conventions and potential overlaps
+2. Reads `shared-context.md` (a missing file is treated as empty), guidelines, and scans the project modules (source directories detected from the repository layout — skills in a skills framework) to extract constraints, conventions and potential overlaps
 3. Asks whether external documentation is available (specs, user stories, design doc)
 4. Poses targeted functional questions (problem, users, expected behaviour, success criteria) — adapted to what Phase 1 revealed — starting from the plan task description and acceptance tests when a task is detected, without re-asking what they already answer
 5. Translates functional answers into a technical description anchored in project conventions, and surfaces actionable risks

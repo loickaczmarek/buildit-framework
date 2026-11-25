@@ -33,7 +33,7 @@ Ship copies only the archived tracking file into the worktree. `shared-context.m
 
 ### Permissions (Claude mode)
 
-Claude Code checks each `&&` subcommand separately. `Bash(cd */.worktrees/*)` in the bootstrap settings template covers the `cd`; the chained command needs its own rule (e.g. `Bash(bash *)` for `bash tests/run-all.sh`), which the template does not include because the test command varies per project. The README settings.json section documents this once; bootstrap points to it, and run's Subagent autonomy block does not repeat it — it is a harness detail for humans, not an agent instruction.
+Allow rules for the chained `cd <worktree-path> && <test command>`: see the README section [settings.json permission file (Claude mode only)](../../../README.md#settingsjson-permission-file-claude-mode-only), the single explanation. Bootstrap points to it and run's Subagent autonomy block does not repeat it — it is a harness detail for humans, not an agent instruction.
 
 ## Limits
 

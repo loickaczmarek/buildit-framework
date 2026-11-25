@@ -57,7 +57,7 @@ Otherwise, continue with Phase 1.
 
 Set `SKILLS_DIR` to the skills directory of your mode.
 
-1. Read `.scratch/shared-context.md`:
+1. Read `.scratch/shared-context.md`. If `.scratch/shared-context.md` does not exist, treat it as empty: there are no constraints, decisions or in-progress branches to consider.
    - Note active constraints and architecture decisions that could impact the new feature.
 
 2. Read `.buildit/guidelines/team-practices.md` and `.buildit/guidelines/language-framework.md`:

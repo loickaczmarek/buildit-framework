@@ -53,9 +53,10 @@ require_regex "AT-10: distinguishes from bootstrap" "$SKILL" 'bootstrap'
 require_regex "AT-12: Claude mode detection" "$SKILL" '[Cc]laude.*mode|mode.*[Cc]laude'
 require_regex "AT-12: Generic mode detection" "$SKILL" '[Gg]eneric.*mode|mode.*[Gg]eneric'
 
-# AT-13: Prerequisite check for shared-context.md
-require_text "AT-13: prerequisite check for shared-context.md" "$SKILL" "shared-context.md"
-require_regex "AT-13: guard for missing shared-context" "$SKILL" 'not found|does not exist|not exist'
+# AT-FU-2: audit never stops on a missing shared-context.md (gitignored local state)
+require_absent "AT-FU-2: no shared-context prerequisite stop" "$SKILL" 'Shared context file not found'
+require_absent "AT-FU-2: no Prerequisite check step" "$SKILL" '^### [0-9]+[a-z]?\. Prerequisite check'
+require_absent "AT-FU-2: audit never requires shared-context.md" "$SKILL" 'shared-context\.md` does not exist, stop'
 
 # --- Pipeline restructure assertions ---
 

@@ -44,11 +44,6 @@ Every subagent this skill launches — hotspot analysis (step 1, only when no sc
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
-### 0b. Prerequisite check
-
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
-
 ---
 
 ### 1. Determine audit scope

@@ -13,7 +13,7 @@ After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in
 
 ## Running as a subagent
 
-When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer. Any step below that says to wait for confirmation blocks instead: do not commit, do not move the tracking file — the status stays `to-ship` — and apply the Deliberate stop procedure with reason `blocked — <precise reason>`.
+When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer. Any step below that says to wait for confirmation blocks instead: do not commit, do not move the tracking file, never change the status (leave it as found), and apply the Deliberate stop procedure with reason `blocked — <precise reason>`.
 
 ## Deliberate stops
 

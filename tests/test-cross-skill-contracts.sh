@@ -107,19 +107,13 @@ same "AT-6: start launch references the autonomy block" "$(grep -cF -- "$AB_REF"
 same "AT-6: build and validate launches reference the autonomy block" "$(grep -cF -- "$AB_REF" <<<"$(section "$RUN" '### 5. ')" || true)" 2
 same "AT-6: ship launch references the autonomy block" "$(grep -cF -- "$AB_REF" <<<"$(section "$RUN" '### 6. ')" || true)" 1
 
-# Shared prerequisite stop: audit still needs shared-context.md and stops the same way.
-PRE_MSG='> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."'
-for f in "$S/buildit-project-audit/SKILL.md"; do
-  PRE=$(section "$f" "$(grep -m1 -E '^### [0-9]+[a-z]?\. Prerequisite check' "$f" || echo '@@missing@@')")
-  in_text "AT-6: $f prerequisite check tests shared-context.md" "$PRE" 'If `.scratch/shared-context.md` does not exist, stop with:'
-  in_text "AT-6: $f prerequisite check uses the shared stop message" "$PRE" "$PRE_MSG"
-done
-# Feature phases never stop on a missing shared-context.md: start creates it, the others treat it as empty.
+# No skill stops on a missing shared-context.md (gitignored local state): start creates it,
+# build, validate, ship and discover treat it as empty, audit does not read it.
 ABSENT_EMPTY='If `.scratch/shared-context.md` does not exist, treat it as empty'
-for f in "$START" "$BUILD" "$VALIDATE" "$SHIP"; do
+for f in "$START" "$BUILD" "$VALIDATE" "$SHIP" "$S/buildit-feature-discover/SKILL.md" "$S/buildit-project-audit/SKILL.md"; do
   require_absent "AT-SCL-3: $f has no missing-shared-context stop" "$f" 'Shared context file not found'
 done
-for f in "$BUILD" "$VALIDATE" "$SHIP"; do
+for f in "$BUILD" "$VALIDATE" "$SHIP" "$S/buildit-feature-discover/SKILL.md"; do
   require_text "AT-SCL-3: $f treats an absent shared-context.md as empty" "$f" "$ABSENT_EMPTY"
 done
 # Start and bootstrap create shared-context.md from the same template (four headings in order, table header).

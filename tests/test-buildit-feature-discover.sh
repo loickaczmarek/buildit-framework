@@ -22,6 +22,10 @@ require_regex "AT-2: reads guidelines dir" "$SKILL_SRC" '\.buildit/guidelines'
 require_text "AT-2: scans project modules from detected source directories" "$SKILL_SRC" 'detect the source directories from the repository layout'
 require_text "AT-2: source directory candidates listed" "$SKILL_SRC" '`src/`, `lib/`, `app/`, `packages/`'
 require_absent "AT-2: no skills-only overlap scan" "$SKILL_SRC" 'Scan existing skills: `ls \$SKILLS_DIR`'
+# AT-FU-3: phase 1 treats a missing shared-context.md (gitignored local state) as empty
+P1=$(section "$SKILL_SRC" '### Phase 1 — Project context analysis' | normalize)
+in_text "AT-FU-3: discover phase 1 treats a missing shared-context.md as empty" "$P1" 'If `.scratch/shared-context.md` does not exist, treat it as empty'
+in_text_re "AT-FU-3: empty means no in-progress branches to consider" "$P1" 'no constraints, decisions or in-progress branches'
 
 # Generic discover (audit #19): questions talk about features and modules, not skills
 require_absent "AT-G1: no 'this skill' in questions" "$SKILL_SRC" 'this skill (solve|differ)|invokes this skill|the skill is successfully invoked|the skill is working'

@@ -84,4 +84,4 @@ Skill tests are **content-assertion tests**, not execution tests. They grep `SKI
 
 [automatically enriched via shared-context.md at merge]
 
-- **Claude Code permission matching**: Claude Code splits compound commands on `&&` and checks each subcommand against the allow rules separately, so a `Bash(cd …)` rule never authorises the chained command — it needs its own rule (e.g. `Bash(bash *)`). `Bash(...)` patterns match text, so `<root>/*` still matches `<root>/../x`: the allowlist is navigation hygiene, not a security boundary. Explained once, in the README settings.json section; bootstrap's settings template (step 2b) points to it and run's Subagent autonomy block does not repeat it (harness detail, not an agent instruction).
+- **Claude Code permission matching**: a harness detail for humans, not an agent instruction — do not repeat it in skills (bootstrap's settings template, step 2b, only points to it; run's Subagent autonomy block omits it). Explained once in the README: [settings.json permission file (Claude mode only)](../../README.md#settingsjson-permission-file-claude-mode-only).
