@@ -107,12 +107,39 @@ same "AT-6: start launch references the autonomy block" "$(grep -cF -- "$AB_REF"
 same "AT-6: build and validate launches reference the autonomy block" "$(grep -cF -- "$AB_REF" <<<"$(section "$RUN" '### 5. ')" || true)" 2
 same "AT-6: ship launch references the autonomy block" "$(grep -cF -- "$AB_REF" <<<"$(section "$RUN" '### 6. ')" || true)" 1
 
-# Shared prerequisite stop: every skill that needs shared-context.md stops the same way.
+# Shared prerequisite stop: audit still needs shared-context.md and stops the same way.
 PRE_MSG='> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."'
-for f in "$START" "$BUILD" "$VALIDATE" "$SHIP" "$S/buildit-project-audit/SKILL.md"; do
+for f in "$S/buildit-project-audit/SKILL.md"; do
   PRE=$(section "$f" "$(grep -m1 -E '^### [0-9]+[a-z]?\. Prerequisite check' "$f" || echo '@@missing@@')")
   in_text "AT-6: $f prerequisite check tests shared-context.md" "$PRE" 'If `.scratch/shared-context.md` does not exist, stop with:'
   in_text "AT-6: $f prerequisite check uses the shared stop message" "$PRE" "$PRE_MSG"
+done
+# Feature phases never stop on a missing shared-context.md: start creates it, the others treat it as empty.
+ABSENT_EMPTY='If `.scratch/shared-context.md` does not exist, treat it as empty'
+for f in "$START" "$BUILD" "$VALIDATE" "$SHIP"; do
+  require_absent "AT-SCL-3: $f has no missing-shared-context stop" "$f" 'Shared context file not found'
+done
+for f in "$BUILD" "$VALIDATE" "$SHIP"; do
+  require_text "AT-SCL-3: $f treats an absent shared-context.md as empty" "$f" "$ABSENT_EMPTY"
+done
+# Start and bootstrap create shared-context.md from the same template (four headings in order, table header).
+START_SC=$(fenced_block "$START" '# Shared Context'); BOOT_SC=$(fenced_block "$BOOTSTRAP" '# Shared Context')
+same "AT-SCL-2: start and bootstrap shared-context templates have the same section headings" "$(grep '^## ' <<<"$START_SC")" "$(grep '^## ' <<<"$BOOT_SC")"
+same "AT-SCL-2: shared-context template has exactly the four sections" "$(grep '^## ' <<<"$BOOT_SC" | tr '\n' '|')" '## API & Contracts modified|## Constraints discovered|## Decisions & Conventions|## Merge readiness|'
+same "AT-SCL-2: start and bootstrap shared-context templates are identical" "$START_SC" "$BOOT_SC"
+in_text "AT-SCL-2: template has the Merge readiness table header" "$BOOT_SC" '| Branch | Status | Main files touched |'
+# This repository: shared-context.md is gitignored and not tracked.
+require_regex "AT-SCL-1: this repo's .gitignore lists .scratch/shared-context.md" ".gitignore" '^\.scratch/shared-context\.md$'
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  if git ls-files --error-unmatch .scratch/shared-context.md >/dev/null 2>&1; then fail "AT-SCL-1: .scratch/shared-context.md must not be tracked"; else ok "AT-SCL-1: .scratch/shared-context.md is not tracked"; fi
+else
+  ok "AT-SCL-1: not a git repository — tracking check skipped"
+fi
+# Rules files: shared-context.md is local, untracked; no closing-commit cleanup rule.
+for f in .claude/CLAUDE.md; do
+  require_absent "AT-SCL-5: $f drops the closing-commit cleanup rule" "$f" 'mandatory in the closing commit'
+  require_regex "AT-SCL-5: $f says shared-context.md is local, untracked state" "$f" 'shared-context\.md`? is local, untracked state'
+  require_text "AT-SCL-5: $f migrates durable entries at ship time" "$f" 'migrate into the appropriate guideline at ship time'
 done
 
 # --- AT-4: status, tracking-file heading and config heading vocabularies --------------
@@ -244,12 +271,10 @@ in_text "AT-7: build step 5 restores the entry status" "$B52" 'restore the entry
 in_text "AT-7: build step 5 Last error line" "$B52" 'with the single line `buildit-feature-build: unrelated files block validation — <paths>`'
 absent_in_text "AT-7: build step 5 no longer leaves the status at building" "$B52" 'leave the status at `building`'
 # Ship: each deliberate stop after selection writes its line and signals SHIP BLOCKED.
-SH0A=$(section "$SHIP" '### 0a.' | normalize); SH0B=$(section "$SHIP" '### 0b.' | normalize)
+SH0A=$(section "$SHIP" '### 0a.' | normalize)
 SH1=$(section "$SHIP" '### 1. ' | normalize)
-in_text "AT-7: ship 0a writes Last error" "$SH0A" 'single line `buildit-feature-ship: shared-context.md not found`'
-in_text "AT-7: ship 0a signals SHIP BLOCKED" "$SH0A" '`SHIP BLOCKED: shared-context.md not found`'
-in_text "AT-7: ship 0b writes Last error" "$SH0B" 'single line `buildit-feature-ship: guidelines found at <old-path>, migration required`'
-in_text "AT-7: ship 0b signals SHIP BLOCKED" "$SH0B" '`SHIP BLOCKED: guidelines found at <old-path>, migration required`'
+in_text "AT-7: ship 0a writes Last error" "$SH0A" 'single line `buildit-feature-ship: guidelines found at <old-path>, migration required`'
+in_text "AT-7: ship 0a signals SHIP BLOCKED" "$SH0A" '`SHIP BLOCKED: guidelines found at <old-path>, migration required`'
 in_text "AT-7: ship base-branch stop writes Last error" "$SH1" 'single line `buildit-feature-ship: base branch <base-branch> not found locally`'
 in_text "AT-7: ship base-branch stop signals SHIP BLOCKED" "$SH1" '`SHIP BLOCKED: base branch <base-branch> not found locally`'
 in_text "AT-7: ship states the deliberate-stops rule" "$(section "$SHIP" '## Running as a subagent' | normalize)" '**Deliberate stops:**'
@@ -294,15 +319,16 @@ in_text "AT-7: ship discovery stop writes no ## Last error" "$SH0" 'there is no 
 in_text "AT-7: run step 6 failure quotes SHIP BLOCKED" "$VERIFY" '`SHIP BLOCKED:` line'
 
 # Worktree ship copy: team-practices matches ship step 4 — only the archived tracking file
-# is copied; shared-context removals are applied to the worktree copy; root never copied.
+# is copied; shared-context.md is gitignored local state, never staged.
 TEAM_WT=$(section "$TEAM" '### Worktree management' | normalize)
 in_text "AT-7: team-practices — only the archived tracking file is copied" "$TEAM_WT" 'only the archived tracking file is copied from the project root into the worktree'
-in_text "AT-7: team-practices — removals applied to the worktree copy" "$TEAM_WT" "shared-context removals are applied to the worktree's own \`shared-context.md\`"
-in_text "AT-7: team-practices — root shared-context never copied" "$TEAM_WT" 'the root `shared-context.md` is never copied'
+in_text "AT-7: team-practices — shared-context.md is gitignored local state, never committed" "$TEAM_WT" '`shared-context.md` is gitignored local state, edited only in the project root and never committed'
+absent_in_text "AT-7: team-practices no longer applies removals to the worktree copy" "$TEAM_WT" "worktree's own"
 absent_in_text "AT-7: team-practices no longer says shared-context is copied or made" "$TEAM_WT" 'copied or made'
 SH4=$(section "$SHIP" '### 4. ' | normalize)
 in_text "AT-7: ship step 4 copies only the archived tracking file" "$SH4" 'copy only `.scratch/done/'
-in_text "AT-7: ship step 4 never replaces the worktree shared-context with the root file" "$SH4" 'never replace it with the root file'
+absent_in_text "AT-7: ship step 4 no longer touches the worktree shared-context" "$SH4" 'never replace it with the root file'
+in_text "AT-7: language-framework says shared-context.md is local, untracked, single machine" "$(section "$LANG_FW" '## Parallel coordination' | normalize)" 'local, untracked (gitignored) state coordinating worktrees on a single machine'
 
 # Run step 6 ship verification: exactly three checks, then the stop.
 same "AT-7: run step 6 verification has exactly 3 checks" "$(grep -cE '^[0-9]+\. ' <<<"$VERIFY" || true)" 3

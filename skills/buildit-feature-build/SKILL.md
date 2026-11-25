@@ -14,12 +14,9 @@ Implements the feature (TDD mode) or fixes issues identified by feature-validate
 
 ## Steps
 
-### 0. Prerequisite check
+### 0. Path shorthand
 
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
-
-Path shorthand used below: `<guidelines-dir>` = `.buildit/guidelines/` (in the project root, or in the worktree in worktree mode).
+`<guidelines-dir>` = `.buildit/guidelines/` (in the project root, or in the worktree in worktree mode), used in the steps below.
 
 ### 1. Identify the tracking file and detect the mode
 
@@ -43,7 +40,7 @@ Then record the current status as the **entry status** (`to-build`, `to-fix`, or
 
 ### 2. Check API changes
 
-Read `.scratch/shared-context.md` section "API & Contracts modified".
+Read `.scratch/shared-context.md` section "API & Contracts modified". If `.scratch/shared-context.md` does not exist, treat it as empty: no API was modified by another branch.
 
 Have any APIs used in this feature's plan been modified by other branches? If so, adapt the implementation to use the new signatures.
 
@@ -97,7 +94,7 @@ Before closing the session, ask:
 
 > "Have I intentionally introduced a new practice in this implementation — architecture, naming convention, code pattern, file organisation?"
 
-If yes, document in `.scratch/shared-context.md` section "Decisions & Conventions":
+If yes, document in `.scratch/shared-context.md` section "Decisions & Conventions" (if the file does not exist, create it from the template in `buildit-feature-start` step 0 first):
 
 ~~~markdown
 ### [branch-name] — [DD-MM-YYYY]

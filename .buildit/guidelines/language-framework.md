@@ -57,7 +57,7 @@ They document the WHY behind non-obvious skill design choices.
 ## Parallel coordination
 
 Multi-feature parallelisation via git worktrees.
-Coordination goes through `.scratch/shared-context.md` (4 fixed sections):
+Coordination goes through `.scratch/shared-context.md`, local, untracked (gitignored) state coordinating worktrees on a single machine (4 fixed sections):
 - API & Contracts modified
 - Constraints discovered
 - Decisions & Conventions

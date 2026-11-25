@@ -121,6 +121,20 @@ in_text "AT-TB-4: ensures settings.local.json is gitignored" "$S9" '.claude/sett
 in_text "AT-TB-4: stages .gitignore" "$S9" 'git add .gitignore'
 require_regex "AT-TB-4: this repo ignores .claude/settings.local.json" ".gitignore" '^\.claude/settings\.local\.json$'
 
+# AT-SCL-*: shared-context.md is gitignored local state, never committed by bootstrap
+S9N=$(normalize <<<"$S9")
+absent_in_text "AT-SCL-1: step 9 never stages .scratch/shared-context.md (Claude and Generic)" "$S9" 'git add [^`]*\.scratch/shared-context\.md'
+in_text "AT-SCL-1: step 9 gitignores .scratch/shared-context.md when absent (both modes)" "$S9N" 'Both modes: if `.gitignore` does not already list `.scratch/shared-context.md`, append it'
+in_text "AT-SCL-1: step 9 untracks an already-tracked shared-context.md" "$S9N" 'git rm --cached --quiet --ignore-unmatch .scratch/shared-context.md'
+same "AT-SCL-1: .gitignore is staged in both modes (one git add .gitignore under Both modes)" "$(fenced_block "$SKILL" '# Claude mode:' | section_body /dev/stdin '# Both modes:' | grep -c '^git add \.gitignore$' || true)" 1
+absent_in_text "AT-SCL-5: rules-file template drops the closing-commit cleanup rule" "$RULES_TPL" 'Cleaning shared-context\.md mandatory in the closing commit'
+in_text "AT-SCL-5: rules-file template says shared-context.md is local, untracked" "$RULES_TPL" 'shared-context.md is local, untracked state'
+in_text "AT-SCL-5: rules-file template migrates durable entries at ship time" "$RULES_TPL" 'migrate into the appropriate guideline at ship time'
+SC_TPL=$(fenced_block "$SKILL" '# Shared Context')
+for h in '## API & Contracts modified' '## Constraints discovered' '## Decisions & Conventions' '## Merge readiness'; do
+  in_text "AT-SCL-2: shared-context template keeps '$h'" "$SC_TPL" "$h"
+done
+
 # AT-TB-5: no "workflow v2", closing message recommends run, description has no "audit"
 require_absent "AT-TB-5: bootstrap has no 'workflow v2'" "$SKILL" 'workflow v2'
 require_absent "AT-TB-5: README has no 'workflow v2'" "$README" 'workflow v2'

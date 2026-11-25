@@ -33,11 +33,6 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 ---
 
-### 0b. Prerequisite check
-
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
-
 ### 1. Identify the tracking file
 
 **Tracking file discovery rule**
@@ -56,11 +51,11 @@ Set the status to `validating`. If the tracking file has a `## Last error` secti
 
 ### 2. Read known constraints
 
-Read `.scratch/shared-context.md` section "Constraints discovered": are there documented constraints that apply to the scope of this feature?
+Read `.scratch/shared-context.md` section "Constraints discovered": are there documented constraints that apply to the scope of this feature? If `.scratch/shared-context.md` does not exist, treat it as empty: no documented constraint applies.
 
 ### 2a. Staging guard
 
-Run `git [-C <worktree-path>] status --porcelain`. Ignore paths under `.scratch/` (tracking file and `shared-context.md` are workflow state, modified by this skill and committed by ship). Files updated by step 5a in a previous cycle were staged by 5a, so they pass the guard. Flag every remaining line that is untracked (`??`) or has unstaged changes (second status column non-blank, e.g. ` M`, `MM`, ` D`); staged-only entries (`M `, `A `, `R `, `D `) are fine.
+Run `git [-C <worktree-path>] status --porcelain`. Ignore paths under `.scratch/` (the tracking file is workflow state, modified by this skill and committed by ship; `shared-context.md` is gitignored local state, never committed). Files updated by step 5a in a previous cycle were staged by 5a, so they pass the guard. Flag every remaining line that is untracked (`??`) or has unstaged changes (second status column non-blank, e.g. ` M`, `MM`, ` D`); staged-only entries (`M `, `A `, `R `, `D `) are fine.
 
 If any file is flagged, the verdict is **NO-GO**, listing each untracked or unstaged file as a blocking issue: code that isn't staged hasn't been reviewed. Skip the test suite, the review and the acceptance phase (none of them is evaluated) and go directly to "If NO-GO or FAIL" — the "Problems to fix" entry lists the files and instructs to stage them.
 

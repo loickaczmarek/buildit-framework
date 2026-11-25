@@ -29,7 +29,7 @@ Build and validate run the test command with the worktree as working directory (
 
 ### Ship carries only this feature's state
 
-Ship copies only the archived tracking file into the worktree and applies this feature's removals to the worktree's own `shared-context.md` — never the root file, which holds other features' uncommitted rows. Guideline migrations and validate's 5a rule updates are made inside the worktree so they land in the feature commit. After the commit, ship removes the root copy of the archived tracking file (it would block the merge) and runs `git worktree remove`. Removal failure warns but does not block.
+Ship copies only the archived tracking file into the worktree. `shared-context.md` is gitignored local state, cleaned in the project root and never committed, so the feature commit never carries other features' rows. Guideline migrations and validate's 5a rule updates are made inside the worktree so they land in the feature commit. After the commit, ship removes the root copy of the archived tracking file (it would block the merge) and runs `git worktree remove`. Removal failure warns but does not block.
 
 ### Permissions (Claude mode)
 

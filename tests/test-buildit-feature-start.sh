@@ -23,10 +23,17 @@ require_regex "AT-4: self-critic step present" "$SKILL" '(self-critic|self.criti
 # AT-5: Tracking file name format uses DD-MM-YYYY
 require_regex "AT-5: tracking file uses DD-MM-YYYY format" "$SKILL" 'DD-MM-YYYY'
 
-# AT-6: Shared-context existence check — stops if shared-context.md missing
-PRE=$(section "$SKILL" '### 0. Prerequisite check')
-in_text "AT-6: prerequisite check tests shared-context.md existence" "$PRE" 'If `.scratch/shared-context.md` does not exist, stop'
-in_text "AT-6: prerequisite check points to /buildit-project-bootstrap" "$PRE" 'run `/buildit-project-bootstrap`'
+# AT-6: absent shared-context.md is created from the 4-section template — no stop
+PRE=$(section "$SKILL" '### 0. Ensure shared-context.md exists')
+in_text "AT-6: step 0 creates shared-context.md from the template when absent" "$(normalize <<<"$PRE")" 'If `.scratch/shared-context.md` does not exist, create it from the template below'
+absent_in_text "AT-6: step 0 does not stop and point to bootstrap" "$PRE" 'run `/buildit-project-bootstrap`|Shared context file not found'
+in_text "AT-6: step 0 says the file is local, untracked state" "$(normalize <<<"$PRE")" 'local, untracked'
+SC_TPL=$(fenced_block "$SKILL" '# Shared Context')
+for h in '## API & Contracts modified' '## Constraints discovered' '## Decisions & Conventions' '## Merge readiness' '| Branch | Status | Main files touched |'; do
+  in_text "AT-6: shared-context template has '$h'" "$SC_TPL" "$h"
+done
+in_text "AT-6: template lives in step 0" "$PRE" '# Shared Context'
+if grep -E '^description:' "$SKILL" | grep -qF 'creates .scratch/shared-context.md if absent'; then ok "AT-6: description mentions creation if absent"; else fail "AT-6: description must mention 'creates .scratch/shared-context.md if absent'"; fi
 
 # --- Worktree working directory (AT-WT-*) ---
 require_regex "AT-WT-1: .scratch/ files stay in the project root in worktree mode" "$SKILL" '`\.scratch/`.*stay.*project root'
@@ -49,14 +56,14 @@ if grep -qF -- 'git branch --show-current' <<<"$S5"; then fail "AT-BR-2: step 5 
 if grep -qE -- 'after the worktree' <<<"$S5"; then ok "AT-BR-2: step 5 runs after the worktree exists"; else fail "AT-BR-2: step 5 must state it runs after the worktree exists"; fi
 
 # --- Step ordering (AT-ORD-*) ---
-L_PRE=$(grep -nE '^### [0-9]+b?\. Prerequisite check' "$SKILL" | head -1 | cut -d: -f1 || true)
+L_PRE=$(grep -nE '^### [0-9]+b?\. Ensure shared-context\.md exists' "$SKILL" | head -1 | cut -d: -f1 || true)
 L_COLLECT=$(grep -nE '^### [0-9]+b?\. Collect feature information' "$SKILL" | head -1 | cut -d: -f1 || true)
 L_WTSTEP=$(grep -nE '^### [0-9]+b?\. Worktree' "$SKILL" | head -1 | cut -d: -f1 || true)
 L_INVOKE=$(grep -nF -- 'buildit-worktree [feature-name]' "$SKILL" | head -1 | cut -d: -f1 || true)
 if [[ -n "$L_PRE" && -n "$L_COLLECT" && -n "$L_WTSTEP" && "$L_PRE" -lt "$L_COLLECT" && "$L_COLLECT" -lt "$L_WTSTEP" ]]; then
-  ok "AT-ORD-1: prerequisite check → feature name collection → worktree step"
+  ok "AT-ORD-1: shared-context step → feature name collection → worktree step"
 else
-  fail "AT-ORD-1: order must be prerequisite check → collect → worktree (pre=$L_PRE collect=$L_COLLECT worktree=$L_WTSTEP)"
+  fail "AT-ORD-1: order must be shared-context step → collect → worktree (pre=$L_PRE collect=$L_COLLECT worktree=$L_WTSTEP)"
 fi
 require_absent "AT-ORD-1: worktree step is not step 0" "$SKILL" '^### 0\. Worktree'
 if [[ -n "$L_INVOKE" && -n "$L_WTSTEP" && "$L_INVOKE" -gt "$L_WTSTEP" ]]; then

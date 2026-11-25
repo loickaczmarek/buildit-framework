@@ -156,7 +156,7 @@ to-build | building | to-validate | validating | to-fix | to-ship
 
 ## Parallel coordination — `shared-context.md`
 
-`.scratch/shared-context.md` is the coordination zone between parallel worktrees. It has **4 fixed sections**:
+`.scratch/shared-context.md` is the coordination zone between parallel worktrees. It is local, untracked state: gitignored, never committed, it coordinates worktrees on a single machine. `buildit-project-bootstrap` creates it and `buildit-feature-start` recreates it from the template when absent; build, validate and ship treat a missing file as empty. It has **4 fixed sections**:
 
 - **API & Contracts modified** — signature changes, endpoints, types that impact other branches
 - **Constraints discovered** — technical limitations or unexpected behaviours that could waste other teams' time
@@ -165,7 +165,9 @@ to-build | building | to-validate | validating | to-fix | to-ship
 
 The distinction between "Constraints" and "Decisions" is intentional: constraints are reactive (discovered in response to a problem), decisions are proactive (deliberate choices). Both migrate into guidelines at ship time, but via different decision trees.
 
-This file must be empty between parallel sprints. Cleanup happens in each feature's closing commit (`buildit-feature-ship`).
+This file must be empty between parallel sprints. `buildit-feature-ship` removes the feature's entries from the local file and commits only the guideline migrations.
+
+**One-time migration:** in a project where `shared-context.md` was tracked, the change that untracks it deletes the file from disk on merge — or git refuses the merge when the file holds rows. Back the file up / move it aside before merging, then restore it.
 
 ---
 
@@ -337,7 +339,7 @@ External writes happen from the orchestrator, never inside a subagent, after one
 6. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
 7. Optionally configures task synchronization with an external tool (enabled/disabled, plain-language method, tag — default `technical`); skipping leaves it unconfigured
 8. Creates or updates the workflow files integrating what was detected — including `.buildit/guidelines/craft-principles.md` (created when absent, never overwritten), and `.buildit/config.md` with the confirmed test command and synchronization headings
-9. Ensures `.claude/settings.local.json` is gitignored (Claude mode), stages the files it wrote by explicit path (never whole directories) and commits: `chore(config): bootstrap buildit project configuration`
+9. Ensures `.claude/settings.local.json` is gitignored (Claude mode), gitignores `.scratch/shared-context.md` and untracks it if a previous bootstrap committed it (both modes), stages the files it wrote by explicit path (never whole directories) and commits: `chore(config): bootstrap buildit project configuration`
 
 For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
@@ -454,7 +456,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** at the start of each new feature, from the main branch or a dedicated branch, before creating the implementation worktree.
 
 **What it does:**
-1. Checks that `.scratch/shared-context.md` exists (otherwise points to `/buildit-project-bootstrap`)
+1. Creates `.scratch/shared-context.md` from the 4-section template if absent (local, untracked state — no bootstrap needed)
 2. Reads `shared-context.md` to detect changed APIs, constraints and decisions/conventions introduced by other branches that affect the plan
 3. Collects the feature name, description and acceptance tests (or uses the provided argument; an empty name is asked again)
 4. Only then proposes working in an isolated worktree (recommended for non-trivial features) — if yes, calls the internal `buildit-worktree` skill to create and configure it (no external dependency), so a failed start leaves no orphan worktree
@@ -485,7 +487,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **Normal TDD mode** (status `to-build`):
 1. Reads the plan and acceptance tests
-2. Checks API changes in `shared-context.md`
+2. Checks API changes in `shared-context.md` (a missing file is treated as empty)
 3. Writes tests — they must fail for the right reasons
 4. Implements to make the tests pass, re-runs after each significant file
 5. Craft-principles self-review (DRY, KISS, YAGNI — see `.buildit/guidelines/craft-principles.md`)
@@ -557,7 +559,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **What it does:**
 
-**1. Readiness check** — reads `shared-context.md` in full and checks:
+**1. Readiness check** — reads `shared-context.md` in full (absent = treated as empty) and checks:
 - File overlap with the other `IN_PROGRESS` branches (this feature's own `## Branch` row is skipped) — this feature's files come from `git diff --cached --merge-base <base-branch> --name-only` (Base branch from `.buildit/config.md`, default `main`), other branches' from `git diff --name-only --merge-base <base-branch> <branch>`, which only sees their commits
 - APIs modified by other branches not yet accounted for
 - Discovered constraints not addressed in this scope
@@ -574,7 +576,7 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 
 **3. Light retro** — three questions: what slowed down the loop? would a configuration have prevented it? was the plan precise enough? If a configuration needs changing, it is updated now, before the commit (no amend).
 
-**4. Stage the closing changes** — moves the tracking file to `.scratch/done/` and stages it, the guideline migrations and configuration updates with explicit paths (`git [-C <worktree>] add`, never `add -A`). Shared-context rule: the commit carries only this feature's removals from `shared-context.md` — never the root file as a whole, which holds other features' uncommitted rows (when it does, ship updates the index only via `git update-index --cacheinfo`). In worktree mode, only the archived tracking file is copied into the worktree.
+**4. Stage the closing changes** — moves the tracking file to `.scratch/done/` and stages it, the guideline migrations and configuration updates with explicit paths (`git [-C <worktree>] add`, never `add -A`). `shared-context.md` is never staged: it is gitignored local state, cleaned in the project root only. In worktree mode, only the archived tracking file is copied into the worktree.
 
 **5. Commit** — format `type(scope): description` (the WHY, not the what).
 
@@ -604,7 +606,7 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 4. Resolves and returns the absolute worktree path (`WORKTREE_PATH`)
 5. Instructs the calling agent to use `git -C <WORKTREE_PATH>` for all git commands inside the worktree
 
-**Working directory in worktree mode:** `.scratch/` and `.buildit/config.md` stay in the project root; build, validate and ship run git commands on feature code with `git -C <WORKTREE_PATH>` (each worktree has its own index), and build and validate run the test command with the worktree as working directory (`cd <WORKTREE_PATH> && <test command>`) — the project root holds base-branch code. In Claude mode, that chained command needs an allow rule of its own (e.g. `Bash(bash *)`), which the settings template does not include — see [Autonomy configuration](#autonomy-configuration). Ship copies only the archived tracking file into the worktree and applies this feature's `shared-context.md` removals to the worktree's own copy, so the feature commit never carries other features' rows.
+**Working directory in worktree mode:** `.scratch/` and `.buildit/config.md` stay in the project root; build, validate and ship run git commands on feature code with `git -C <WORKTREE_PATH>` (each worktree has its own index), and build and validate run the test command with the worktree as working directory (`cd <WORKTREE_PATH> && <test command>`) — the project root holds base-branch code. In Claude mode, that chained command needs an allow rule of its own (e.g. `Bash(bash *)`), which the settings template does not include — see [Autonomy configuration](#autonomy-configuration). Ship copies only the archived tracking file into the worktree; `shared-context.md` is never committed (gitignored local state), so the feature commit never carries other features' rows.
 
 **Design rationale:** replaces the external dependency on `superpowers:using-git-worktrees`. Worktree management is now fully internal to the buildit framework, ensuring consistent behaviour regardless of which superpowers skills are installed.
 

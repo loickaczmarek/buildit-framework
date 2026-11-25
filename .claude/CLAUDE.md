@@ -15,8 +15,8 @@ Project guidelines are shared across agents in `.buildit/guidelines/`:
 
 ## Parallel coordination
 - `shared-context.md` structured in 4 sections (API & Contracts, Constraints, Decisions & Conventions, Merge readiness)
-- Cleaning `shared-context.md` mandatory in the closing commit
-- Durable constraints → migrate into the appropriate guideline at commit
+- `shared-context.md` is local, untracked state (gitignored) coordinating worktrees on a single machine — never committed
+- Durable constraints and decisions → migrate into the appropriate guideline at ship time (committed with the feature)
 
 ## Git
 - Branch convention: `feature/YYYY-MM-DD-name`, `bugfix/...`, `chore/...`

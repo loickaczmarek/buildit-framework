@@ -35,10 +35,11 @@ require_regex "AT-8: guard mentions to-build and to-fix as expected statuses" "$
 require_regex "AT-8: guard warns about current status" "$SKILL" '[Cc]urrent status|[Uu]nexpected status|status is'
 require_regex "AT-8: guard asks for confirmation" "$SKILL" '[Cc]onfirm|[Cc]ontinue anyway'
 
-# AT-9: Shared-context existence check — stops if shared-context.md missing
-PRE=$(section "$SKILL" '### 0. Prerequisite check')
-in_text "AT-9: prerequisite check tests shared-context.md existence" "$PRE" 'If `.scratch/shared-context.md` does not exist, stop'
-in_text "AT-9: prerequisite check points to /buildit-project-bootstrap" "$PRE" 'run `/buildit-project-bootstrap`'
+# AT-9: absent shared-context.md is treated as empty — no prerequisite stop
+require_absent "AT-9: no shared-context prerequisite stop" "$SKILL" 'Shared context file not found'
+require_absent "AT-9: no Prerequisite check step" "$SKILL" '^### [0-9]+[a-z]?\. Prerequisite check'
+in_text "AT-9: API read step treats an absent shared-context.md as empty" "$(section "$SKILL" '### 2. ' | normalize)" 'If `.scratch/shared-context.md` does not exist, treat it as empty'
+in_text "AT-9: capture step creates it from start's template before writing" "$(section "$SKILL" '### 4. ' | normalize)" 'create it from the template in `buildit-feature-start` step 0'
 
 # --- Worktree working directory (AT-WT-*) ---
 require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'

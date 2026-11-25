@@ -1,6 +1,6 @@
 ---
 name: buildit-feature-start
-description: "Use when starting a new feature — creates the .scratch/ tracking file with plan and self-critique, initialises shared-context entry. Accepts optional feature name: /buildit-feature-start [feature-name]."
+description: "Use when starting a new feature — creates the .scratch/ tracking file with plan and self-critique, creates .scratch/shared-context.md if absent and initialises its entry. Accepts optional feature name: /buildit-feature-start [feature-name]."
 ---
 
 # Feature Start
@@ -13,10 +13,27 @@ At the start of each new feature, from the main branch or a dedicated branch, be
 
 ## Steps
 
-### 0. Prerequisite check
+### 0. Ensure shared-context.md exists
 
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
+If `.scratch/shared-context.md` does not exist, create it from the template below in the project root — no bootstrap needed. It is local, untracked state (gitignored) coordinating worktrees on a single machine; creating it is not a start artefact, so a failed start may leave the empty template behind.
+
+~~~markdown
+# Shared Context
+
+## API & Contracts modified
+<!-- Fill when you change an interface, type, endpoint or signature -->
+
+## Constraints discovered
+<!-- Fill when you discover a technical limitation or unexpected behaviour -->
+
+## Decisions & Conventions
+<!-- Fill when you intentionally introduce a new practice: architecture, naming, code pattern -->
+
+## Merge readiness
+
+| Branch | Status | Main files touched |
+|--------|--------|--------------------|
+~~~
 
 ### 1. Read shared-context.md
 

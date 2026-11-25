@@ -53,10 +53,12 @@ require_text "AT-10: fallback — Makefile" "$SKILL" 'Makefile'
 # AT-11: Warns when no test runner and no config detected
 require_regex "AT-11: warns when no detection" "$SKILL" '[Nn]o test runner detected|[Nn]o configured command'
 
-# AT-12: Shared-context existence check — stops if shared-context.md missing
-PRE=$(section "$SKILL" '### 0b. Prerequisite check')
-in_text "AT-12: prerequisite check tests shared-context.md existence" "$PRE" 'If `.scratch/shared-context.md` does not exist, stop'
-in_text "AT-12: prerequisite check points to /buildit-project-bootstrap" "$PRE" 'run `/buildit-project-bootstrap`'
+# AT-12: absent shared-context.md is treated as empty — no prerequisite stop
+require_absent "AT-12: no shared-context prerequisite stop" "$SKILL" 'Shared context file not found'
+require_absent "AT-12: no Prerequisite check step" "$SKILL" '^### [0-9]+[a-z]?\. Prerequisite check'
+in_text "AT-12: constraints step treats an absent shared-context.md as empty" "$(section "$SKILL" '### 2. ' | normalize)" 'If `.scratch/shared-context.md` does not exist, treat it as empty'
+in_text "AT-12: staging guard says shared-context.md is gitignored local state" "$(section "$SKILL" '### 2a. ' | normalize)" '`shared-context.md` is gitignored local state'
+absent_in_text "AT-12: staging guard no longer says ship commits shared-context.md" "$(section "$SKILL" '### 2a. ' | normalize)" 'tracking file and `shared-context.md` are workflow state'
 
 
 # --- Neutral subagent isolation for the §5a config-update subagent (AT-I1 through AT-I4) ---

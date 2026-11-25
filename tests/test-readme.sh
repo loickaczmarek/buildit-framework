@@ -142,6 +142,20 @@ done
 require_regex "AT-R24: README title starts with '# buildit'" "$README" '^# buildit'
 in_text "AT-R24: --max-cycles default 3 documented" "$RUN_R" 'Default | `--max-cycles 3`'
 
+# --- shared-context.md is local, untracked state (AT-SCL-6) ---
+PAR=$(section "$README" '## Parallel coordination' | normalize)
+for w in 'local, untracked' 'single machine' 'gitignored'; do in_text "AT-SCL-6: Parallel coordination says '$w'" "$PAR" "$w"; done
+absent_in_text "AT-SCL-6: no closing-commit cleanup claim" "$PAR" "Cleanup happens in each feature's closing commit"
+in_text "AT-SCL-6: one-time migration note for the untracking merge" "$PAR" 'move it aside before merging'
+START_R=$(section "$README" '### `buildit-feature-start`' '---' | normalize)
+in_text "AT-SCL-6: start creates shared-context.md from the template when absent" "$START_R" 'Creates `.scratch/shared-context.md` from the 4-section template if absent'
+absent_in_text "AT-SCL-6: start no longer points to bootstrap" "$START_R" 'otherwise points to `/buildit-project-bootstrap`'
+WTN=$(normalize <<<"$WT")
+absent_in_text "AT-SCL-6: worktree paragraph drops the worktree copy removals" "$WTN" "worktree's own copy"
+in_text "AT-SCL-6: worktree paragraph says shared-context.md is never committed" "$WTN" '`shared-context.md` is never committed'
+in_text "AT-SCL-6: bootstrap section says it gitignores shared-context.md" "$(normalize <<<"$BOOT")" 'gitignores `.scratch/shared-context.md`'
+require_absent "AT-SCL-6: README never mentions update-index" "$README" 'update-index'
+
 # AT-R9: each skill heading and each top-level section appears exactly once
 # (a duplicated block left two contradicting ship sections in the README)
 for d in skills/*/; do

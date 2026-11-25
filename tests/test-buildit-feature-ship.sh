@@ -23,10 +23,17 @@ require_text "AT-4: per-branch overlap via git diff vs base branch" "$SKILL" 'gi
 # AT-5: Ship instructs to compare touched files between branches dynamically
 require_regex "AT-5: dynamic overlap for IN_PROGRESS branches" "$SKILL" 'IN_PROGRESS.*diff|diff.*IN_PROGRESS|each.*branch.*--name-only'
 
-# AT-6: Shared-context existence check — stops if shared-context.md missing
-PRE=$(section "$SKILL" '### 0a. Prerequisite check')
-in_text "AT-6: prerequisite check tests shared-context.md existence" "$PRE" 'If `.scratch/shared-context.md` does not exist, stop'
-in_text "AT-6: prerequisite check points to /buildit-project-bootstrap" "$PRE" 'run `/buildit-project-bootstrap`'
+# AT-6: absent shared-context.md is treated as empty — no prerequisite stop
+require_absent "AT-6: no 0a prerequisite check heading" "$SKILL" '^### 0a\. Prerequisite check'
+require_absent "AT-6: no shared-context.md not found stop" "$SKILL" 'shared-context\.md not found'
+require_absent "AT-6: no pointer to bootstrap for a missing shared-context" "$SKILL" 'Shared context file not found'
+in_text "AT-6: step 1 treats an absent shared-context.md as empty" "$(section "$SKILL" '### 1. ' | normalize)" 'If `.scratch/shared-context.md` does not exist, treat it as empty'
+in_text "AT-6: step 2 has nothing to clean when shared-context.md is absent" "$(section "$SKILL" '### 2. ' | normalize)" 'If `.scratch/shared-context.md` does not exist, treat it as empty'
+DS=$(grep -F -- '**Deliberate stops:**' "$SKILL" || true)
+absent_in_text "AT-6: Deliberate stops no longer lists the prerequisite check" "$DS" 'prerequisite check'
+in_text "AT-6: Deliberate stops lists the migration note (0a)" "$DS" 'the migration note (0a)'
+require_text "AT-6: environment paths step renumbered 0a" "$SKILL" '### 0a. Detect environment paths'
+require_absent "AT-6: no dangling 0b step" "$SKILL" '^### 0b\.'
 
 # AT-7: Worktree cleanup — removes worktree after commit
 require_text "AT-7: reads Worktree path from tracking file" "$SKILL" 'Worktree path'
@@ -71,12 +78,21 @@ if grep -qE -- 'Merge readiness.*remove.*<feature-branch>' <<<"$SH2"; then ok "A
 SH4=$(section_body "$SKILL" '### 4. ')
 SH6=$(section_body "$SKILL" '### 6. ')
 
-# AT-CC-1: the root shared-context.md is never copied into a feature commit; only this feature's removals are staged
+# AT-CC-1: shared-context.md is gitignored local state — ship never copies, stages nor commits it
 require_absent "AT-CC-1: shared-context.md is never copied into the worktree" "$SKILL" '[Cc]opy `?\.scratch/shared-context\.md'
 require_absent "AT-CC-1: no blanket staging of .scratch/" "$SKILL" 'add -A \.scratch/'
-in_text_re "AT-CC-1: step 4 states the shared-context rule" "$SH4" '\*\*Shared-context rule'
-in_text_re "AT-CC-1: only this feature's removals are committed" "$SH4" "only this feature's removals"
-in_text_re "AT-CC-1: index-only update when other features' rows are present" "$SH4" 'git update-index --cacheinfo'
+require_absent "AT-CC-1: no Shared-context rule" "$SKILL" 'Shared-context rule'
+require_absent "AT-CC-1: no git hash-object" "$SKILL" 'hash-object'
+require_absent "AT-CC-1: no git update-index" "$SKILL" 'update-index'
+require_absent "AT-CC-1: never stages shared-context.md" "$SKILL" 'git (-C [^ ]+ )?add [^`]*\.scratch/shared-context\.md'
+require_absent "AT-CC-1: no removal replay on the worktree's own copy" "$SKILL" "worktree's own"
+in_text_re "AT-CC-1: step 4 states shared-context.md is never staged" "$(normalize <<<"$SH4")" '`\.scratch/shared-context\.md` is never staged'
+in_text_re "AT-CC-1: step 4 says it is gitignored local state" "$(normalize <<<"$SH4")" 'gitignored local state'
+in_text_re "AT-CC-1: step 2 still edits the project-root file" "$(normalize <<<"$SH2")" 'Edit the project root `\.scratch/shared-context\.md`'
+in_text_re "AT-CC-1: step 2 still removes this feature's API section" "$SH2" 'API & Contracts modified.*remove'
+in_text_re "AT-CC-1: step 2 still migrates then deletes" "$SH2" 'Migrate to the destination, then delete from shared-context\.md'
+absent_in_text "AT-CC-1: step 6 no longer says the root file stays modified" "$SH6" 'stays modified'
+in_text_re "AT-CC-1: step 6 says shared-context.md is untracked local state" "$(normalize <<<"$SH6")" 'untracked local coordination state'
 
 # AT-CC-2: steps numbered in execution order, no amend
 L2=$(line_of "$SKILL" '### 2. Clean shared-context'); L3=$(line_of "$SKILL" '### 3. Light retro'); L3b=$(line_of "$SKILL" '### 3b. Update configurations')
@@ -89,10 +105,9 @@ fi
 require_absent "AT-CC-2: no commit --amend" "$SKILL" 'commit --amend'
 require_absent "AT-CC-2: no 'after step 4b' ordering constraint" "$SKILL" 'after step 4b'
 
-# AT-CC-3: non-worktree path explicitly stages the moved tracking file and the shared-context cleanup
+# AT-CC-3: non-worktree path explicitly stages the moved tracking file
 in_text_re "AT-CC-3: step 4 has an explicit Without worktree path" "$SH4" '\*\*Without worktree'
 in_text_re "AT-CC-3: stages the archived tracking file" "$SH4" 'git add \.scratch/done/'
-in_text_re "AT-CC-3: stages the shared-context cleanup" "$SH4" 'git add \.scratch/shared-context\.md'
 
 # AT-CC-4: WORKTREE_PATH read once at step 0, reused by worktree removal
 in_text_re "AT-CC-4: step 0 stores WORKTREE_PATH" "$SH0" 'WORKTREE_PATH'
@@ -113,7 +128,11 @@ if [[ -n "$R2" && -n "$R3" && -n "$R4" && -n "$R5" && -n "$R6" ]] && (( R2 < R3 
 else
   fail "AT-CC-5: README ship section must list **2. Shared-context, **3. Light retro, **4. Stage, **5. Commit, **6. Worktree in order"
 fi
-in_text_re "AT-CC-5: README states the shared-context rule" "$RS" "only this feature's removals"
+absent_in_text "AT-CC-5: README no longer describes the removed staging rule" "$RS" "only this feature's removals|update-index|Shared-context rule"
+in_text_re "AT-CC-5: README step 4 says shared-context.md is never staged" "$(normalize <<<"$RS")" '`shared-context\.md` is never staged'
+absent_in_text "AT-CC-5: README readiness check has no prerequisite stop" "$RS" 'otherwise points to `/buildit-project-bootstrap`|0a'
+in_text_re "AT-CC-5: README readiness check treats an absent file as empty" "$(normalize <<<"$RS")" 'absent.*empty'
+
 require_absent "AT-CC-5: README no longer says ship copies its .scratch/ changes" README.md 'copies its `\.scratch/` changes'
 require_absent "AT-CC-5: README has no superseded ship step '**2. Commit**'" README.md '^\*\*2\. Commit\*\*'
 require_absent "AT-CC-5: README has no superseded ship cleanup '(in the same commit)'" README.md '\(in the same commit\)'

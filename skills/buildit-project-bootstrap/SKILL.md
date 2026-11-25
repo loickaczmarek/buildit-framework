@@ -341,8 +341,8 @@ Project guidelines are shared across agents in `.buildit/guidelines/`:
 
 ## Parallel coordination
 - shared-context.md structured in 4 sections (API & Contracts, Constraints, Decisions & Conventions, Merge readiness)
-- Cleaning shared-context.md mandatory in the closing commit
-- Durable constraints → migrate into the appropriate guideline at commit
+- shared-context.md is local, untracked state (gitignored) coordinating worktrees on a single machine — never committed
+- Durable constraints and decisions → migrate into the appropriate guideline at ship time (committed with the feature)
 
 ## Git
 - Branch convention: feature/YYYY-MM-DD-name, bugfix/..., chore/...
@@ -484,16 +484,19 @@ For Generic mode re-bootstrap: if `.agents/guidelines/team-practices.md` or `.ag
 
 Claude mode: if `.gitignore` does not already list `.claude/settings.local.json`, append it (personal permissions must never be committed).
 
+Both modes: if `.gitignore` does not already list `.scratch/shared-context.md`, append it — it is local coordination state, never committed. If a previous bootstrap committed it, untrack it with `git rm --cached --quiet --ignore-unmatch .scratch/shared-context.md` (the file stays on disk).
+
 Stage explicit paths only — never a whole directory, which would sweep in unrelated files. From the lists below, stage only the files this run created or modified:
 
 ```bash
 # Claude mode:
-git add .gitignore
-git add .claude/CLAUDE.md .claude/settings.json .buildit/guidelines/team-practices.md .buildit/guidelines/language-framework.md .buildit/guidelines/craft-principles.md .buildit/config.md .scratch/shared-context.md
+git add .claude/CLAUDE.md .claude/settings.json .buildit/guidelines/team-practices.md .buildit/guidelines/language-framework.md .buildit/guidelines/craft-principles.md .buildit/config.md
 # Generic mode:
 git rm --ignore-unmatch .agents/guidelines/team-practices.md .agents/guidelines/language-framework.md
-git add .agents/guidelines/project-rules.md .buildit/guidelines/team-practices.md .buildit/guidelines/language-framework.md .buildit/guidelines/craft-principles.md .buildit/config.md .scratch/shared-context.md
+git add .agents/guidelines/project-rules.md .buildit/guidelines/team-practices.md .buildit/guidelines/language-framework.md .buildit/guidelines/craft-principles.md .buildit/config.md
 # Both modes:
+git rm --cached --quiet --ignore-unmatch .scratch/shared-context.md
+git add .gitignore
 git commit -m "chore(config): bootstrap buildit project configuration"
 ```
 

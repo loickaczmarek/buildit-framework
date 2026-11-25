@@ -18,7 +18,7 @@ When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer
 - Write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: blocked — <precise reason>`, replacing any existing `## Last error` section.
 - End with a final message starting with `SHIP BLOCKED: <precise reason>`.
 
-**Deliberate stops:** every stop after a tracking file is selected — the prerequisite check (0a), the migration note (0b) and the base branch not found (step 1) — keeps the status `to-ship`, commits nothing, writes its own `## Last error` line (given at each stop) and, as a subagent, ends with a final message starting with `SHIP BLOCKED: <same reason>`. Step 0 clears a stale `## Last error` before these stops run, so the line always describes this run.
+**Deliberate stops:** every stop after a tracking file is selected — the migration note (0a) and the base branch not found (step 1) — keeps the status `to-ship`, commits nothing, writes its own `## Last error` line (given at each stop) and, as a subagent, ends with a final message starting with `SHIP BLOCKED: <same reason>`. Step 0 clears a stale `## Last error` before these stops run, so the line always describes this run.
 
 ## Steps
 
@@ -43,14 +43,7 @@ If the tracking file has a `## Last error` section, remove it: it describes a pr
 
 **Feature branch:** read the `## Branch` value from the tracking file (the line below the heading, a bare branch name — contract in `buildit-feature-start` step 3) and store it as `<feature-branch>`. Legacy tracking file without `## Branch`: fall back to `git -C <worktree-path> branch --show-current` in worktree mode, `git branch --show-current` otherwise, and warn once: "No `## Branch` in the tracking file — using the checked-out branch `<feature-branch>`."
 
-### 0a. Prerequisite check
-
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
-
-Before stopping, write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: shared-context.md not found`, replacing any existing `## Last error` section (as a subagent, end with `SHIP BLOCKED: shared-context.md not found`).
-
-### 0b. Detect environment paths
+### 0a. Detect environment paths
 
 **Operating mode rule**
 - The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
@@ -72,7 +65,7 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 ### 1. Readiness check
 
-Read `.scratch/shared-context.md` in full.
+Read `.scratch/shared-context.md` in full. If `.scratch/shared-context.md` does not exist, treat it as empty: no other branch rows, APIs or constraints to check.
 
 **Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: base branch <base-branch> not found locally`, replacing any existing `## Last error` section (as a subagent, end with `SHIP BLOCKED: base branch <base-branch> not found locally`), and stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
 
@@ -99,7 +92,7 @@ If blocking: explain the issue and wait for human confirmation before continuing
 
 ### 2. Clean shared-context.md
 
-Edit the project root `.scratch/shared-context.md` (other features read it there). Make the migrations below to `<guidelines-dir>` and `<rules-file>` inside the worktree in worktree mode, in the project root otherwise — step 4 stages them.
+Edit the project root `.scratch/shared-context.md` (other features read it there). If `.scratch/shared-context.md` does not exist, treat it as empty: there is nothing to clean or migrate — skip to step 3. Make the migrations below to `<guidelines-dir>` and `<rules-file>` inside the worktree in worktree mode, in the project root otherwise — step 4 stages them.
 
 > **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
 
@@ -168,18 +161,16 @@ In worktree mode, edit the files under `<guidelines-dir>` and `<rules-file>` ins
 
 Move `.scratch/DD-MM-YYYY-[feature-name].md` to `.scratch/done/` in the project root.
 
-**Shared-context rule:** the feature commit carries only this feature's removals from `.scratch/shared-context.md` (the step 2 cleanup) — never the live root file as a whole, which also holds other features' uncommitted rows. The staged version is the version already in the feature branch's index minus this feature's entries. If this feature has no entry in that version, there is nothing to stage for it.
+`.scratch/shared-context.md` is never staged: it is gitignored local state, and step 2 edited only the project-root copy.
 
 Stage with explicit paths only — never `git add -A` or `git add .`, which would sweep in other features' tracking files and plan files.
 
 **Without worktree** (`WORKTREE_PATH` is `none`):
 - Tracking file: `git add .scratch/done/DD-MM-YYYY-[feature-name].md`, then `git rm --cached --quiet --ignore-unmatch -- .scratch/DD-MM-YYYY-[feature-name].md` (drops the old path if it was ever tracked; no-op otherwise).
-- Shared-context: if `git diff -- .scratch/shared-context.md` shows nothing but the removal of this feature's entries, `git add .scratch/shared-context.md`. Otherwise (other features' uncommitted rows are present), stage this feature's removals in the index only, leaving the working file untouched: take `git show :.scratch/shared-context.md`, remove this feature's entries from that content, pipe the result to `git hash-object -w --stdin`, then `git update-index --cacheinfo 100644,<blob>,.scratch/shared-context.md`.
 - Migrations and configuration updates (steps 2 and 3b): `git add <file>...` for each guideline or rules file touched.
 
 **Worktree mode** (`WORKTREE_PATH` is not `none`):
 - Tracking file: copy only `.scratch/done/DD-MM-YYYY-[feature-name].md` from the project root into the worktree at the same path, then `git -C <worktree-path> add .scratch/done/DD-MM-YYYY-[feature-name].md`.
-- Shared-context: apply this feature's step 2 removals to the worktree's own `.scratch/shared-context.md` (the branch copy) — never replace it with the root file. If that changed it, `git -C <worktree-path> add .scratch/shared-context.md`. Usually a no-op: rows are added in the root file and never committed.
 - Migrations and configuration updates (steps 2 and 3b): `git -C <worktree-path> add <file>...` for each guideline or rules file touched inside the worktree.
 
 ### 5. Commit
@@ -198,7 +189,7 @@ git worktree remove <WORKTREE_PATH>
 
 If the removal fails (e.g. uncommitted changes or worktree already removed), warn the user but do not block the ship process.
 
-`shared-context.md` stays modified in the project root on purpose — it is the live coordination file.
+`shared-context.md` stays in the project root — it is untracked local coordination state.
 
 ## End of skill
 
