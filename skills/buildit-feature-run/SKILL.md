@@ -33,6 +33,15 @@ For every phase (start, build/fix, validate, and ship), explicitly select the ne
 
 The ban does not block the buildit skills and subagents a phase skill explicitly references or instructs the subagent to launch (e.g. `buildit-feature-start` → `buildit-worktree`, `buildit-feature-validate` §5a → config-update subagent); everything else stays forbidden. Repository project rules and guidelines still apply.
 
+**Clear a stale Last error:** before launching the subagent, if the tracking file has a `## Last error` section, remove it — a stale line must never be reported as this phase's result. Steps 5.2, 5.4 and 6 apply it right before their launch, referenced as `[Clear a stale Last error — see "Subagent selection and workflow isolation"]` (start, step 3, has no tracking file yet).
+
+## Subagent autonomy block
+
+Defined once here; steps 3, 5.2, 5.4 and 6 reference it as `[Autonomy block — see "Subagent autonomy block"]`. Append it to every phase subagent prompt with `[PROJECT_ROOT]`, `[MODE]` and `<worktree-path>` substituted; include the worktree paragraph only when `use-worktree` is yes.
+
+> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
+> [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd."
+
 ## Steps
 
 ### 0. Initialise
@@ -49,30 +58,47 @@ Run `pwd` and store the result as `PROJECT_ROOT`. Never hardcode this path — i
 
 **Detect operating mode**
 
-Run `ls .claude/ 2>/dev/null`. If the directory exists → **Claude mode**; otherwise → **Generic mode**. Store as `MODE`.
+**Operating mode rule**
+- The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
+- Claude mode: rules file `.claude/CLAUDE.md`, skills directory `.claude/skills/`. Generic mode: rules file `.agents/guidelines/project-rules.md`, skills directory `.agents/skills/`.
+- Never infer the mode from the presence of `.claude/` or `.agents/`: a dual-deployment repository contains both directories, so such a check always answers Claude.
+- The mode is never persisted (not in `.buildit/config.md` nor in any other file): every skill applies this rule for the agent that runs it.
 
-Use `PROJECT_ROOT` and `MODE` in all subsequent subagent autonomy instructions.
+Store the result as `MODE` (`claude` or `generic`).
+
+Use `PROJECT_ROOT` and `MODE` in the Subagent autonomy block.
 
 **Detect plan task**
 
-If `feature-name` was provided as argument, check if `.scratch/plan/task-{feature-name}.md` exists.
+If `feature-name` was provided as argument, apply the **Plan task lookup rule**.
+
+**Plan task lookup rule**
+- Look up `.scratch/plan/task-{feature-name}.md`.
+- If it is missing, `feature-name` starts with `task-` and the remainder is non-empty, strip that prefix once and retry the lookup.
+- If the stripped lookup finds the task, use the bare name as `feature-name` from then on and tell the user: "Stripped the `task-` prefix: using feature name `{feature-name}`."
+- If neither lookup finds a task file, there is no plan task.
+
+**Plan line match rule**
+- The task's line in `.scratch/plan/plan.md` starts with `- [ ] task-{feature-name} ` or `- [x] task-{feature-name} ` — the task name followed by a space.
+- Never match on a prefix without the trailing space: `task-auth` must not match `task-auth-oauth`.
+- Preserve the rest of the line (priority and readiness tags).
 
 - If the task file exists:
   - Read the task file. Extract `## Description`, `## Acceptance tests`, `## Readiness`, and `## Status`.
   - Store as `PLAN_TASK_FILE` (the path), `PLAN_DESCRIPTION`, `PLAN_ACCEPTANCE_TESTS`, `PLAN_READINESS`.
-  - **Status guard:** if the task's current status is `in-progress` or `done`, warn: "Plan task '{feature-name}' is already marked '{status}' — proceeding anyway." but continue.
+  - **Status guard:** if the task's current status is `in-progress`, warn: "Plan task '{feature-name}' is already marked 'in-progress' — proceeding anyway." but continue. If it is `done`, ask: "Plan task '{feature-name}' is already marked 'done' — re-run it? Its status goes back to 'in-progress'." **No** → stop; nothing is modified. As a subagent (no human can answer), stop instead of guessing.
   - Run **Detect task synchronization** (below) before the local status update.
-  - Update `## Status` in the task file from `todo` to `in-progress`.
+  - Update `## Status` in the task file from `todo` to `in-progress` (or from `done` once the re-run is confirmed).
   - If `SYNC=on`, push the `in-progress` status (see below).
   - If `.scratch/plan/plan.md` exists: re-sync the progress counters by re-reading all task file statuses and recomputing `X/Y done` for each epic or flat list. The checkbox stays `- [ ]` at this stage (in-progress is not done).
   - If `.scratch/plan/plan.md` does not exist: update task file only — no error.
-- If the task file does not exist: set `PLAN_TASK_FILE=none`. No further plan-related actions — fallthrough to existing behavior unchanged.
+- If there is no plan task: set `PLAN_TASK_FILE=none`. No further plan-related actions — fallthrough to existing behavior unchanged.
 
 **Detect task synchronization**
 
 Applies only when `PLAN_TASK_FILE` is set. The full protocol is `buildit-plan` step 5b; this skill repeats only the status subset.
 
-- Read `.buildit/config.md` headings `## Task synchronization`, `## Synchronization method` and `## Synchronization tag` (value = first non-empty, non-comment line after the heading). Read `Link:` from the task's `## Synchronization` section.
+- Read `.buildit/config.md` headings `## Task synchronization`, `## Synchronization method` and `## Synchronization tag` (value = first non-empty, non-comment line after the heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value; Config value rule, `.buildit/guidelines/language-framework.md`). Read `Link:` from the task's `## Synchronization` section.
 - If synchronization is disabled, unconfigured, or the method is missing or unclear, or the task has no `Link:` → set `SYNC=off`: no external call. Here unconfigured is treated as disabled for this run; never prompt to configure synchronization (that belongs to `buildit-plan` and `buildit-project-bootstrap`). If the method is missing or unclear while enabled, mention it in the final message.
 - Otherwise ask ONE confirmation showing the linked ticket (`Link:` value) and the proposed external status mapping for `in-progress` and `done`. Accepted → `SYNC=on` with the confirmed mapping. Refused → `SYNC=off-refused` and write `Pending: status → in-progress (DD-MM-YYYY)` in the task's `## Synchronization` section.
 - To push the `in-progress` status: from the orchestrator, never inside a subagent, write the mapped status to the linked ticket, then re-read it to verify. On failure, write `Pending: status → in-progress (DD-MM-YYYY)` and continue — never block the cycle.
@@ -106,27 +132,9 @@ In both cases, ask questions in order. Do not launch the start subagent until al
 
 Store: `feature-name`, `description`, `acceptance-tests`, `use-worktree` (yes/no).
 
-### 2. Trigger early write permission
+### 2. Merge readiness row: left to start
 
-<!-- WHY: The first Write operation in the full run cycle normally happens inside the
-     start subagent (step 5 of buildit-feature-start) when it updates shared-context.md.
-     If the user has not pre-allowed Write permissions, the permission prompt appears
-     midway through the start phase, which is jarring. Moving a real, meaningful Write
-     here — before any subagent is launched — ensures the permission prompt fires
-     immediately at the start of the session. Users who have pre-allowed Write see no
-     prompt at all. -->
-
-> **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
-
-Read `.scratch/shared-context.md`. Retrieve the current branch name via `git branch --show-current`.
-
-Write back to `.scratch/shared-context.md`, appending the merge readiness entry for the current branch:
-
-```markdown
-| [branch-name] | IN_PROGRESS | — | — |
-```
-
-This writes to an existing file — no new files are created, so cancelling after this step leaves no orphan files.
+The orchestrator writes nothing to `.scratch/shared-context.md` before start. The start subagent writes the Merge readiness row keyed by the tracking file's `## Branch`, which only exists once start has created the worktree and the tracking file — so a failed or cancelled start leaves no orphan row.
 
 ### 3. Subagent: buildit-feature-start
 
@@ -137,16 +145,22 @@ Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent sel
 > Use worktree: [yes/no].
 > Description: [description].
 > Acceptance tests: [acceptance-tests list].
-> Skip step 5 (shared-context update) — the merge readiness entry has already been written by the orchestrator.
-> Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (e.g. `bash tests/…`). Do not cd outside the project root — paths outside require explicit user permission."
+> [Autonomy block — see "Subagent autonomy block"]"
 
 Wait for the subagent to complete.
 
 ### 4. Detect tracking file and worktree path after start
 
-Read the tracking file: scan `.scratch/` for `*[feature-name]*.md` outside of `done/`.
+Read the tracking file, located with this rule (named lookup with `[feature-name]`):
 
-If the tracking file is not found after start: stop and warn the user:
+**Tracking file discovery rule**
+1. Search only the top level of the project root `.scratch/`: never its subdirectories (`done/`, `plan/`, `audits/`) and never a worktree's `.scratch/`.
+2. A candidate is a file named `DD-MM-YYYY-<slug>.md` (two-digit day, two-digit month, four-digit year, a dash, a non-empty slug) whose content has a `## Status` heading followed by a feature status: `to-build`, `building`, `to-validate`, `validating`, `to-fix` or `to-ship`. `shared-context.md`, audit reports (`.scratch/audits/`) and plan files (`.scratch/plan/`) can therefore never be selected.
+3. With a `feature-name` argument: select the candidate named exactly `DD-MM-YYYY-<feature-name>.md` — the whole slug equals the name, never a substring match (`context` does not match `shared-context.md` nor `24-11-2026-my-context-x.md`).
+4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
+5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
+
+If the tracking file is not found after start (no match), report it with this message instead of the rule's general "No tracking file found" message — the rule's several-matches branch still applies as written. Stop and warn the user:
 
 > "Tracking file not found after buildit-feature-start — possible subagent failure. Inspect `.scratch/` and re-run manually."
 
@@ -164,13 +178,14 @@ Initialise: `cycle = 0`.
 
 2. **Subagent: buildit-feature-build**
 
+   [Clear a stale Last error — see "Subagent selection and workflow isolation"]
+
    Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
 
    > "[Isolation preamble — see "Subagent selection and workflow isolation"]
    > Run /buildit-feature-build [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
-   > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+   > "[Autonomy block — see "Subagent autonomy block"]"
 
    Wait for completion.
 
@@ -178,9 +193,11 @@ Initialise: `cycle = 0`.
 
    Read the tracking file status.
 
-   If status has not changed from before the subagent ran: stop with message:
-
-   > "Tracking file status unchanged after buildit-feature-build — possible subagent failure. Manual inspection required."
+   If status has not changed from before the subagent ran:
+   - If the tracking file has a `## Last error` section, build stopped deliberately — stop and report its content:
+     > "buildit-feature-build stopped: [Last error line]. Fix it, then run `/buildit-feature-build [feature-name]`."
+   - Otherwise (no `## Last error` section), stop with message:
+     > "Tracking file status unchanged after buildit-feature-build — possible subagent failure. Manual inspection required."
 
    If status ≠ `to-validate`: stop with message:
 
@@ -188,13 +205,14 @@ Initialise: `cycle = 0`.
 
 4. **Subagent: buildit-feature-validate**
 
+   [Clear a stale Last error — see "Subagent selection and workflow isolation"]
+
    Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
 
    > "[Isolation preamble — see "Subagent selection and workflow isolation"]
    > Run /buildit-feature-validate [feature-name]."
    > (Include worktree path if applicable.)
-   > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
-   > [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+   > "[Autonomy block — see "Subagent autonomy block"]"
 
    Wait for completion.
 
@@ -202,9 +220,11 @@ Initialise: `cycle = 0`.
 
    Read the tracking file status.
 
-   If status has not changed from `to-validate`: stop with message:
-
-   > "Tracking file status unchanged after buildit-feature-validate — possible subagent failure. Manual inspection required."
+   If status has not changed from `to-validate`:
+   - If the tracking file has a `## Last error` section, validate stopped deliberately — stop and report its content:
+     > "buildit-feature-validate stopped: [Last error line]. Fix it, then run `/buildit-feature-validate [feature-name]`."
+   - Otherwise (no `## Last error` section), stop with message:
+     > "Tracking file status unchanged after buildit-feature-validate — possible subagent failure. Manual inspection required."
 
    Otherwise, route on the status:
 
@@ -215,17 +235,38 @@ Initialise: `cycle = 0`.
 
 ### 6. On GO: subagent buildit-feature-ship + manual reminder
 
+**Record the pre-ship state**
+
+Before launching the ship subagent, record:
+- `SHIP_REF` — the feature branch: the `## Branch` value of the tracking file found at step 4 (bare branch name — the branch ship commits on). A branch ref stays resolvable after ship removes the worktree. If `## Branch` is absent or empty, stop before launching ship with: "Tracking file has no `## Branch` — add the feature branch under `## Branch` (contract in `buildit-feature-start` step 3), then run `/buildit-feature-ship [feature-name]`."
+- `PRE_SHIP_HEAD` — `git rev-parse <SHIP_REF>`.
+- `TRACKING_FILE` — the file name (without directory) of the tracking file found at step 4.
+
 **Subagent: buildit-feature-ship**
+
+[Clear a stale Last error — see "Subagent selection and workflow isolation"]
 
 Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
 
 > "[Isolation preamble — see "Subagent selection and workflow isolation"]
-> Run /buildit-feature-ship [feature-name]."
+> Run /buildit-feature-ship [feature-name].
+> You are running as a subagent: no human can answer. If ship blocks, follow its "Running as a subagent" rule instead of waiting."
 > (Include worktree path if applicable.)
-> "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
-> [If use-worktree=yes]: For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. The following permission is required in settings.json: `Bash(cd */.worktrees/* && *)`"
+> "[Autonomy block — see "Subagent autonomy block"]"
 
 Wait for completion.
+
+**Verify ship before closing the task**
+
+Do not trust the subagent's prose; check git and `.scratch/`:
+1. `git rev-parse <SHIP_REF>` differs from `PRE_SHIP_HEAD` (ship created a new commit).
+2. `git cat-file -e <SHIP_REF>:.scratch/done/<TRACKING_FILE>` succeeds (the tracking file was archived in the feature commit — checked in the commit because worktree mode removes the root copy).
+3. `.scratch/<TRACKING_FILE>` no longer exists outside `done/`.
+
+If any check fails, stop with:
+> "Unexpected state after ship: [failed check(s)][ — ship reported: [`## Last error` line of the tracking file]]. The plan task and external ticket were left unchanged. Inspect `.scratch/` and `git log`, then re-run `/buildit-feature-ship [feature-name]` manually."
+
+On this path, do not update the task file, `plan.md` or the external ticket, and write no `Pending:` entry (no `done` transition happened). Continue below only when all three checks pass.
 
 **Update plan task on completion**
 
@@ -233,12 +274,12 @@ If `PLAN_TASK_FILE` is set (not `none`):
 
 - Update `## Status` in the task file from `in-progress` to `done`.
 - If `.scratch/plan/plan.md` exists:
-  - Find the line matching `- [ ] task-{feature-name}` and change it to `- [x] task-{feature-name}` (preserve the rest of the line — priority and readiness tags).
+  - Find the task line with the Plan line match rule (step 0) and change `- [ ]` to `- [x]`.
   - Re-sync the progress counters by re-reading all task file statuses and recomputing `X/Y done` for each epic or flat list.
 - If `.scratch/plan/plan.md` does not exist: update task file only — no error.
 - If `SYNC=on`, push the `done` status the same way as at step 0 (orchestrator, verify). On failure — or if `SYNC=off-refused` — write `Pending: status → done (DD-MM-YYYY)`, replacing the previous status line. If `SYNC=off` (disabled, unconfigured or unlinked), do nothing.
 
-Once the ship subagent completes (and plan updates are done, if applicable), inform the user:
+Once the ship verification has passed (and plan updates are done, if applicable), inform the user:
 
 > "Feature '[feature-name]' shipped successfully after [cycle] cycle(s).
 >

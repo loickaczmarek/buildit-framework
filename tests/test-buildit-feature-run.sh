@@ -8,31 +8,34 @@ source "$(dirname "$0")/lib/assertions.sh"
 SKILL="skills/buildit-feature-run/SKILL.md"
 
 # AT-1: Collects worktree/name/desc/ATs before launching any subagent
-require_text "AT-1: collects inputs before subagents" "$SKILL" 'Collect'
-require_regex "AT-1b: collects worktree info" "$SKILL" '(worktree|name|description|acceptance).*(collect|ask|[Bb]efore)|([Cc]ollect|[Aa]sk|[Bb]efore).*(worktree|name|description|acceptance)'
+S1=$(section "$SKILL" '### 1. Collect inputs before subagents')
+in_text "AT-1: inputs collected before any subagent" "$S1" 'Before launching any subagent, collect'
+in_text "AT-1b: collects worktree, name, description, acceptance tests" "$S1" '(worktree, name, description, acceptance tests)'
+in_text "AT-1b: start subagent waits for all four inputs" "$S1" 'Do not launch the start subagent until all four inputs are confirmed'
 
 # AT-2: Each phase (start, build, validate, ship) runs in a subagent
-require_regex "AT-2: start phase in subagent" "$SKILL" 'subagent.*start|start.*subagent'
-require_regex "AT-2b: build phase in subagent" "$SKILL" 'subagent.*build|build.*subagent'
-require_regex "AT-2c: validate phase in subagent" "$SKILL" 'subagent.*validate|validate.*subagent'
-require_regex "AT-2d: ship phase in subagent" "$SKILL" 'subagent.*ship|ship.*subagent'
+for ph in start build validate ship; do
+  require_regex "AT-2: $ph phase launched in a subagent step" "$SKILL" "^(### [0-9]+\\. |[0-9]+\\. \\*\\*|   [0-9]+\\. \\*\\*|\\*\\*)Subagent: buildit-feature-$ph"
+done
 
-# AT-3: Reads tracking file status between phases
-require_regex "AT-3: reads status between phases" "$SKILL" '([Rr]ead|[Cc]heck|[Ii]nspect).*(status|tracking)|status.*([Rr]ead|[Cc]heck)'
+# AT-3: Reads tracking file status between phases (after build and after validate)
+S5=$(section "$SKILL" '### 5. Build/fix loop')
+RS_COUNT=$(grep -cF 'Read the tracking file status.' <<<"$S5" || true)
+[[ "$RS_COUNT" -eq 2 ]] && ok "AT-3: status read after build and after validate" || fail "AT-3: step 5 must read the tracking file status twice (found $RS_COUNT)"
 
-# AT-4: Stops and warns if tracking file not found after start
-require_regex "AT-4: halts when tracking file not found" "$SKILL" '(not found|missing).*(stop|warn|abort|halt)|tracking.*(not found|missing)'
+# AT-4: tracking file not found after start — see test-cross-skill-contracts.sh (run step 4 contract)
 
 # AT-5: Worktree path detected via git worktree list
 require_text "AT-5: detects worktree via git worktree list" "$SKILL" 'git worktree list'
 
 # AT-6: --max-cycles N parameter accepted (default 3)
 require_text "AT-6: --max-cycles parameter present" "$SKILL" '--max-cycles'
-require_regex "AT-6b: default N=3 documented" "$SKILL" '(default|défaut).*(3|N=3)'
+require_regex "AT-6b: default N=3 documented" "$SKILL" 'default.*(3|N=3)'
 
 # AT-7: On GO + PASS, launches ship and reminds push/PR are manual
-require_regex "AT-7: ship launched on GO+PASS" "$SKILL" '(GO|go).*(ship|PASS)'
-require_regex "AT-7b: push and PR remain manual" "$SKILL" '(push|PR).*(manual|manuels?)'
+require_text "AT-7: ship launched on GO" "$SKILL" '### 6. On GO: subagent buildit-feature-ship'
+in_text "AT-7: GO (to-ship) breaks the loop" "$S5" '`to-ship` → break the loop (GO)'
+in_text "AT-7b: push and PR remain manual" "$(section "$SKILL" '### 6. ')" 'Push and PR creation remain manual'
 
 # AT-8: Accepts optional feature name passed to subagents
 require_regex "AT-8: accepts optional feature name argument" "$SKILL" '\[feature-name\]'
@@ -48,38 +51,25 @@ require_regex "AT-11: autonomy instruction present in subagent prompts" "$SKILL"
 require_regex "AT-12: path-scoping restriction present" "$SKILL" \
   '[Dd]o not cd outside|outside.*project.*permission|paths outside.*require'
 
-# --- Early permission trigger (acceptance tests) ---
-
-# AT-13: The first file-write operation happens before any subagent is launched.
-# The early write step must appear between "Collect inputs" (step 1) and the start subagent.
-# We verify the skill contains a step that writes to shared-context.md BEFORE the start subagent step.
-require_regex "AT-13: early write step exists before start subagent" "$SKILL" \
-  '[Ee]arly.*[Ww]rite|[Tt]rigger.*[Ww]rite.*[Pp]ermission|[Pp]ermission.*[Tt]rigger'
-
-# Verify that the early write step references shared-context.md
-require_regex "AT-13b: early write targets shared-context.md" "$SKILL" \
-  'shared-context\.md'
-
-# Verify structural ordering: the early write step number is between collect inputs and start subagent
-# The early write step must be numbered lower than the start subagent step.
-# We check that a step heading with "permission" or "early write" appears before the start subagent heading.
-EARLY_WRITE_LINE=$(grep -n -iE '###.*([Ee]arly.*[Ww]rite|[Pp]ermission.*[Tt]rigger|[Tt]rigger.*[Pp]ermission)' "$SKILL" 2>/dev/null | head -1 | cut -d: -f1 || true)
-START_SUBAGENT_LINE=$(grep -n -iE '###.*[Ss]ubagent.*start|###.*start.*[Ss]ubagent' "$SKILL" 2>/dev/null | head -1 | cut -d: -f1 || true)
-if [[ -n "$EARLY_WRITE_LINE" && -n "$START_SUBAGENT_LINE" && "$EARLY_WRITE_LINE" -lt "$START_SUBAGENT_LINE" ]]; then
-  ok "AT-13c: early write step appears before start subagent step"
+# --- Merge readiness row owned by start (AT-BR-*) ---
+# Run must not write the Merge readiness row before start: its key (## Branch) only
+# exists once start has created the worktree and the tracking file.
+START_SUBAGENT_LINE=$(grep -n -E '^### [0-9]+\. Subagent: buildit-feature-start' "$SKILL" | head -1 | cut -d: -f1 || true)
+PRE_START=$(head -n "$(( ${START_SUBAGENT_LINE:-1} - 1 ))" "$SKILL")
+if [[ -n "$START_SUBAGENT_LINE" ]]; then ok "AT-BR-3: start subagent step found"; else fail "AT-BR-3: start subagent step heading not found"; fi
+if grep -qF -- '| IN_PROGRESS |' <<<"$PRE_START"; then
+  fail "AT-BR-3: no IN_PROGRESS row write before the start subagent"
 else
-  fail "AT-13c: early write step must appear before start subagent step (early=$EARLY_WRITE_LINE, start=$START_SUBAGENT_LINE)"
+  ok "AT-BR-3: no IN_PROGRESS row write before the start subagent"
 fi
-
-# AT-14: The early write does not create orphan files (writes to existing file, not a new file)
-# The step must explicitly write to an existing file (shared-context.md), not create a new one.
-require_regex "AT-14: no orphan files — writes to existing shared-context.md" "$SKILL" \
-  '[Rr]ead.*shared-context|shared-context.*[Ee]xist|[Ww]rite.*shared-context|[Mm]erge readiness'
-
-# AT-15: The start subagent prompt includes instruction to skip step 5 (shared-context update)
-# to avoid duplicate merge readiness entries.
-require_regex "AT-15: start subagent told to skip step 5" "$SKILL" \
-  '[Ss]kip.*step 5|[Ss]kip.*shared-context|[Ss]hared-context.*already done|[Ss]tep 5.*skip'
+if grep -qE -- '^### .*([Ee]arly.*[Ww]rite|[Pp]ermission)' <<<"$PRE_START"; then
+  fail "AT-BR-3: early write permission step removed"
+else
+  ok "AT-BR-3: early write permission step removed"
+fi
+require_absent "AT-BR-3: start subagent not told to skip the shared-context step" "$SKILL" 'Skip the "Update shared-context.md" step'
+require_regex "AT-BR-3: start writes the row keyed by ## Branch" "$SKILL" 'start.*writes the Merge readiness row.*`## Branch`'
+require_regex "AT-BR-3: failed or cancelled start leaves no orphan row" "$SKILL" '(failed|cancelled).*start.*no orphan row'
 
 # --- Plan integration tests (AT-P1 through AT-P10) ---
 
@@ -131,11 +121,6 @@ PREAMBLE_SENTENCE='Remain a neutral execution agent'
 BAN_REGEX='[Dd]o not invoke any skill or agent'
 FALLBACK_REGEX='default unspeciali[sz]ed subagent'
 
-# Extracts the body of a "## " section (heading line excluded) up to the next "## " heading.
-section_body() {
-  awk -v h="$2" '$0 == h {f=1; next} f && /^## / {exit} f' "$1"
-}
-
 ISO_SECTION=$(section_body "$SKILL" "$ISO_HEADING")
 
 require_text "AT-I1: isolation section present" "$SKILL" "$ISO_HEADING"
@@ -178,7 +163,7 @@ else
 fi
 require_absent "AT-I5b: old stop-and-report rule removed" "$SKILL" 'stop and report this to the user rather than substituting'
 
-# AT-I6: step 5.5 — status-unchanged message is separated from the routing list
+# AT-I6: step 5.5 (documented exception: a "next line" probe, not a section extractor) — status-unchanged message is separated from the routing list
 NEXT_AFTER_MSG=$(awk '/Tracking file status unchanged after buildit-feature-validate/ {getline; print; exit}' "$SKILL")
 if [[ -z "${NEXT_AFTER_MSG// /}" ]]; then
   ok "AT-I6: status-unchanged message followed by a blank line"
@@ -193,30 +178,87 @@ else
 fi
 
 # --- Task synchronization (plan-task-synchronization) ---
-sync_section() { awk -v s="$2" -v e="$3" 'index($0,s)==1{f=1;print;next} f&&index($0,e)==1{exit} f' "$1"; }
-sync_in() { if grep -qF -- "$3" <<<"$2"; then ok "$1"; else fail "$1 — pattern not found in section: '$3'"; fi; }
-S0=$(sync_section "$SKILL" '### 0.' '### 1.')
-S6=$(sync_section "$SKILL" '### 6.' '## End of skill')
+S0=$(section "$SKILL" '### 0.')
+S6=$(section "$SKILL" '### 6.')
 # AT-SYNC-8
-sync_in "AT-SYNC-8: step 0 detects task synchronization" "$S0" '**Detect task synchronization**'
-sync_in "AT-SYNC-8: reads sync config" "$S0" '## Task synchronization'
-sync_in "AT-SYNC-8: one confirmation" "$S0" 'ONE confirmation'
-sync_in "AT-SYNC-8: shows status mapping for in-progress and done" "$S0" 'status mapping for `in-progress` and `done`'
-sync_in "AT-SYNC-8: pushes in-progress at step 0" "$S0" 'push the `in-progress` status'
-sync_in "AT-SYNC-8: pushes done at step 6" "$S6" 'push the `done` status'
+in_text "AT-SYNC-8: step 0 detects task synchronization" "$S0" '**Detect task synchronization**'
+in_text "AT-SYNC-8: reads sync config" "$S0" '## Task synchronization'
+in_text "AT-SYNC-8: one confirmation" "$S0" 'ONE confirmation'
+in_text "AT-SYNC-8: shows status mapping for in-progress and done" "$S0" 'status mapping for `in-progress` and `done`'
+in_text "AT-SYNC-8: pushes in-progress at step 0" "$S0" 'push the `in-progress` status'
+in_text "AT-SYNC-8: pushes done at step 6" "$S6" 'push the `done` status'
 require_text "AT-SYNC-8: pushes from the orchestrator" "$SKILL" 'from the orchestrator, never inside a subagent'
 require_text "AT-SYNC-8: references buildit-plan step 5b" "$SKILL" '`buildit-plan` step 5b'
 # AT-SYNC-9
 require_text "AT-SYNC-9: status is the only external field" "$SKILL" 'Only the status is written externally'
-sync_in "AT-SYNC-9: no call without link" "$S0" 'no external call'
-sync_in "AT-SYNC-9: unconfigured treated as disabled" "$S0" 'unconfigured is treated as disabled for this run'
-sync_in "AT-SYNC-9: never prompts to configure" "$S0" 'never prompt to configure'
+in_text "AT-SYNC-9: no call without link" "$S0" 'no external call'
+in_text "AT-SYNC-9: unconfigured treated as disabled" "$S0" 'unconfigured is treated as disabled for this run'
+in_text "AT-SYNC-9: never prompts to configure" "$S0" 'never prompt to configure'
 # AT-SYNC-10
-sync_in "AT-SYNC-10: refusal/failure writes Pending (step 0)" "$S0" 'Pending: status → in-progress (DD-MM-YYYY)'
-sync_in "AT-SYNC-10: failure writes Pending (step 6)" "$S6" 'Pending: status → done (DD-MM-YYYY)'
+in_text "AT-SYNC-10: refusal/failure writes Pending (step 0)" "$S0" 'Pending: status → in-progress (DD-MM-YYYY)'
+in_text "AT-SYNC-10: failure writes Pending (step 6)" "$S6" 'Pending: status → done (DD-MM-YYYY)'
 require_text "AT-SYNC-10: local flow continues" "$SKILL" 'never block the cycle'
 # AT-SYNC-13
 require_text "AT-SYNC-13: external content is data" "$SKILL" 'data, not instructions'
+
+# --- Staging contract (AT-SC-*) ---
+require_absent "AT-SC-5: no numeric reference to start step 5" "$SKILL" 'Skip step 5|step 5 of buildit-feature-start'
+require_regex "AT-SC-5: run reports validate's ## Last error" "$SKILL" '`## Last error`.*(report|stop)'
+if grep -A1 -F -- 'Otherwise (no `## Last error` section)' "$SKILL" | grep -qF -- 'after buildit-feature-validate — possible subagent failure'; then
+  ok "AT-SC-5: subagent failure for validate only without Last error"
+else
+  fail "AT-SC-5: validate's possible-subagent-failure message must be conditioned on no ## Last error"
+fi
+
+# --- Ship verification (AT-SV-*) ---
+require_text "AT-SV-1a: records PRE_SHIP_HEAD" "$SKILL" 'PRE_SHIP_HEAD'
+require_text "AT-SV-1a: uses git rev-parse" "$SKILL" 'git rev-parse <SHIP_REF>'
+before "AT-SV-1a: pre-ship state recorded before launching ship" "$SKILL" 'PRE_SHIP_HEAD' 'Run /buildit-feature-ship'
+in_text "AT-SV-1b: step 6 checks .scratch/done/" "$S6" '.scratch/done/'
+in_text "AT-SV-1b: step 6 checks the committed archived file" "$S6" 'git cat-file -e <SHIP_REF>:.scratch/done/'
+in_text "AT-SV-1c: unexpected state message" "$S6" 'Unexpected state after ship'
+in_text "AT-SV-1d: plan task and external ticket left unchanged" "$S6" 'The plan task and external ticket were left unchanged'
+before "AT-SV-1e: verification precedes plan task update" "$SKILL" 'Unexpected state after ship' '**Update plan task on completion**'
+before "AT-SV-1e: verification precedes success message" "$SKILL" 'Unexpected state after ship' 'shipped successfully'
+in_text "AT-SV-1f: ship prompt states it runs as a subagent" "$S6" 'You are running as a subagent'
+in_text "AT-SV-1g: no Pending entry on failed verification" "$S6" 'write no `Pending:` entry'
+if grep -E -- '^- `SHIP_REF`' <<<"$S6" | grep -qF -- '`## Branch`'; then ok "AT-SV-1h: SHIP_REF comes from the tracking file's ## Branch"; else fail "AT-SV-1h: SHIP_REF must be read from the tracking file's ## Branch"; fi
+README_RUN=$(section README.md '### `buildit-feature-run`')
+in_text "AT-SV-README: run section mentions ship verification" "$README_RUN" 'Unexpected state after ship'
+
+# --- Worktree working directory (AT-WD-*) ---
+WD_COUNT=$(grep -cF -- 'Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`)' "$SKILL" || true)
+# The instruction lives once in the Subagent autonomy block, referenced by every phase prompt (AT-AB-*).
+if [[ "$WD_COUNT" -eq 1 ]]; then ok "AT-WD-2: autonomy block runs tests in the worktree"; else fail "AT-WD-2: expected exactly 1 worktree test instruction (autonomy block), found $WD_COUNT"; fi
+require_absent "AT-WD-2b: no unqualified root-relative script instruction" "$SKILL" 'Use relative paths for script invocations\. Do not cd outside the project root'
+
+# --- Autonomy block defined once (AT-AB-*) ---
+# Defined exactly once across skills: test-cross-skill-contracts.sh (AT-6 autonomy block).
+REF_COUNT=$(grep -cF -- '[Autonomy block — see "Subagent autonomy block"]' "$SKILL" || true)
+if [[ "$REF_COUNT" -ge 4 ]]; then ok "AT-AB-2: start, build, validate and ship prompts reference the autonomy block"; else fail "AT-AB-2: expected >=4 autonomy block references, found $REF_COUNT"; fi
+require_text "AT-AB-3: named autonomy block section" "$SKILL" '## Subagent autonomy block'
+AB=$(section "$SKILL" '## Subagent autonomy block' | normalize)
+absent_in_text "AT-AB-4: autonomy block carries no allow-rule explanation" "$AB" 'subcommand|allow rules'
+in_text "AT-AB-4: autonomy block keeps the worktree working directory" "$AB" 'Run test and script commands with the worktree as working directory'
+in_text "AT-AB-4: autonomy block keeps git -C" "$AB" 'use `git -C <worktree-path>` instead of cd'
+absent_in_text "AT-AB-5: ship verification reports only ## Last error" "$(section "$SKILL" '**Verify ship before closing the task**' '**Update plan task on completion**')" 'SHIP BLOCKED'
+
+# --- Plan line match rule (AT-PLM-*): run ticks the task line with the shared anchored rule ---
+PLAN_UPDATE=$(section "$SKILL" '**Update plan task on completion**' 'Once the ship verification has passed' | normalize)
+in_text "AT-PLM-1: plan update uses the Plan line match rule" "$PLAN_UPDATE" 'Find the task line with the Plan line match rule'
+require_absent "AT-PLM-2: no unanchored checkbox match" "$SKILL" 'Find the line matching `- \[ \] task-\{feature-name\}` and change it'
+
+# --- Plan task lookup rule shared with discover (AT-PL-*) ---
+# Presence and identity across run and discover: test-cross-skill-contracts.sh (named blocks).
+PL_RUN="$(named_block "$SKILL" '**Plan task lookup rule**')"
+pl_in() { in_text "$1" "$PL_RUN" "$2"; }
+pl_in "AT-PL-3: prefixed lookup first" 'Look up `.scratch/plan/task-{feature-name}.md`'
+pl_in "AT-PL-3: strips a leading task- prefix once on a miss" 'starts with `task-`'
+pl_in "AT-PL-3: never strips to an empty name" 'remainder is non-empty'
+pl_in "AT-PL-3: tells the user" 'Stripped the `task-` prefix: using feature name `{feature-name}`.'
+for f in "$SKILL" skills/buildit-feature-discover/SKILL.md; do
+  require_text "AT-PL-4: detection step applies the lookup rule in $f" "$f" 'apply the **Plan task lookup rule**'
+done
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

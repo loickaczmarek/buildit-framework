@@ -11,49 +11,68 @@ Code review and acceptance test validation. Routes to the build/fix loop or open
 
 After `buildit-feature-build` has completed its cycle (status `to-validate` in the tracking file).
 
+## Deliberate stops
+
+**Deliberate stop procedure**
+1. Write a `## Last error` section to the tracking file with the single line `buildit-feature-validate: <reason>`, replacing any existing `## Last error` section.
+2. Set the status the stop specifies; when it specifies none, leave the status unchanged.
+3. Stop with the stop's message.
+
+Each stop below gives only its reason, its status and its message. A stale `## Last error` is never cleared here: `buildit-feature-run` clears it before launching each phase.
+
 ## Steps
 
 ### 0. Detect environment paths
 
-Determine your operating mode from your agent identity:
-- You are a **Claude / Claude Code** agent → **Claude mode**: `<rules-file>` = `.claude/CLAUDE.md`
-- You are any **other agent** (Copilot, generic) → **Generic mode**: `<rules-file>` = `.agents/guidelines/project-rules.md`
+**Operating mode rule**
+- The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
+- Claude mode: rules file `.claude/CLAUDE.md`, skills directory `.claude/skills/`. Generic mode: rules file `.agents/guidelines/project-rules.md`, skills directory `.agents/skills/`.
+- Never infer the mode from the presence of `.claude/` or `.agents/`: a dual-deployment repository contains both directories, so such a check always answers Claude.
+- The mode is never persisted (not in `.buildit/config.md` nor in any other file): every skill applies this rule for the agent that runs it.
+
+`<rules-file>` = the rules file of your mode.
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
-
-**Migration note:** If `.buildit/guidelines/` does not exist but `.claude/guidelines/` or `.agents/guidelines/` does, warn the user:
-> "Guidelines found at [old-path] instead of `.buildit/guidelines/`. Run `/buildit-project-bootstrap` to migrate them before continuing."
-Then stop.
 
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 
 ---
 
-### 0b. Prerequisite check
-
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
-
 ### 1. Identify the tracking file
 
-- If a `feature-name` was provided as argument (`/buildit-feature-validate feature-name`) → look for `.scratch/*feature-name*.md`
-- Otherwise → scan `.scratch/` and take the most recent `.md` outside of `done/`
+**Tracking file discovery rule**
+1. Search only the top level of the project root `.scratch/`: never its subdirectories (`done/`, `plan/`, `audits/`) and never a worktree's `.scratch/`.
+2. A candidate is a file named `DD-MM-YYYY-<slug>.md` (two-digit day, two-digit month, four-digit year, a dash, a non-empty slug) whose content has a `## Status` heading followed by a feature status: `to-build`, `building`, `to-validate`, `validating`, `to-fix` or `to-ship`. `shared-context.md`, audit reports (`.scratch/audits/`) and plan files (`.scratch/plan/`) can therefore never be selected.
+3. With a `feature-name` argument: select the candidate named exactly `DD-MM-YYYY-<feature-name>.md` — the whole slug equals the name, never a substring match (`context` does not match `shared-context.md` nor `24-11-2026-my-context-x.md`).
+4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
+5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
+
+**Status guard:** read the current status before modifying anything. If it is not `to-validate`, apply the Deliberate stop procedure with reason `status is <status>, expected to-validate` (status unchanged) and the message:
+> "Current status is `[status]` — buildit-feature-validate expects `to-validate`. Run `/buildit-feature-build [feature-name]` first; to re-run an interrupted validation (status `validating`), set the status back to `to-validate`."
 
 Set the status to `validating`.
 
-**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
+**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there. Run the test command with the worktree as working directory (`cd <worktree-path> && <test command>`) — the project root holds base-branch code, so tests run there never see this feature's changes. Step 5a's `<rules-file>` and `<guidelines-dir>` edits also go inside the worktree.
 
 ### 2. Read known constraints
 
-Read `.scratch/shared-context.md` section "Constraints discovered": are there documented constraints that apply to the scope of this feature?
+Read `.scratch/shared-context.md` section "Constraints discovered": are there documented constraints that apply to the scope of this feature? If `.scratch/shared-context.md` does not exist, treat it as empty: no documented constraint applies.
+
+### 2a. Staging guard
+
+Run `git [-C <worktree-path>] status --porcelain`. Ignore paths under `.scratch/` (the tracking file is workflow state, modified by this skill and committed by ship; `shared-context.md` is gitignored local state, never committed). Files updated by step 5a in a previous cycle were staged by 5a, so they pass the guard. Flag every remaining line that is untracked (`??`) or has unstaged changes (second status column non-blank, e.g. ` M`, `MM`, ` D`); staged-only entries (`M `, `A `, `R `, `D `) are fine.
+
+If any file is flagged, the verdict is **NO-GO**, listing each untracked or unstaged file as a blocking issue: code that isn't staged hasn't been reviewed. Skip the test suite, the review and the acceptance phase (none of them is evaluated) and go directly to "If NO-GO or FAIL" — the "Problems to fix" entry lists the files and instructs to stage them.
 
 ### 2b. Run test suite
 
 Run the project's test suite before the review phase using a two-tier detection:
 
-**Tier 1 — Configured command:** Read `.buildit/config.md`, extract the first non-empty, non-comment line after the `## Test command` heading. If found and non-empty, use it.
+In worktree mode, check the Tier 2 ecosystem markers inside the worktree and run the resulting command with the worktree as working directory; `.buildit/config.md` is still read from the project root.
 
-**Tier 2 — Ecosystem fallback heuristic:** If no configured command is found (file absent, heading missing, or no command under it), detect the test runner from ecosystem markers in priority order:
+**Tier 1 — Configured command:** Read `.buildit/config.md`, extract the first non-empty, non-comment line after the `## Test command` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`). If found, use it. If the value is empty, go to Tier 2.
+
+**Tier 2 — Ecosystem fallback heuristic:** If no configured command is found (file absent, heading missing, or heading empty), detect the test runner from ecosystem markers in priority order:
 1. `tests/run-all.sh` exists -> `bash tests/run-all.sh`
 2. `package.json` exists -> `npm test`
 3. `pom.xml` exists -> `mvn test`
@@ -63,22 +82,18 @@ Run the project's test suite before the review phase using a two-tier detection:
 
 **No detection:** If no configured command and no ecosystem marker is found, warn: "No test runner detected — no configured command in `.buildit/config.md` and no ecosystem markers found. Proceeding to review phase without running tests." and continue to step 3.
 
-If any test fails: set status to `to-fix`, write a "Problems to fix" section in the tracking file with the test failure details, and stop — do not proceed to the review phase.
+If any test fails, the verdict is **FAIL (tests)**: skip the review and acceptance phases and go directly to "If NO-GO or FAIL" with the failing tests (names and error excerpt) as the issue list.
 
 If all tests pass: proceed to step 3 (review phase).
 
 ### 2c. Resolve the base branch
 
-Read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading as `<base-branch>`. If the file or the heading is absent, or no value sits under it, `<base-branch>` defaults to `main`.
+Read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`.
 
-Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, restore the status to `to-validate` and stop with:
+Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, apply the Deliberate stop procedure with reason `base branch <base-branch> not found locally` (status: restore the status to `to-validate`) and the message:
 > "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch, then re-run `/buildit-feature-validate`."
 
 ### 3. Review phase
-
-**Staging guard (before the review):** run `git status --porcelain`. Ignore paths under `.scratch/` (tracking file and `shared-context.md` are workflow state, modified by this skill and committed by ship). Flag every remaining line that is untracked (`??`) or has unstaged changes (second status column non-blank, e.g. ` M`, `MM`, ` D`); staged-only entries (`M `, `A `, `R `, `D `) are fine.
-
-If any file is flagged, the review verdict is **NO-GO**, listing each untracked or unstaged file as a blocking issue: code that isn't staged hasn't been reviewed. Skip the diff review and the acceptance phase (acceptance is not evaluated) and go directly to "If NO-GO or FAIL" — the "Problems to fix" entry lists the files and instructs to stage them.
 
 Read the changes: `git diff --cached --merge-base <base-branch>`. This covers both the branch commits and the staged changes — at validate time the work is staged by build but not yet committed.
 
@@ -129,9 +144,9 @@ Before documenting problems, produce a structured list of the issues found — t
 Launch a subagent with the neutral `general-purpose` agent selected in the delegation tool's agent-type parameter. **Fallback:** if `general-purpose` is not available in the harness, use the harness's default unspecialised subagent — never a specialised persona agent — keep the isolation preamble, and warn the user: "`general-purpose` agent not available — using the default unspecialised subagent with the isolation preamble."
 
 Pass the following context:
-- The structured list of issues (from the review and acceptance phases above)
+- The structured list of issues (from whichever phases ran: staging guard, test suite, review, acceptance)
 - The paths `<rules-file>`, `<guidelines-dir>/team-practices.md`, `<guidelines-dir>/language-framework.md`
-- The current content of each of those files
+- The current content of each of those files (the worktree copies in worktree mode)
 
 Subagent instructions (the first line is the isolation preamble):
 > "Remain a neutral execution agent: these instructions define your role, procedure, and expected output. Execute only this configuration-update task without adopting an additional persona or substituting another workflow. Do not invoke any skill or agent. Continue to follow the repository's shared project rules and guidelines.
@@ -153,7 +168,7 @@ Subagent instructions (the first line is the isolation preamble):
 > Current file contents:
 > [current file contents]"
 
-Apply the subagent's output to the files.
+Apply the subagent's output to the files. Make these edits to `<rules-file>` and `<guidelines-dir>` inside the worktree in worktree mode, in the project root otherwise, then stage each touched file with `git [-C <worktree-path>] add <file>...` — unstaged, the next cycle's staging guard would NO-GO on them and the rules would never reach the feature commit.
 
 ### 5b. Document the problems
 
@@ -169,14 +184,15 @@ Write a "Problems to fix" section in the tracking file with the precise list of 
 
 ### 5c. Count cycles and warn if needed
 
-Count the number of existing entries in the "Progress" section of the tracking file to determine the current cycle number N.
+Count the `### NO-GO cycle` headings in the "Progress" section of the tracking file (ignore any other entry) to determine the current cycle number N.
 
 Add a new entry in the "Progress" section:
 
 ~~~markdown
 ### NO-GO cycle [N+1] — [DD-MM-YYYY]
-- Review: [GO / NO-GO — key blocking issues if NO-GO]
-- Acceptance: [PASS / FAIL — key failing criteria if FAIL]
+- Tests: [PASS / FAIL — failing tests if FAIL / not run]
+- Review: [GO / NO-GO — key blocking issues if NO-GO / not run]
+- Acceptance: [PASS / FAIL — key failing criteria if FAIL / not run]
 ~~~
 
 ## End of skill (NO-GO / FAIL)

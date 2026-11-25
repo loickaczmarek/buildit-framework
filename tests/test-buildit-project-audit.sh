@@ -30,8 +30,8 @@ require_regex "AT-5: architecture dimension" "$SKILL" '[Aa]rchitecture|[Cc]oupli
 require_regex "AT-5: documentation gaps dimension" "$SKILL" '[Dd]ocumentation.*gap'
 require_regex "AT-5: config/setup health dimension" "$SKILL" '[Cc]onfig.*health|[Ss]etup.*health|[Cc]onfig/setup'
 
-# AT-6: Draft report in .scratch/
-require_regex "AT-6: report output in .scratch/" "$SKILL" '\.scratch/.*audit-issues\.md'
+# AT-6: Draft report in .scratch/audits/
+require_regex "AT-6: report output in .scratch/audits/" "$SKILL" '\.scratch/audits/[^ ]*audit-issues\.md'
 
 # AT-7: Independent critique subagent
 require_regex "AT-7: critique by independent subagent" "$SKILL" '[Cc]ritique.*subagent|subagent.*[Cc]ritique|[Ii]ndependent.*critique|critique.*independent'
@@ -53,9 +53,10 @@ require_regex "AT-10: distinguishes from bootstrap" "$SKILL" 'bootstrap'
 require_regex "AT-12: Claude mode detection" "$SKILL" '[Cc]laude.*mode|mode.*[Cc]laude'
 require_regex "AT-12: Generic mode detection" "$SKILL" '[Gg]eneric.*mode|mode.*[Gg]eneric'
 
-# AT-13: Prerequisite check for shared-context.md
-require_text "AT-13: prerequisite check for shared-context.md" "$SKILL" "shared-context.md"
-require_regex "AT-13: guard for missing shared-context" "$SKILL" 'not found|does not exist|not exist'
+# AT-FU-2: audit never stops on a missing shared-context.md (gitignored local state)
+require_absent "AT-FU-2: no shared-context prerequisite stop" "$SKILL" 'Shared context file not found'
+require_absent "AT-FU-2: no Prerequisite check step" "$SKILL" '^### [0-9]+[a-z]?\. Prerequisite check'
+require_absent "AT-FU-2: audit never requires shared-context.md" "$SKILL" 'shared-context\.md` does not exist, stop'
 
 # --- Pipeline restructure assertions ---
 
@@ -127,22 +128,11 @@ else
   fail "AT-C8: .claude/skills/ copy missing"
 fi
 
-# AT-C9: Design spec exists
-SPEC="docs/buildit/specs/2026-10-19-audit-calibration.md"
-if [[ -f "$SPEC" ]]; then
-  ok "AT-C9: design spec exists"
-  require_regex "AT-C9: spec covers severity criteria" "$SPEC" '[Ss]everity.*criteria|criteria.*[Ss]everity'
-  require_regex "AT-C9: spec covers execution trace" "$SPEC" '[Ee]xecution [Tt]race'
-  require_regex "AT-C9: spec covers calibration" "$SPEC" '[Cc]alibration'
-else
-  fail "AT-C9: design spec missing — docs/buildit/specs/2026-10-19-audit-calibration.md"
-fi
-
 
 # --- Neutral subagent isolation (AT-I1 through AT-I5) ---
 
 ISO_HEADING='## Subagent selection and workflow isolation'
-ISO_SECTION=$(awk -v h="$ISO_HEADING" '$0 == h {f=1; next} f && /^## / {exit} f' "$SKILL")
+ISO_SECTION=$(section_body "$SKILL" "$ISO_HEADING")
 
 require_text "AT-I1: isolation section present" "$SKILL" "$ISO_HEADING"
 if grep -qF -- 'general-purpose' <<<"$ISO_SECTION"; then ok "AT-I1b: general-purpose agent required"; else fail "AT-I1b: general-purpose not required in isolation section"; fi
@@ -162,6 +152,11 @@ if grep -qE -- 'default unspeciali[sz]ed subagent' <<<"$ISO_SECTION" && grep -qi
 else
   fail "AT-I5: fallback (default unspecialised subagent + warning) missing"
 fi
+
+# Hotspot fallback scans detected source directories (audit #25)
+require_absent "AT-F1: no skills-first fallback" "$SKILL" 'full `skills/` directory \(or `src/` if present\)'
+require_text "AT-F1: fallback scans detected source directories" "$SKILL" 'source directories detected from the repository layout'
+require_text "AT-F1: fallback exclusions" "$SKILL" 'excluding `.scratch/`, documentation, vendored and generated directories'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

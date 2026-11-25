@@ -5,7 +5,7 @@ description: "Use when auditing codebase health — evaluates code quality, arch
 
 # Project Audit
 
-Audits the codebase for code quality, architecture health, guideline compliance, and documentation gaps. Scope is determined either by an explicit argument or via hotspot analysis in a subagent. The audit runs as 3 parallel category subagents (code quality, architecture health, project health). Each category is critiqued independently by a dedicated critique subagent upon completion, with findings presented progressively. After all categories complete, a cross-cutting execution trace subagent catches cross-file interaction bugs, then a calibration subagent normalizes severity ratings across the full report. Output is a `.scratch/DD-MM-YYYY-audit-issues.md` file.
+Audits the codebase for code quality, architecture health, guideline compliance, and documentation gaps. Scope is determined either by an explicit argument or via hotspot analysis in a subagent. The audit runs as 3 parallel category subagents (code quality, architecture health, project health). Each category is critiqued independently by a dedicated critique subagent upon completion, with findings presented progressively. After all categories complete, a cross-cutting execution trace subagent catches cross-file interaction bugs, then a calibration subagent normalizes severity ratings across the full report. Output is a `.scratch/audits/DD-MM-YYYY-audit-issues.md` file.
 
 **Boundary with `buildit-project-bootstrap`:** bootstrap handles project setup and configuration scaffolding (generating workflow files, detecting the stack, creating `.buildit/config.md`). This skill handles ongoing code health assessment — it reads the existing codebase and guidelines, evaluates quality, and produces actionable findings. Bootstrap sets up the project; audit examines it.
 
@@ -34,16 +34,15 @@ Every subagent this skill launches — hotspot analysis (step 1, only when no sc
 
 ### 0. Detect environment paths
 
-Determine your operating mode from your agent identity:
-- You are a **Claude / Claude Code** agent → **Claude mode**: `<rules-file>` = `.claude/CLAUDE.md`
-- You are any **other agent** (Copilot, generic) → **Generic mode**: `<rules-file>` = `.agents/guidelines/project-rules.md`
+**Operating mode rule**
+- The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
+- Claude mode: rules file `.claude/CLAUDE.md`, skills directory `.claude/skills/`. Generic mode: rules file `.agents/guidelines/project-rules.md`, skills directory `.agents/skills/`.
+- Never infer the mode from the presence of `.claude/` or `.agents/`: a dual-deployment repository contains both directories, so such a check always answers Claude.
+- The mode is never persisted (not in `.buildit/config.md` nor in any other file): every skill applies this rule for the agent that runs it.
+
+`<rules-file>` = the rules file of your mode.
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
-
-### 0b. Prerequisite check
-
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
 
 ---
 
@@ -55,7 +54,7 @@ If `.scratch/shared-context.md` does not exist, stop with:
   - Git churn: `git log --format=format: --name-only | sort | uniq -c | sort -rn | head -20` to find most-changed files
   - Complexity heuristics: file length, function count, nesting depth for top churn files
   - Cap the hotspot list to the top 10 files and group them by concern area before returning
-  - Fallback: if fewer than 5 files appear in the churn results (e.g. new repo with little history), fall back to scanning the full `skills/` directory (or `src/` if present)
+  - Fallback: if fewer than 5 files appear in the churn results (e.g. new repo with little history), fall back to scanning the source directories detected from the repository layout (whichever of `src/`, `lib/`, `app/`, `packages/`, `skills/`, ... exist, from the build manifest or the top-level tree), excluding `.scratch/`, documentation, vendored and generated directories
   - Return a prioritized list of files/areas to audit
   - Store the result as `AUDIT_SCOPE`
 
@@ -63,7 +62,7 @@ If `.scratch/shared-context.md` does not exist, stop with:
 
 ### 2. Early write permission trigger
 
-Before launching any subagent, write a placeholder header to `.scratch/DD-MM-YYYY-audit-issues.md`:
+Before launching any subagent, create `.scratch/audits/` if missing and write a placeholder header to `.scratch/audits/DD-MM-YYYY-audit-issues.md`:
 
 ```markdown
 # Audit — DD-MM-YYYY
@@ -116,7 +115,7 @@ Receives `AUDIT_SCOPE`. Evaluates:
 
 Receives `AUDIT_SCOPE` and `<rules-file>`. Evaluates:
 
-8. **Documentation gaps** — missing or outdated docs, README sections, design specs for non-obvious choices
+8. **Documentation gaps** — missing or outdated docs and README sections
 9. **Config/setup health** — build configs, CI setup, dependency freshness, gitignore completeness
 
 **Error handling:** if a category subagent fails or returns no findings, report "No issues found in [Category X]" and continue — do not block the other categories.
@@ -190,7 +189,7 @@ Returns a list of severity adjustments, each with: finding reference, original s
 
 ### 8. Compile final report
 
-After all category+critique pairs, execution trace, and calibration are complete, merge all findings into `.scratch/DD-MM-YYYY-audit-issues.md`. Apply calibration severity adjustments before grouping. Group by severity (Critical > High > Medium > Low), not by category. Follow this format:
+After all category+critique pairs, execution trace, and calibration are complete, merge all findings into `.scratch/audits/DD-MM-YYYY-audit-issues.md`. Apply calibration severity adjustments before grouping. Group by severity (Critical > High > Medium > Low), not by category. Follow this format:
 
 ```markdown
 # Audit — DD-MM-YYYY
@@ -235,8 +234,6 @@ After all category+critique pairs, execution trace, and calibration are complete
 | Finding N | High | Medium | Lacks file:line evidence |
 ```
 
-This follows the pattern established by `docs/buildit/reviews/`.
-
 ---
 
 ### 9. Present results
@@ -245,7 +242,7 @@ Present the final report path and a summary table.
 
 ## End of skill
 
-> "Audit complete. Report written to `.scratch/DD-MM-YYYY-audit-issues.md`."
+> "Audit complete. Report written to `.scratch/audits/DD-MM-YYYY-audit-issues.md`."
 > "This is a standalone assessment — no status transition. Use the findings to plan fixes via `/buildit-feature-start` or `/buildit-feature-run`."
 
 > If critique led to changes: "The independent critique modified N findings and added M new ones — see the 'Critique integration' section for details."

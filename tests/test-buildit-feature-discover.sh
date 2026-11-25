@@ -19,7 +19,19 @@ require_text "AT-1: description mentions /buildit-feature-discover" "$SKILL_SRC"
 # AT-2: Analysis phase reads shared-context.md, guidelines, and scans project structure
 require_text "AT-2: reads shared-context.md" "$SKILL_SRC" 'shared-context.md'
 require_regex "AT-2: reads guidelines dir" "$SKILL_SRC" '\.buildit/guidelines'
-require_regex "AT-2: scans project structure (ls skills)" "$SKILL_SRC" '(ls|scan|list).*skills'
+require_text "AT-2: scans project modules from detected source directories" "$SKILL_SRC" 'detect the source directories from the repository layout'
+require_text "AT-2: source directory candidates listed" "$SKILL_SRC" '`src/`, `lib/`, `app/`, `packages/`'
+require_absent "AT-2: no skills-only overlap scan" "$SKILL_SRC" 'Scan existing skills: `ls \$SKILLS_DIR`'
+# AT-FU-3: phase 1 treats a missing shared-context.md (gitignored local state) as empty
+P1=$(section "$SKILL_SRC" '### Phase 1 — Project context analysis' | normalize)
+in_text "AT-FU-3: discover phase 1 treats a missing shared-context.md as empty" "$P1" 'If `.scratch/shared-context.md` does not exist, treat it as empty'
+in_text_re "AT-FU-3: empty means no in-progress branches to consider" "$P1" 'no constraints, decisions or in-progress branches'
+
+# Generic discover (audit #19): questions talk about features and modules, not skills
+require_absent "AT-G1: no 'this skill' in questions" "$SKILL_SRC" 'this skill (solve|differ)|invokes this skill|the skill is successfully invoked|the skill is working'
+require_text "AT-G1: problem question about the feature" "$SKILL_SRC" 'what problem does this feature solve'
+require_text "AT-G1: users question about the feature" "$SKILL_SRC" 'who uses this feature'
+require_text "AT-G1: overlap question about a module" "$SKILL_SRC" 'How does this feature differ from `[module]`?'
 
 # AT-3: Asks user about external documentation before posing questions
 require_regex "AT-3: asks about external documentation" "$SKILL_SRC" '(documentation|specs|user stories|design doc)'
@@ -59,7 +71,8 @@ require_regex "AT-D2: explicit fallthrough" "$SKILL_SRC" 'PLAN_TASK_FILE=none.*(
 require_regex "AT-D3: feature name locked to task name" "$SKILL_SRC" '[Ff]eature name is locked to the task name'
 
 # AT-D4: ready short-circuit with re-scope option
-require_regex "AT-D4: ready short-circuit suggests feature-run" "$SKILL_SRC" 'PLAN_READINESS.*ready.*/buildit-feature-run \[task-name\]'
+require_regex "AT-D4: ready short-circuit suggests feature-run" "$SKILL_SRC" 'PLAN_READINESS.*ready.*/buildit-feature-run \{feature-name\}'
+require_absent "AT-D4: no [task-name] placeholder" "$SKILL_SRC" '\[task-name\]'
 require_regex "AT-D4: re-scope option" "$SKILL_SRC" '[Rr]e-scope anyway'
 
 # AT-D5: status guard with confirmation
@@ -76,6 +89,8 @@ require_regex "AT-D7: Readiness set to ready" "$SKILL_SRC" 'Set `## Readiness` t
 require_regex "AT-D8: needs-scoping tag replaced by ready" "$SKILL_SRC" '`\[needs-scoping\]`.*`\[ready\]`'
 require_regex "AT-D8: checkbox and priority preserved" "$SKILL_SRC" '[Pp]reserve.*checkbox.*priority'
 
+require_text "AT-D8: plan.md line found with the Plan line match rule" "$SKILL_SRC" 'Find the task line with the Plan line match rule'
+
 # AT-D9: graceful handling of missing plan.md / missing line
 require_regex "AT-D9: plan.md missing -> task file only" "$SKILL_SRC" 'plan\.md` does not exist.*task file only'
 require_regex "AT-D9: line not found -> warning" "$SKILL_SRC" '[Tt]ask line not found.*task file updated only'
@@ -87,10 +102,19 @@ require_regex "AT-D10: never modifies Status" "$SKILL_SRC" '[Nn]ever modif(y|ies
 require_regex "AT-D11: no writes when brief not validated" "$SKILL_SRC" 'not validated.*untouched'
 
 # AT-D12: handoff recommends feature-run with task name
-require_regex "AT-D12: handoff recommends feature-run [task-name]" "$SKILL_SRC" '/buildit-feature-run \[task-name\]`.*recommended'
+require_regex "AT-D12: handoff recommends feature-run with the bare name" "$SKILL_SRC" '/buildit-feature-run \{feature-name\}`.*recommended'
+require_text "AT-D12: handoff start command uses the bare name" "$SKILL_SRC" '`/buildit-feature-start {feature-name}`'
+
+# Manual flow (audit #12): the plan handoff says start → ship does not track the plan task
+HANDOFF=$(section "$SKILL_SRC" 'Plan handoff:')
+p5_manual() { in_text "$1" "$HANDOFF" "$2"; }
+p5_manual "AT-M1: manual path does not track plan status" 'the manual path (start → ship) does not track plan status'
+p5_manual "AT-M1: user updates the task status" 'update the task `## Status` to `done`'
+p5_manual "AT-M1: user ticks the plan.md checkbox" 'tick its `plan.md` checkbox'
+p5_manual "AT-M1: user recomputes progress counters" 'recompute the progress counters'
 
 # AT-D13: README discover section documents the plan integration
-README_SECTION=$(sed -n '/^### `buildit-feature-discover`/,/^---/p' "$README_FILE")
+README_SECTION=$(section "$README_FILE" '### `buildit-feature-discover`' '---')
 if grep -qF '.scratch/plan/task-' <<<"$README_SECTION" && grep -qF 'needs-scoping' <<<"$README_SECTION"; then
   ok "AT-D13: README discover section documents plan integration"
 else
@@ -98,7 +122,7 @@ else
 fi
 
 # AT-D14: guideline extended to discover with ownership rule
-GUIDELINE_SECTION=$(sed -n '/^### Plan-task integration/,/^### Worktree/p' "$GUIDELINE_FILE")
+GUIDELINE_SECTION=$(section "$GUIDELINE_FILE" '### Plan-task integration')
 if grep -qF 'buildit-feature-discover' <<<"$GUIDELINE_SECTION" && grep -qE 'Readiness.*buildit-feature-discover|buildit-feature-discover.*Readiness' <<<"$GUIDELINE_SECTION"; then
   ok "AT-D14: guideline covers discover and Readiness ownership"
 else
@@ -106,8 +130,8 @@ else
 fi
 
 # --- Task synchronization (plan-task-synchronization) ---
-P5=$(awk 'index($0,"### Phase 5")==1{f=1} f&&index($0,"## End of skill")==1{exit} f' "$SKILL_SRC")
-p5_in() { if grep -qF -- "$2" <<<"$P5"; then ok "$1"; else fail "$1 — pattern not found in Phase 5: '$2'"; fi; }
+P5=$(section "$SKILL_SRC" '### Phase 5')
+p5_in() { in_text "$1" "$P5" "$2"; }
 p5_in "AT-SYNC-11: Phase 5 sync block" '**Synchronize validated brief**'
 p5_in "AT-SYNC-11: one confirmation" 'ONE confirmation'
 p5_in "AT-SYNC-11: pushes description, AT and readiness only" 'description, acceptance tests and readiness'

@@ -1,43 +1,61 @@
 ---
 name: buildit-feature-ship
-description: "Use when validation passed (status to-ship) — checks shared-context readiness, commits, cleans shared-context, migrates durable constraints to guidelines, runs retro. Does NOT push or create the PR. Accepts optional feature name: /buildit-feature-ship [feature-name]."
+description: "Use when validation passed (status to-ship) — checks shared-context readiness, cleans shared-context, migrates durable constraints to guidelines, runs retro, commits. Does NOT push or create the PR. Accepts optional feature name: /buildit-feature-ship [feature-name]."
 ---
 
 # Feature Ship
 
-Readiness checklist, commit, shared-context cleanup, constraint migration, retro. Push and PR remain manual.
+Readiness checklist, shared-context cleanup, constraint migration, retro, commit. Push and PR remain manual.
 
 ## When to use
 
 After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in the tracking file).
 
+## Running as a subagent
+
+When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer. Any step below that says to wait for confirmation blocks instead: do not commit, do not move the tracking file, never change the status (leave it as found), and apply the Deliberate stop procedure with reason `blocked — <precise reason>`.
+
+## Deliberate stops
+
+**Deliberate stop procedure**
+1. Write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: <reason>`, replacing any existing `## Last error` section.
+2. Never change the status: ship leaves it as found (`to-ship` for a validated feature) whenever it stops; commit nothing and do not move the tracking file.
+3. Stop with the stop's message (the reason itself when the stop gives none).
+
+Every stop after a tracking file is selected applies it — the missing `## Branch` (step 0), the base branch not found (step 1) and the subagent block (above) — giving only its reason and message. A stale `## Last error` is never cleared here: `buildit-feature-run` clears it before launching each phase.
+
 ## Steps
 
 ### 0. Identify the feature
 
-- If a `feature-name` was provided as argument (`/feature-ship feature-name`) → look for `.scratch/*feature-name*.md`
-- Otherwise → scan `.scratch/` and take the most recent `.md` outside of `done/`, then verify its status is `to-ship`
+**Tracking file discovery rule**
+1. Search only the top level of the project root `.scratch/`: never its subdirectories (`done/`, `plan/`, `audits/`) and never a worktree's `.scratch/`.
+2. A candidate is a file named `DD-MM-YYYY-<slug>.md` (two-digit day, two-digit month, four-digit year, a dash, a non-empty slug) whose content has a `## Status` heading followed by a feature status: `to-build`, `building`, `to-validate`, `validating`, `to-fix` or `to-ship`. `shared-context.md`, audit reports (`.scratch/audits/`) and plan files (`.scratch/plan/`) can therefore never be selected.
+3. With a `feature-name` argument: select the candidate named exactly `DD-MM-YYYY-<feature-name>.md` — the whole slug equals the name, never a substring match (`context` does not match `shared-context.md` nor `24-11-2026-my-context-x.md`).
+4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
+5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
 
-If the most recent file does not have status `to-ship`, warn: "The most recent file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing.
+As a subagent, a stop from this rule writes nothing — no tracking file is selected, so there is no `## Last error` to write; its stop message is the final message and buildit-feature-run reports its failed checks.
 
-**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
+If the selected file does not have status `to-ship`, warn: "The selected file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing (as a subagent: block — see "Running as a subagent").
 
-### 0a. Prerequisite check
+**Worktree path:** read the `## Worktree path` value from the tracking file once and store it as `WORKTREE_PATH` (`none` = no worktree). `<worktree-path>` below stands for this value. Step 6 reuses it — never re-read it from the tracking file, which step 4 moves to `.scratch/done/`.
 
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
+**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. If `WORKTREE_PATH` is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
 
-### 0b. Detect environment paths
+**Feature branch:** read the `## Branch` value from the tracking file (the line below the heading, a bare branch name — contract in `buildit-feature-start` step 3) and store it as `<feature-branch>`. If the heading is absent or empty, apply the Deliberate stop procedure with reason `no ## Branch in the tracking file` and the message: "The tracking file has no `## Branch` — add the feature branch under `## Branch` (contract in `buildit-feature-start` step 3), then re-run `/buildit-feature-ship [feature-name]`."
 
-Determine your operating mode from your agent identity:
-- You are a **Claude / Claude Code** agent → **Claude mode**: `<rules-file>` = `.claude/CLAUDE.md`
-- You are any **other agent** (Copilot, generic) → **Generic mode**: `<rules-file>` = `.agents/guidelines/project-rules.md`
+### 0a. Detect environment paths
+
+**Operating mode rule**
+- The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
+- Claude mode: rules file `.claude/CLAUDE.md`, skills directory `.claude/skills/`. Generic mode: rules file `.agents/guidelines/project-rules.md`, skills directory `.agents/skills/`.
+- Never infer the mode from the presence of `.claude/` or `.agents/`: a dual-deployment repository contains both directories, so such a check always answers Claude.
+- The mode is never persisted (not in `.buildit/config.md` nor in any other file): every skill applies this rule for the agent that runs it.
+
+`<rules-file>` = the rules file of your mode.
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
-
-**Migration note:** If `.buildit/guidelines/` does not exist but `.claude/guidelines/` or `.agents/guidelines/` does, warn the user:
-> "Guidelines found at [old-path] instead of `.buildit/guidelines/`. Run `/buildit-project-bootstrap` to migrate them before continuing."
-Then stop.
 
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 
@@ -45,21 +63,18 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 ### 1. Readiness check
 
-Read `.scratch/shared-context.md` in full.
+Read `.scratch/shared-context.md` in full. If `.scratch/shared-context.md` does not exist, treat it as empty: no other branch rows, APIs or constraints to check.
 
-**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading as `<base-branch>`. If the file or the heading is absent, or no value sits under it, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
+**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, apply the Deliberate stop procedure with reason `base branch <base-branch> not found locally` and the message: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
 
-Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 2).
+Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 5).
 
 **File overlap — dynamic computation:**
-For each `IN_PROGRESS` branch listed in "Merge readiness", compute its touched files dynamically: `git diff --name-only --merge-base <base-branch> <branch>`. Compare the two file lists. If any files overlap, report the overlapping files as a warning. If a branch cannot be resolved locally, warn and skip it rather than failing.
+For each `IN_PROGRESS` branch listed in "Merge readiness" other than `<feature-branch>` (skip this feature's own row), compute its touched files dynamically: `git diff --name-only --merge-base <base-branch> <branch>`. Compare the two file lists. If any files overlap, report the overlapping files as a warning. If a branch cannot be resolved locally, warn and skip it rather than failing.
 
 **Limitation:** the other-branch check only sees commits — files that are only staged in another worktree are invisible to it.
 
 Fallback for git < 2.30 (no `--merge-base` option): `git diff --cached --name-only $(git merge-base <base-branch> HEAD)` for this feature, `git diff --name-only $(git merge-base <base-branch> <branch>) <branch>` for other branches.
-
-**Declared dependencies:**
-Are there branches that declare `Waiting for: [this branch]` in "Merge readiness"?
 
 **APIs:**
 Are there entries in "API & Contracts modified" by other branches that are not yet accounted for in this feature's code?
@@ -71,26 +86,15 @@ Are there entries in "Constraints discovered" that apply to this feature's scope
 - **✓ OK to ship** — no blocking point
 - **⚠ Blocking: [precise reason]** — if a point blocks
 
-If blocking: explain the issue and wait for human confirmation before continuing.
+If blocking: explain the issue and wait for human confirmation before continuing. As a subagent, block instead (see "Running as a subagent") — do not commit.
 
-### 2. Commit
+### 2. Clean shared-context.md
 
-Message: `type(scope): short description` — the description explains the WHY, not the what.
-
-Move `.scratch/DD-MM-YYYY-[feature-name].md` to `.scratch/done/`.
-
-The shared-context.md cleanup (step 3) is included in this same commit.
-
-**Worktree mode** (`## Worktree path` is not `none`): the `.scratch/` changes and guideline migrations land in the feature commit, exactly as without a worktree.
-- Make the step 3 migrations to `<guidelines-dir>` and `<rules-file>` inside the worktree, not in the project root.
-- Do the move and the step 3 cleanup in the project root `.scratch/` (other features read it there). Then copy `.scratch/shared-context.md` and `.scratch/done/DD-MM-YYYY-[feature-name].md` from the project root `.scratch/` into the worktree at the same paths, stage them with `git -C <worktree-path> add -A .scratch/`, and commit with `git -C <worktree-path> commit`.
-- After the commit, remove the root copy of `.scratch/done/DD-MM-YYYY-[feature-name].md`: the feature branch now carries it, and an untracked copy in the root would block merging that branch. `shared-context.md` stays modified in the project root on purpose — it is the live coordination file.
-
-### 3. Clean shared-context.md
+Edit the project root `.scratch/shared-context.md` (other features read it there). If `.scratch/shared-context.md` does not exist, treat it as empty: there is nothing to clean or migrate — skip to step 3. Make the migrations below to `<guidelines-dir>` and `<rules-file>` inside the worktree in worktree mode, in the project root otherwise — step 4 stages them.
 
 > **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
 
-**"Merge readiness" section** → remove the line for this branch.
+**"Merge readiness" section** → remove the line for `<feature-branch>` (this feature's own row only).
 
 **"API & Contracts modified" section** → remove the section for this branch (the change is now in the committed code).
 
@@ -135,36 +139,59 @@ Nature of the decision?
 → Migrate to the destination, then delete from shared-context.md
 ```
 
-### 3b. Worktree cleanup
-
-Read the `## Worktree path` value from the tracking file. If the value is not `none`, remove the worktree:
-
-```
-git worktree remove <path>
-```
-
-If the removal fails (e.g. uncommitted changes or worktree already removed), warn the user but do not block the ship process.
-
-Run this step after step 4b: a configuration update there amends the feature commit, which needs the worktree.
-
-### 4. Light retro
+### 3. Light retro
 
 Answer these three questions:
 - What slowed down the loop on this feature?
 - Would a configuration have prevented that slowdown?
 - Was the initial plan precise enough?
 
-### 4b. Update configurations if needed
+### 3b. Update configurations if needed
 
 If any answer above indicates that a configuration was missing or insufficient, identify and immediately update the relevant files:
 - `<rules-file>` → cross-cutting rules (security, global behaviour)
 - `<guidelines-dir>/team-practices.md` → team conventions, test patterns, naming
 - `<guidelines-dir>/language-framework.md` → stack constraints, APIs, versions
 
-Amend the feature commit to include these changes: `git add <files> && git commit --amend --no-edit`.
-In worktree mode, edit the files under `<guidelines-dir>` and `<rules-file>` inside the worktree and run both commands with `git -C <worktree-path>`, then run step 3b.
+In worktree mode, edit the files under `<guidelines-dir>` and `<rules-file>` inside the worktree. Step 4 stages them with the rest of the closing changes.
+
+### 4. Stage the closing changes
+
+Move `.scratch/DD-MM-YYYY-[feature-name].md` to `.scratch/done/` in the project root.
+
+`.scratch/shared-context.md` is never staged: it is gitignored local state, and step 2 edited only the project-root copy.
+
+Stage with explicit paths only — never `git add -A` or `git add .`, which would sweep in other features' tracking files and plan files.
+
+**Without worktree** (`WORKTREE_PATH` is `none`):
+- Tracking file: `git add .scratch/done/DD-MM-YYYY-[feature-name].md`, then `git rm --cached --quiet --ignore-unmatch -- .scratch/DD-MM-YYYY-[feature-name].md` (drops the old path if it was ever tracked; no-op otherwise).
+- Migrations and configuration updates (steps 2 and 3b): `git add <file>...` for each guideline or rules file touched.
+
+**Worktree mode** (`WORKTREE_PATH` is not `none`):
+- Tracking file: copy only `.scratch/done/DD-MM-YYYY-[feature-name].md` from the project root into the worktree at the same path, then `git -C <worktree-path> add .scratch/done/DD-MM-YYYY-[feature-name].md`.
+- Migrations and configuration updates (steps 2 and 3b): `git -C <worktree-path> add <file>...` for each guideline or rules file touched inside the worktree.
+
+### 5. Commit
+
+`git [-C <worktree-path>] commit` — message: `type(scope): short description`; the description explains the WHY, not the what. The commit holds the feature work staged by build plus the closing changes staged in step 4.
+
+### 6. Worktree cleanup
+
+Only if `WORKTREE_PATH` (stored at step 0) is not `none`:
+1. In the project root, remove the root copy of `.scratch/done/DD-MM-YYYY-[feature-name].md`: the feature branch now carries it, and an untracked copy in the root would block merging that branch.
+2. Remove the worktree:
+
+```
+git worktree remove <WORKTREE_PATH>
+```
+
+If the removal fails (e.g. uncommitted changes or worktree already removed), warn the user but do not block the ship process.
+
+`shared-context.md` stays in the project root — it is untracked local coordination state.
 
 ## End of skill
 
 Commit done, shared-context cleaned.
 Push and PR creation are yours to do.
+
+If blocked or stopped deliberately: nothing committed, the reason recorded in `## Last error`.

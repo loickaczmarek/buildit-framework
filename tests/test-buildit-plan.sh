@@ -66,11 +66,6 @@ require_text "AT-11: suggests buildit-feature-run" "$SKILL_SRC" 'buildit-feature
 README="README.md"
 TEAM=".buildit/guidelines/team-practices.md"
 LANG_FW=".buildit/guidelines/language-framework.md"
-SPEC="docs/buildit/specs/2026-11-24-plan-task-synchronization.md"
-section() { awk -v s="$2" -v e="$3" 'index($0,s)==1{f=1} f&&e!=""&&index($0,e)==1&&!(index($0,s)==1){exit} f' "$1"; }
-in_section() { # label, text, pattern(fixed)
-  if grep -qF -- "$3" <<<"$2"; then ok "$1"; else fail "$1 — pattern not found in section: '$3'"; fi
-}
 
 # AT-SYNC-1: config headings and semantics
 require_text "AT-SYNC-1: task synchronization heading" "$SKILL_SRC" '## Task synchronization'
@@ -92,32 +87,32 @@ require_text "AT-SYNC-2: latest replaces previous" "$SKILL_SRC" 'latest replaces
 
 S5B=$(section "$SKILL_SRC" '### 5b.' '### 6.')
 # AT-SYNC-3: tagged discovery, untagged opt-in import
-in_section "AT-SYNC-3: discovery limited to tagged tickets" "$S5B" 'tag as a label or a `[<tag>] ` title prefix'
-in_section "AT-SYNC-3: untagged tickets counted" "$S5B" 'untagged'
-in_section "AT-SYNC-3: untagged offered as opt-in import" "$S5B" 'opt-in import'
+in_text "AT-SYNC-3: discovery limited to tagged tickets" "$S5B" 'tag as a label or a `[<tag>] ` title prefix'
+in_text "AT-SYNC-3: untagged tickets counted" "$S5B" 'untagged'
+in_text "AT-SYNC-3: untagged offered as opt-in import" "$S5B" 'opt-in import'
 
 # AT-SYNC-4: external title format
-in_section "AT-SYNC-4: external title format" "$S5B" '`[<tag>] <Title>`'
-in_section "AT-SYNC-4: title from heading, never the slug" "$S5B" 'never the slug `task-{name}`'
-in_section "AT-SYNC-4: tag also applied as a label" "$S5B" 'as a label when the tool supports labels'
+in_text "AT-SYNC-4: external title format" "$S5B" '`[<tag>] <Title>`'
+in_text "AT-SYNC-4: title from heading, never the slug" "$S5B" 'never the slug `task-{name}`'
+in_text "AT-SYNC-4: tag also applied as a label" "$S5B" 'as a label when the tool supports labels'
 
 # AT-SYNC-5: prefix stripping and confirmed title
-in_section "AT-SYNC-5: strip prefix before comparing" "$S5B" 'Strip the `[<tag>] ` prefix from the external title before comparing'
-in_section "AT-SYNC-5: strip prefix on import" "$S5B" 'on import'
-in_section "AT-SYNC-5: confirmed title required" "$S5B" 'requires a confirmed title before any external creation or rename'
-in_section "AT-SYNC-5: never rename automatically" "$S5B" 'never rename automatically'
+in_text "AT-SYNC-5: strip prefix before comparing" "$S5B" 'Strip the `[<tag>] ` prefix from the external title before comparing'
+in_text "AT-SYNC-5: strip prefix on import" "$S5B" 'on import'
+in_text "AT-SYNC-5: confirmed title required" "$S5B" 'requires a confirmed title before any external creation or rename'
+in_text "AT-SYNC-5: never rename automatically" "$S5B" 'never rename automatically'
 
 # AT-SYNC-6: pending entries first
-in_section "AT-SYNC-6: process pending entries first" "$S5B" 'Process pending entries first'
-in_section "AT-SYNC-6: clear only after verified write" "$S5B" 'only after a verified write'
+in_text "AT-SYNC-6: process pending entries first" "$S5B" 'Process pending entries first'
+in_text "AT-SYNC-6: clear only after verified write" "$S5B" 'only after a verified write'
 L_PENDING=$(grep -nF 'Process pending entries first' "$SKILL_SRC" | head -1 | cut -d: -f1 || true)
 L_COMPARE=$(grep -nE '^[0-9]+\. Compare title' "$SKILL_SRC" | head -1 | cut -d: -f1 || true)
 if [[ -n "$L_PENDING" && -n "$L_COMPARE" && "$L_PENDING" -lt "$L_COMPARE" ]]; then ok "AT-SYNC-6: pending processed before comparison"; else fail "AT-SYNC-6: pending must precede comparison"; fi
 
 # AT-SYNC-7: read-only drift report on resume before modification mode
 S7=$(section "$SKILL_SRC" '### 7.' '## End of skill')
-in_section "AT-SYNC-7: drift report in resume" "$S7" '**Drift report (read-only)**'
-in_section "AT-SYNC-7: no external writes" "$S7" 'no external writes'
+in_text "AT-SYNC-7: drift report in resume" "$S7" '**Drift report (read-only)**'
+in_text "AT-SYNC-7: no external writes" "$S7" 'no external writes'
 L_DRIFT=$(grep -nF '**Drift report (read-only)**' "$SKILL_SRC" | head -1 | cut -d: -f1 || true)
 L_MOD=$(grep -nF '**Modification mode**' "$SKILL_SRC" | head -1 | cut -d: -f1 || true)
 if [[ -n "$L_DRIFT" && -n "$L_MOD" && "$L_DRIFT" -lt "$L_MOD" ]]; then ok "AT-SYNC-7: drift report before modification mode"; else fail "AT-SYNC-7: drift report must precede modification mode"; fi
@@ -135,8 +130,11 @@ for sk in buildit-project-bootstrap buildit-plan buildit-feature-discover buildi
   RS=$(section "$README" "### \`$sk\`" '### `')
   if grep -qi 'synchroniz' <<<"$RS"; then ok "AT-SYNC-14: README $sk mentions synchronization"; else fail "AT-SYNC-14: README $sk section lacks synchronization"; fi
 done
-require_file "$SPEC"
-require_text "AT-SYNC-14: README references spec" "$README" '2026-11-24-plan-task-synchronization.md'
+
+# Handoff commands use the bare task name (audit #13)
+require_absent "AT-H1: no [task-name] placeholder" "$SKILL_SRC" '\[task-name\]'
+require_text "AT-H1: needs-scoping handoff prints the discover command" "$SKILL_SRC" '`/buildit-feature-discover {name}`'
+require_text "AT-H1: ready handoff prints the run command" "$SKILL_SRC" '`/buildit-feature-run {name}`'
 
 # Dual-deployment check: both files must exist and match
 require_file "$SKILL_SRC"

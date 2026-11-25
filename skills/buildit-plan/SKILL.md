@@ -15,12 +15,15 @@ Before starting a batch of features, when the scope is larger than a single feat
 
 ### 0. Detect mode and check resume
 
-Detect your operating mode:
-- Run `ls .claude/ 2>/dev/null` — if the directory exists, you are in **Claude mode**; otherwise **Generic mode**.
+**Operating mode rule**
+- The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
+- Claude mode: rules file `.claude/CLAUDE.md`, skills directory `.claude/skills/`. Generic mode: rules file `.agents/guidelines/project-rules.md`, skills directory `.agents/skills/`.
+- Never infer the mode from the presence of `.claude/` or `.agents/`: a dual-deployment repository contains both directories, so such a check always answers Claude.
+- The mode is never persisted (not in `.buildit/config.md` nor in any other file): every skill applies this rule for the agent that runs it.
 
 Read `.buildit/config.md`, if present. For each heading, the value is the first
-non-empty, non-comment line after it, read only within that heading (stop at the
-next heading):
+non-empty, non-comment line after it, read only within that heading (stop at the next heading); a line starting with `#` is never a value
+(Config value rule, `.buildit/guidelines/language-framework.md`):
 - `## Task synchronization` — `enabled` or `disabled`. An absent, empty,
   commented-out or unrecognized value is unconfigured, not disabled.
 - `## Synchronization method` — a plain-language description of the external
@@ -287,12 +290,12 @@ Display a progress summary showing all tasks grouped by readiness.
 For tasks marked `needs-scoping`:
 
 > "The following tasks need scoping before implementation:
-> - `task-{name}` — run `/buildit-feature-discover [task-name]` to produce a structured brief"
+> - `task-{name}` — run `/buildit-feature-discover {name}` to produce a structured brief"
 
 For tasks marked `ready`:
 
 > "The following tasks are ready for implementation:
-> - `task-{name}` — run `/buildit-feature-run [task-name]` to execute the full cycle"
+> - `task-{name}` — run `/buildit-feature-run {name}` to execute the full cycle"
 
 Suggest the recommended next step based on priority ordering: start with the highest-priority `ready` task, or scope the highest-priority `needs-scoping` task first.
 

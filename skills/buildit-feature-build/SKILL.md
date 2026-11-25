@@ -12,17 +12,29 @@ Implements the feature (TDD mode) or fixes issues identified by feature-validate
 - First implementation: after `buildit-feature-start` and creation of the isolated worktree
 - Fix: after `buildit-feature-validate` returned NO-GO or FAIL and documented the issues in `.scratch/`
 
+## Deliberate stops
+
+**Deliberate stop procedure**
+1. Write a `## Last error` section to the tracking file with the single line `buildit-feature-build: <reason>`, replacing any existing `## Last error` section.
+2. Set the status the stop specifies; when it specifies none, leave the status unchanged.
+3. Stop with the stop's message.
+
+Each stop below gives only its reason, its status and its message. A stale `## Last error` is never cleared here: `buildit-feature-run` clears it before launching each phase.
+
 ## Steps
 
-### 0. Prerequisite check
+### 0. Path shorthand
 
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
+`<guidelines-dir>` = `.buildit/guidelines/` (in the project root, or in the worktree in worktree mode), used in the steps below.
 
 ### 1. Identify the tracking file and detect the mode
 
-- If a `feature-name` was provided as argument (`/feature-build feature-name`) → look for `.scratch/*feature-name*.md`
-- Otherwise → scan `.scratch/` and take the most recent `.md` outside of `done/`
+**Tracking file discovery rule**
+1. Search only the top level of the project root `.scratch/`: never its subdirectories (`done/`, `plan/`, `audits/`) and never a worktree's `.scratch/`.
+2. A candidate is a file named `DD-MM-YYYY-<slug>.md` (two-digit day, two-digit month, four-digit year, a dash, a non-empty slug) whose content has a `## Status` heading followed by a feature status: `to-build`, `building`, `to-validate`, `validating`, `to-fix` or `to-ship`. `shared-context.md`, audit reports (`.scratch/audits/`) and plan files (`.scratch/plan/`) can therefore never be selected.
+3. With a `feature-name` argument: select the candidate named exactly `DD-MM-YYYY-<feature-name>.md` — the whole slug equals the name, never a substring match (`context` does not match `shared-context.md` nor `24-11-2026-my-context-x.md`).
+4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
+5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
 
 **Before modifying the status**, read the file and check the current status:
 - If the current status is not `to-build` or `to-fix`, warn: "Current status is `[status]` — buildit-feature-build expects `to-build` or `to-fix`. Continue anyway?" and wait for user confirmation before proceeding.
@@ -31,13 +43,13 @@ Then detect the mode:
 - Presence of a "Problems to fix" section → **fix mode**
 - Absence of this section → **normal TDD mode**
 
-Then set the status to `building` in that file.
+Then record the current status as the **entry status** (`to-build`, `to-fix`, or the status you were confirmed to continue from) and set the status to `building` in that file.
 
-**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`, `commit --amend`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
+**Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there. Run the test command with the worktree as working directory (`cd <worktree-path> && <test command>`) — the project root holds base-branch code, so tests run there never see this feature's changes.
 
 ### 2. Check API changes
 
-Read `.scratch/shared-context.md` section "API & Contracts modified".
+Read `.scratch/shared-context.md` section "API & Contracts modified". If `.scratch/shared-context.md` does not exist, treat it as empty: no API was modified by another branch.
 
 Have any APIs used in this feature's plan been modified by other branches? If so, adapt the implementation to use the new signatures.
 
@@ -91,7 +103,7 @@ Before closing the session, ask:
 
 > "Have I intentionally introduced a new practice in this implementation — architecture, naming convention, code pattern, file organisation?"
 
-If yes, document in `.scratch/shared-context.md` section "Decisions & Conventions":
+If yes, document in `.scratch/shared-context.md` section "Decisions & Conventions" (if the file does not exist, create it from the template in `buildit-feature-start` step 0 first):
 
 ~~~markdown
 ### [branch-name] — [DD-MM-YYYY]
@@ -102,10 +114,14 @@ If yes, document in `.scratch/shared-context.md` section "Decisions & Convention
 
 If no, move to the next step without modifying `shared-context.md`.
 
-### 5. Update the tracking file
+### 5. Stage the work and update the tracking file
 
-- Set the status to `to-validate`
-- Clear the "Problems to fix" section if it existed
+`buildit-feature-validate` starts with a staging guard that returns NO-GO on any untracked or unstaged file outside `.scratch/`. Hand over staged work:
+
+1. **Stage** every file created or modified during this build: `git [-C <worktree-path>] add <path>...` with explicit paths — never `git add -A` or `git add .`, which would sweep in unrelated files. Files under `.scratch/` are workflow state committed by ship; do not stage them here.
+2. **Check** with `git [-C <worktree-path>] status --porcelain`, ignoring paths under `.scratch/`: no line may be untracked (`??`) or have unstaged changes (second status column non-blank) — the same criteria as validate's guard. Stage any remaining entry that belongs to the feature. If an entry is unrelated to the feature, do not stage it: apply the Deliberate stop procedure with reason `unrelated files block validation — <paths>` (status: restore the entry status recorded in step 1) and the message:
+   > "Unrelated untracked or unstaged files block validation: [paths]. Stage, ignore, or remove them, then re-run `/buildit-feature-build [feature-name]`."
+3. Set the status to `to-validate` and clear the "Problems to fix" section if it existed.
 
 ## End of skill
 

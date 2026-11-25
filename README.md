@@ -24,7 +24,11 @@ bash tests/run-all.sh
 
 **Content-assertion convention:** skills are markdown, so tests assert on their content rather than executing them. Each skill has a `tests/test-<skill>.sh` that checks its `SKILL.md` (and the README or guidelines when a feature documents itself there) for the required instructions, wording and ordering. `tests/test-readme.sh` covers the README.
 
-Shared helpers live in `tests/lib/assertions.sh`: `require_file`, `require_text` (fixed string), `require_regex` (extended regex) and `require_absent` (regex that must not match). Each test file sources it and ends with a `Results: N passed, M failed` line.
+Shared helpers live in `tests/lib/assertions.sh`: `require_file`, `require_text` (fixed string), `require_regex` (extended regex) and `require_absent` (regex that must not match). Each test file sources it and ends with a `Results: N passed, M failed` line. The same library provides fence-aware extractors (`section`, `named_block`, `fenced_block`, …) so assertions are scoped to the step that owns a behaviour, never run against a whole file.
+
+`tests/test-cross-skill-contracts.sh` checks the contracts several skills must agree on: the named rule blocks copied verbatim into several skills, the status and heading vocabularies, and the start → build → validate → ship handoff.
+
+**CI:** `.github/workflows/tests.yml` runs `bash tests/run-all.sh` on every push and pull request; the pre-push hook (see [Setup](#setup)) runs the same suite locally.
 
 ---
 
@@ -49,7 +53,7 @@ The recommended path for most features — runs the full cycle unattended:
         ├─ validate → 6-dimension review + acceptance tests
         │    ├─ GO     → ship
         │    └─ NO-GO  → loop back to build (max N cycles, default 3)
-        └─ ship     → readiness check + commit + shared-context cleanup + retro
+        └─ ship     → readiness check + shared-context cleanup + retro + commit
                       (push + PR remain manual)
 ```
 
@@ -93,6 +97,8 @@ For complex features where mid-cycle human judgement is needed, run each skill s
 
 **Why clear-context?** Each session accumulates contextual noise. Cutting between phases keeps reasoning clean, especially across build/fix cycles.
 
+**Plan tasks:** the manual path (start → ship) does not track plan status — only `buildit-feature-run` updates `.scratch/plan/`. A plan task stays `todo`: after ship, update the task `## Status` to `done`, tick its `plan.md` checkbox and recompute the progress counters yourself, or use `/buildit-feature-run {name}`, which tracks them.
+
 ---
 
 ## Tracking file structure
@@ -104,6 +110,9 @@ Each feature creates `.scratch/DD-MM-YYYY-[feature-name].md`:
 
 ## Status
 to-build | building | to-validate | validating | to-fix | to-ship
+
+## Branch
+[feature branch — bare name, written once by feature-start]
 
 ## Worktree path
 [absolute path, or "none" if no worktree]
@@ -121,7 +130,10 @@ to-build | building | to-validate | validating | to-fix | to-ship
 [session notes, decisions]
 
 ## Problems to fix
-[filled by feature-validate on NO-GO/FAIL — cleared at the start of the next cycle]
+[filled by feature-validate on NO-GO/FAIL — cleared by `buildit-feature-build` when it sets `to-validate`]
+
+## Last error
+[optional — one line written by a phase that stops deliberately (build, validate, ship), replacing any previous one; cleared only by `buildit-feature-run` before each phase (a standalone phase run may leave a stale line); reported by feature-run]
 ```
 
 **Status lifecycle:**
@@ -130,26 +142,32 @@ to-build | building | to-validate | validating | to-fix | to-ship
 |-------|-----------|
 | `buildit-feature-start` (end) | → `to-build` |
 | `buildit-feature-build` (start) | `to-build` or `to-fix` → `building` |
+| `buildit-feature-build` deliberate stop (unrelated files block validation) | `building` → entry status (`to-build` or `to-fix`), reason in `## Last error` |
 | `buildit-feature-build` (end) | → `to-validate` |
+| `buildit-feature-validate` status guard (status is not `to-validate`) | status unchanged, reason in `## Last error` |
 | `buildit-feature-validate` (start) | → `validating` |
+| `buildit-feature-validate` deliberate stop (base branch not found) | `validating` → `to-validate`, reason in `## Last error` |
 | `buildit-feature-validate` GO + PASS | → `to-ship` |
 | `buildit-feature-validate` NO-GO or FAIL | → `to-fix` |
+| `buildit-feature-ship` deliberate stop or block (no `## Branch`, base branch not found, subagent block) | status stays `to-ship`, reason in `## Last error` |
 | `buildit-feature-ship` | file moved to `.scratch/done/` |
 
 ---
 
 ## Parallel coordination — `shared-context.md`
 
-`.scratch/shared-context.md` is the coordination zone between parallel worktrees. It has **4 fixed sections**:
+`.scratch/shared-context.md` is the coordination zone between parallel worktrees. It is local, untracked state: gitignored, never committed, it coordinates worktrees on a single machine. `buildit-project-bootstrap` creates it and `buildit-feature-start` recreates it from the template when absent; build, validate and ship treat a missing file as empty. It has **4 fixed sections**:
 
 - **API & Contracts modified** — signature changes, endpoints, types that impact other branches
 - **Constraints discovered** — technical limitations or unexpected behaviours that could waste other teams' time
 - **Decisions & Conventions** — new practices intentionally introduced: architecture, naming, code patterns
-- **Merge readiness** — status table per branch (`IN_PROGRESS` → `READY`)
+- **Merge readiness** — status table per branch: `buildit-feature-start` adds an `IN_PROGRESS` row keyed by `## Branch` (`| Branch | Status | Main files touched |`), `buildit-feature-ship` removes it
 
 The distinction between "Constraints" and "Decisions" is intentional: constraints are reactive (discovered in response to a problem), decisions are proactive (deliberate choices). Both migrate into guidelines at ship time, but via different decision trees.
 
-This file must be empty between parallel sprints. Cleanup happens in each feature's closing commit (`buildit-feature-ship`).
+This file must be empty between parallel sprints. `buildit-feature-ship` removes the feature's entries from the local file and commits only the guideline migrations.
+
+**One-time migration:** in a project where `shared-context.md` was tracked, the change that untracks it deletes the file from disk on merge — or git refuses the merge when the file holds rows. Back the file up / move it aside before merging, then restore it.
 
 ---
 
@@ -159,16 +177,17 @@ This file must be empty between parallel sprints. Cleanup happens in each featur
 
 ### Subagent autonomy instruction
 
-Each subagent receives this block in its prompt (with `[PROJECT_ROOT]` and `[MODE]` substituted at runtime):
+The skill defines this block once (section "Subagent autonomy block") and every phase prompt references it, with `[PROJECT_ROOT]`, `[MODE]` and `<worktree-path>` substituted at runtime; the worktree paragraph is included only in worktree mode:
 
 ```
-Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]).
-Execute bash, python3, and cd commands freely within this directory and its subdirectories.
-Use relative paths for script invocations. Do not cd outside the project root — paths outside require explicit user permission.
+Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
+[If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd.
 ```
+
+Why `cd <worktree-path> && …` needs an allow rule for the chained command too: see [settings.json permission file (Claude mode only)](#settingsjson-permission-file-claude-mode-only).
 
 - **`PROJECT_ROOT`** — absolute path detected via `pwd` at orchestrator start
-- **`MODE`** — `claude` if `.claude/` directory exists at project root, `generic` otherwise
+- **`MODE`** — agent identity (Operating mode rule): `claude` when the running agent is Claude / Claude Code, `generic` for any other agent — never inferred from the presence of `.claude/`
 
 ### Subagent isolation
 
@@ -184,7 +203,8 @@ Template (substitute `<project-root>` with the absolute project path):
 {
   "permissions": {
     "allow": [
-      "Bash(cd <project-root>*)",
+      "Bash(cd <project-root>)",
+      "Bash(cd <project-root>/*)",
       "Bash(cd ./*)",
       "Bash(cd */.worktrees/*)",
       "Bash(git *)",
@@ -204,13 +224,13 @@ Template (substitute `<project-root>` with the absolute project path):
 }
 ```
 
-Three `cd` patterns work together: `Bash(cd <project-root>*)` for absolute paths scoped to the project root, `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. None allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
+The `cd` patterns reduce permission prompts: `Bash(cd <project-root>)` and `Bash(cd <project-root>/*)` for absolute paths anchored on the project root (siblings such as `<project-root>-old` do not match), `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. The broad `Bash(cd *)` pattern is intentionally excluded. Claude Code checks each `&&` subcommand against the allow rules separately: a `cd` rule covers only the `cd` part of `cd <path> && <command>`, and the chained command needs its own rule (e.g. `Bash(npm *)`, or `Bash(bash *)` for `bash tests/run-all.sh`). This allowlist is navigation hygiene, not a security boundary: the patterns match text, so `<project-root>/*` still matches `<project-root>/../elsewhere`, and rules such as `Bash(git *)`, `Bash(python3 *)` or `Bash(docker *)` already allow arbitrary execution. `.claude/settings.local.json` holds personal permissions and is gitignored by bootstrap.
 
 ---
 
 ## Project configuration
 
-`.buildit/config.md` holds project-level settings. Each value is the first non-empty, non-comment line after its `## Heading` — no YAML/JSON. Never store secrets (tokens, passwords, API keys) in this file: describe access methods in plain language instead.
+`.buildit/config.md` holds project-level settings. Each value is the first non-empty, non-comment line after its `## Heading`, read only within that heading (stop at the next heading); a line starting with `#` is never a value; an empty value is treated as absent — no YAML/JSON. Never store secrets (tokens, passwords, API keys) in this file: describe access methods in plain language instead.
 
 | Key | Meaning | When absent or empty | Written by |
 |-----|---------|----------------------|------------|
@@ -313,15 +333,15 @@ External writes happen from the orchestrator, never inside a subagent, after one
 | **External practices integration** | When adopting practices from an existing doc (Confluence, `docs/`, ADR…) | Merges content into guidelines or adds a reference link |
 
 **What it does:**
-1. Detects agent identity (Claude vs other agent) and asks for mode confirmation
+1. Detects agent identity (Claude vs other agent) and asks for mode confirmation — a switched answer applies only to the kit generated in that run and is not persisted
 2. Scans `.buildit/guidelines/` to detect all files present — custom files (`figma.md`, `jira.md`…) are preserved without modification
 3. Checks autonomy settings (`.claude/settings.json` in Claude mode) — creates or audits the permission allowlist for worktree subagents
 4. Asks whether a directory or document of existing practices exists, and if so proposes to **merge** it into the guidelines or **reference** it (link at the top of the guideline)
-5. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files, and **test command detection** — auto-detects the project's test runner from ecosystem markers (`tests/run-all.sh`, `package.json`, `pom.xml`, `build.gradle`, `pyproject.toml`, `Makefile`), proposes the command for user confirmation, and stores it in `.buildit/config.md`
+5. Performs a light coring of the source code: directory tree, config files, naming conventions, 2 representative files, and **test command detection** — auto-detects the project's test runner from ecosystem markers (`tests/run-all.sh`, `package.json`, `pom.xml`, `build.gradle`, `pyproject.toml`, `Makefile`), proposes the command for user confirmation, and stores it in `.buildit/config.md`; then **base branch detection** (step 4f) — reads `origin/HEAD` (fallback `main`), proposes it for confirmation and stores it under `## Base branch`
 6. Presents a complete diagnostic (drift, gaps, planned actions) and waits for confirmation before writing
 7. Optionally configures task synchronization with an external tool (enabled/disabled, plain-language method, tag — default `technical`); skipping leaves it unconfigured
-8. Creates or updates the workflow files integrating what was detected — including `.buildit/config.md` with the confirmed test command and synchronization headings
-9. Commits everything: `chore(config): bootstrap project configuration from workflow v2`
+8. Creates or updates the workflow files integrating what was detected — including `.buildit/guidelines/craft-principles.md` (created when absent, never overwritten), and `.buildit/config.md` with the confirmed test command and synchronization headings
+9. Ensures `.claude/settings.local.json` is gitignored (Claude mode), gitignores `.scratch/shared-context.md` and untracks it if a previous bootstrap committed it (both modes), stages the files it wrote by explicit path (never whole directories) and commits: `chore(config): bootstrap buildit project configuration`
 
 For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
@@ -334,9 +354,9 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** for periodic health checks, before major refactoring, after shipping a batch of features, or to assess a specific file/directory/concern area on demand. Not for project setup — use `buildit-project-bootstrap` for that.
 
 **What it does:**
-1. Detects agent identity (Claude vs other agent) and checks for `.scratch/shared-context.md`
+1. Detects agent identity (Claude vs other agent)
 2. Determines audit scope: uses the provided argument (file, directory, keyword) or launches a subagent for hotspot analysis (git churn + complexity heuristics, capped at top 10 files)
-3. Writes a placeholder to `.scratch/DD-MM-YYYY-audit-issues.md` to trigger file-write permission early (before subagent work begins)
+3. Writes a placeholder to `.scratch/audits/DD-MM-YYYY-audit-issues.md` to trigger file-write permission early (before subagent work begins)
 4. Defines severity criteria (Critical/High/Medium/Low) with evidence requirements — all downstream subagents enforce these
 5. Launches 3 parallel category subagents — code quality (6 dimensions), architecture health, and project health — each returning structured findings
 6. As each category completes, launches a per-category critique subagent (receives only that category's findings, enforces evidence-based downgrading) and presents the critiqued results progressively
@@ -345,8 +365,6 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 9. Compiles all findings into the final report grouped by severity, with "Critique integration" and "Calibration" sections
 
 **Ends with:** the final report path and summary. This is a standalone assessment — no status transition. Use findings to plan fixes via `/buildit-feature-start` or `/buildit-feature-run`.
-
-**Design specs:** `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`, `docs/buildit/specs/2026-10-19-audit-calibration.md`
 
 ---
 
@@ -357,7 +375,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** before starting a batch of features, when the scope is larger than a single feature. Decomposes a PRD, spec, or ad-hoc request into ordered tasks with progress tracking. If the request is already a single well-defined feature, skip this and use `/buildit-feature-discover` or `/buildit-feature-start` directly.
 
 **What it does:**
-1. Detects mode (Claude vs generic), reads the task synchronization configuration from `.buildit/config.md` (asks to configure it when unconfigured), and checks for an existing plan (resume detection)
+1. Detects mode from agent identity (Claude vs generic), reads the task synchronization configuration from `.buildit/config.md` (asks to configure it when unconfigured), and checks for an existing plan (resume detection)
 2. Collects input: any structured document (PRD, specs, user stories, bullet points) or ad-hoc request
 3. Offers two decomposition paths: fast (auto-decompose then validate) or coaching (collaborative question-driven)
 4. Decomposes into tasks with name, description, acceptance tests, priority, and readiness (`ready` or `needs-scoping`)
@@ -366,9 +384,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 7. When synchronization is enabled, synchronizes selected tasks with the external tool (step 5b) — full reconcile, see [Plan files](#plan-files)
 8. On resume: reads existing plan, proposes human-readable titles for slug-only tasks, shows a read-only synchronization drift report, proposes cleanup of `.scratch/done/` files older than 7 days and completed epics, enters coaching mode for modifications, re-syncs progress counters
 
-**Ends with:** explicit handoff listing actionable tasks — suggests `/buildit-feature-discover [task-name]` for `needs-scoping` tasks and `/buildit-feature-run [task-name]` for `ready` tasks.
-
-**Design specs:** `docs/buildit/specs/2026-10-22-buildit-plan-design.md`, `docs/buildit/specs/2026-11-24-plan-task-synchronization.md`
+**Ends with:** explicit handoff listing actionable tasks — prints the exact command with the bare task name — `/buildit-feature-discover {name}` for `needs-scoping` tasks and `/buildit-feature-run {name}` for `ready` tasks (the file is `task-{name}.md`; a `task-` prefix passed by mistake is stripped by discover and run).
 
 ---
 
@@ -379,8 +395,8 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** before `buildit-feature-start`, when the feature idea is vague or needs validation against project conventions. If the brief is already clear (name + description + acceptance tests), skip this skill and invoke `/buildit-feature-start` directly.
 
 **What it does:**
-1. Detects a matching plan task (`.scratch/plan/task-{name}.md`, created by `/buildit-plan`): locks the feature name to the task name, warns and asks confirmation if the task is already `in-progress` or `done`, and short-circuits to `/buildit-feature-run [task-name]` if the task is already `ready` (re-scope remains possible). Otherwise, short-circuits if a complete brief is already provided as argument
-2. Reads `shared-context.md`, guidelines, and scans existing skills to extract constraints, conventions and potential overlaps
+1. Detects a matching plan task (`.scratch/plan/task-{name}.md`, created by `/buildit-plan`; a leading `task-` in the argument is stripped when only the bare name matches): locks the feature name to the task name, warns and asks confirmation if the task is already `in-progress` or `done`, and short-circuits to `/buildit-feature-run {name}` if the task is already `ready` (re-scope remains possible). Otherwise, short-circuits if a complete brief is already provided as argument
+2. Reads `shared-context.md` (a missing file is treated as empty), guidelines, and scans the project modules (source directories detected from the repository layout — skills in a skills framework) to extract constraints, conventions and potential overlaps
 3. Asks whether external documentation is available (specs, user stories, design doc)
 4. Poses targeted functional questions (problem, users, expected behaviour, success criteria) — adapted to what Phase 1 revealed — starting from the plan task description and acceptance tests when a task is detected, without re-asking what they already answer
 5. Translates functional answers into a technical description anchored in project conventions, and surfaces actionable risks
@@ -389,7 +405,7 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 8. On validation, when a plan task is detected: writes the brief (description, acceptance tests, risks & constraints) into the task file, sets its Readiness to `ready`, and switches its `plan.md` tag from `[needs-scoping]` to `[ready]`. Never touches the task Status (owned by `buildit-feature-run`); nothing is written if the brief is not validated
 9. When task synchronization is enabled and the task is linked, pushes its own fields to the external ticket after one confirmation — see [Plan files](#plan-files) for field ownership and `Pending:` entries
 
-**Ends with:** the user chooses between `/buildit-feature-run [feature-name]` (full cycle unattended, recommended) or `/buildit-feature-start [feature-name]` (manual cycle, session by session). When a plan task is detected, `/buildit-feature-run [task-name]` is recommended so the task status is tracked.
+**Ends with:** the user chooses between `/buildit-feature-run {name}` (full cycle unattended, recommended) or `/buildit-feature-start {name}` (manual cycle, session by session), printed with the brief's kebab-case name. When a plan task is detected, `/buildit-feature-run {name}` is recommended so the task status is tracked: the manual path (start → ship) does not track plan status — the task stays `todo` in `.scratch/plan/`, so after ship you update the task `## Status` to `done`, tick its `plan.md` checkbox and recompute the progress counters yourself.
 
 ---
 
@@ -401,9 +417,10 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
 **What it does:**
 1. Collects inputs (worktree, name, description, acceptance tests) before launching any subagent. When a matching plan task exists (`.scratch/plan/task-{name}.md`), pre-fills inputs and tracks task status automatically. When task synchronization is enabled and the task is linked, pushes only the status after one confirmation — see [Plan files](#plan-files)
-2. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
-3. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
-4. On GO + PASS: delegates `buildit-feature-ship`, updates plan task status to done if applicable, then reminds the user that push and PR creation are manual
+2. Leaves the Merge readiness row to start: the orchestrator writes nothing to `.scratch/shared-context.md` before start, so a failed start leaves no orphan row
+3. Delegates `buildit-feature-start` to a fresh subagent; detects the tracking file and worktree path after completion
+4. Runs a build/fix loop (max N cycles, default 3): delegates `buildit-feature-build`, reads status, delegates `buildit-feature-validate`, reads status; routes `to-fix` back to build and `to-ship` to the next step
+5. On GO + PASS: delegates `buildit-feature-ship`, then verifies that ship committed (new commit on the feature branch + tracking file archived in `.scratch/done/`) — otherwise stops with "Unexpected state after ship" and leaves the plan task and external ticket unchanged — then updates plan task status to done if applicable, then reminds the user that push and PR creation are manual
 
 **Guards:**
 - Stops if the tracking file is not found after start (possible subagent failure)
@@ -437,13 +454,14 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 **When to use:** at the start of each new feature, from the main branch or a dedicated branch, before creating the implementation worktree.
 
 **What it does:**
-1. Proposes working in an isolated worktree (recommended for non-trivial features) — if yes, calls the internal `buildit-worktree` skill to create and configure it (no external dependency)
+1. Creates `.scratch/shared-context.md` from the 4-section template if absent (local, untracked state — no bootstrap needed)
 2. Reads `shared-context.md` to detect changed APIs, constraints and decisions/conventions introduced by other branches that affect the plan
-3. Collects the feature name, description and acceptance tests (or uses the provided argument)
-4. Generates the tracking file `.scratch/DD-MM-YYYY-[feature-name].md` with the plan, including the worktree path in a dedicated `## Worktree path` field
-5. Critiques the plan: wrong assumptions, edge cases, vague steps, underestimated risks
-6. Updates the plan with the corrections
-7. Adds the branch in `shared-context.md` section "Merge readiness" (`IN_PROGRESS`)
+3. Collects the feature name, description and acceptance tests (or uses the provided argument; an empty name is asked again)
+4. Only then proposes working in an isolated worktree (recommended for non-trivial features) — if yes, calls the internal `buildit-worktree` skill to create and configure it (no external dependency), so a failed start leaves no orphan worktree
+5. Generates the tracking file `.scratch/DD-MM-YYYY-[feature-name].md` with the plan, including the feature branch in `## Branch` and the worktree path in a dedicated `## Worktree path` field
+6. Critiques the plan: wrong assumptions, edge cases, vague steps, underestimated risks
+7. Updates the plan with the corrections
+8. Adds the branch (the `## Branch` value) in `shared-context.md` section "Merge readiness" (`IN_PROGRESS`)
 
 **Ends with:** instruction to close the session and run `/buildit-feature-build [feature-name]`.
 
@@ -467,10 +485,11 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **Normal TDD mode** (status `to-build`):
 1. Reads the plan and acceptance tests
-2. Checks API changes in `shared-context.md`
+2. Checks API changes in `shared-context.md` (a missing file is treated as empty)
 3. Writes tests — they must fail for the right reasons
 4. Implements to make the tests pass, re-runs after each significant file
-5. Craft-principles self-review (DRY, KISS, YAGNI — see `.buildit/guidelines/craft-principles.md`) before transitioning to `to-validate`
+5. Craft-principles self-review (DRY, KISS, YAGNI — see `.buildit/guidelines/craft-principles.md`)
+6. Stages every created/modified file (explicit paths, `.scratch/` excluded) and checks `git status --porcelain` before transitioning to `to-validate` — matching validate's staging guard
 
 **Fix mode** (status `to-fix`, "Problems to fix" section present):
 1. Reads the list of problems documented by `buildit-feature-validate`
@@ -494,11 +513,11 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **What it does:**
 
-**Test suite** — runs the project's tests before the review using a two-tier detection: first reads the configured command from `.buildit/config.md` (set by bootstrap); if absent, falls back to ecosystem marker heuristic (same 6 ecosystems as bootstrap). If no test runner is detected, warns and proceeds.
+**Staging guard** — first, runs `git status --porcelain`; any untracked or unstaged file outside `.scratch/` is an immediate NO-GO listing those files (tests, review and acceptance are skipped), because code that isn't staged hasn't been reviewed.
 
-**Base branch** — read from `## Base branch` in `.buildit/config.md` (default `main`).
+**Test suite** — runs the project's tests before the review using a two-tier detection: first reads the configured command from `.buildit/config.md` (set by bootstrap); if absent, falls back to ecosystem marker heuristic (same 6 ecosystems as bootstrap). If no test runner is detected, warns and proceeds. A test failure skips review and acceptance and goes through the same NO-GO path below.
 
-**Staging guard** — before the review, runs `git status --porcelain`; any untracked or unstaged file outside `.scratch/` is an immediate NO-GO listing those files, because code that isn't staged hasn't been reviewed.
+**Base branch** — read from `## Base branch` in `.buildit/config.md` (default `main`). If it does not resolve locally, validate restores `to-validate`, records a `## Last error` line in the tracking file (reported by `buildit-feature-run`) and stops.
 
 **Review phase** — evaluates the staged diff against the base branch (`git diff --cached --merge-base <base-branch>`, covering branch commits and staged changes; fallback for git < 2.30) on 6 dimensions without reading the plan (unbiased review):
 
@@ -518,9 +537,9 @@ Automatically detects the mode based on the tracking file status. At the end of 
 - Instruction: close the session and run `/buildit-feature-ship [feature-name]`
 
 **If NO-GO or FAIL (in the same session, before closing):**
-1. Launches a subagent with the structured issue list and current guideline files — subagent produces updated file content, main agent applies it
+1. Launches a subagent with the structured issue list and current guideline files — the subagent returns the rules to add, the main agent applies them (inside the worktree in worktree mode) and stages each touched file, so the next cycle's staging guard does not NO-GO on them
 2. Status → `to-fix`, writes the "Problems to fix" section with precise locations
-3. Counts build/fix cycles — warns if 3rd cycle or more (risk of contextual noise)
+3. Counts build/fix cycles (`### NO-GO cycle` entries in "Progress") — warns if 3rd cycle or more (risk of contextual noise)
 4. Instruction: close the session and re-run `/buildit-feature-build [feature-name]`
 
 **Use cases:**
@@ -538,25 +557,28 @@ Automatically detects the mode based on the tracking file status. At the end of 
 
 **What it does:**
 
-**1. Readiness check** — reads `shared-context.md` in full and checks:
-- File overlap with `IN_PROGRESS` branches — this feature's files come from `git diff --cached --merge-base <base-branch> --name-only` (Base branch from `.buildit/config.md`, default `main`), other branches' from `git diff --name-only --merge-base <base-branch> <branch>`, which only sees their commits
-- Branches declaring they are waiting for this branch
+**1. Readiness check** — reads `shared-context.md` in full (absent = treated as empty) and checks:
+- File overlap with the other `IN_PROGRESS` branches (this feature's own `## Branch` row is skipped) — this feature's files come from `git diff --cached --merge-base <base-branch> --name-only` (Base branch from `.buildit/config.md`, default `main`), other branches' from `git diff --name-only --merge-base <base-branch> <branch>`, which only sees their commits
 - APIs modified by other branches not yet accounted for
 - Discovered constraints not addressed in this scope
 
-Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, waits for human confirmation.
+Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, waits for human confirmation — or, when running as a subagent, commits nothing and records the reason in `## Last error`.
 
-**2. Commit** — format `type(scope): description` (the WHY, not the what). Moves the tracking file to `.scratch/done/`.
-
-**3. Shared-context.md cleanup** (in the same commit):
-- "Merge readiness" → removes the line for this branch
+**2. Shared-context.md cleanup** (root file):
+- "Merge readiness" → removes the line for this branch (`## Branch`)
 - "API & Contracts modified" → removes the section for this branch
 - "Constraints discovered" → decision tree:
   - Feature-specific → delete
   - Durable → migrate into the appropriate guideline (`language-framework.md`, `team-practices.md`, dedicated guideline, or rules file), then delete
 - "Decisions & Conventions" → always durable, always migrate into the appropriate guideline, then delete
 
-**4. Light retro** — three questions: what slowed down the loop? would a configuration have prevented it? was the plan precise enough? If a configuration needs changing, the update is included in the commit.
+**3. Light retro** — three questions: what slowed down the loop? would a configuration have prevented it? was the plan precise enough? If a configuration needs changing, it is updated now, before the commit (no amend).
+
+**4. Stage the closing changes** — moves the tracking file to `.scratch/done/` and stages it, the guideline migrations and configuration updates with explicit paths (`git [-C <worktree>] add`, never `add -A`). `shared-context.md` is never staged: it is gitignored local state, cleaned in the project root only. In worktree mode, only the archived tracking file is copied into the worktree.
+
+**5. Commit** — format `type(scope): description` (the WHY, not the what).
+
+**6. Worktree cleanup** — worktree mode only: removes the root copy of the archived tracking file, then `git worktree remove` on the `## Worktree path` read once at the start.
 
 **Ends with:** push and PR creation are manual.
 
@@ -576,13 +598,13 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 **When to use:** automatically invoked when the user opts into worktree isolation during `buildit-feature-start`. Can also be invoked standalone when setting up a worktree outside the standard cycle.
 
 **What it does:**
-1. Derives the branch name `feature/YYYY-MM-DD-[feature-name]` from the current date
-2. Ensures `.worktrees/` is listed in `.gitignore` (appends and commits if absent)
+1. Derives the branch name `feature/YYYY-MM-DD-[feature-name]` from the current date — refuses an empty feature name and creates nothing
+2. Ensures `.worktrees/` is listed in `.gitignore` (appends and commits if absent — `git commit ... -- .gitignore`, so already-staged changes are never swept in)
 3. Creates the worktree: `git worktree add .worktrees/feature/YYYY-MM-DD-[feature-name] -b feature/...`
 4. Resolves and returns the absolute worktree path (`WORKTREE_PATH`)
 5. Instructs the calling agent to use `git -C <WORKTREE_PATH>` for all git commands inside the worktree
 
-**Working directory in worktree mode:** `.scratch/` and `.buildit/config.md` stay in the project root; build, validate and ship run git commands on feature code with `git -C <WORKTREE_PATH>` (each worktree has its own index). Ship copies its `.scratch/` changes into the worktree so they land in the feature commit.
+**Working directory in worktree mode:** `.scratch/` and `.buildit/config.md` stay in the project root; build, validate and ship run git commands on feature code with `git -C <WORKTREE_PATH>` (each worktree has its own index), and build and validate run the test command with the worktree as working directory (`cd <WORKTREE_PATH> && <test command>`) — the project root holds base-branch code. For the Claude mode allow rules behind that chained command, see [settings.json permission file (Claude mode only)](#settingsjson-permission-file-claude-mode-only). Ship copies only the archived tracking file into the worktree; `shared-context.md` is never committed (gitignored local state), so the feature commit never carries other features' rows.
 
 **Design rationale:** replaces the external dependency on `superpowers:using-git-worktrees`. Worktree management is now fully internal to the buildit framework, ensuring consistent behaviour regardless of which superpowers skills are installed.
 
@@ -597,12 +619,3 @@ Guidelines are automatically enriched with each feature, without a dedicated ste
 
 Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md` reflect the real constraints of the project — not anticipations, but accumulated real work.
 
----
-
-## References
-
-- buildit-plan design: `docs/buildit/specs/2026-10-22-buildit-plan-design.md`
-- Plan task synchronization: `docs/buildit/specs/2026-11-24-plan-task-synchronization.md`
-- Generic test runner detection: `docs/buildit/specs/2026-10-14-generic-test-runner-detection.md`
-- Audit parallel pipeline: `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`
-- Audit calibration: `docs/buildit/specs/2026-10-19-audit-calibration.md`

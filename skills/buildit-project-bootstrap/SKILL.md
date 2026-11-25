@@ -1,11 +1,11 @@
 ---
 name: buildit-project-bootstrap
-description: "Use when starting a new project or auditing an existing one — scans guidelines, existing practices, and does a light coring of the codebase before generating or updating the configuration kit."
+description: "Use when starting a new project or resynchronising an existing one — scans guidelines, existing practices, and does a light coring of the codebase before generating or updating the configuration kit."
 ---
 
 # Project Bootstrap
 
-Scans the actual state of the project (guidelines, existing practices, source code) before generating or updating the multi-agent workflow v2 configuration kit.
+Scans the actual state of the project (guidelines, existing practices, source code) before generating or updating the multi-agent workflow configuration kit.
 
 ## Instruction-layer constraints
 
@@ -22,26 +22,30 @@ Scans the actual state of the project (guidelines, existing practices, source co
 
 ### 0. Detect environment paths
 
-Determine your operating mode from your agent identity:
-- You are a **Claude / Claude Code** agent → **Claude mode**: `<rules-file>` = `.claude/CLAUDE.md`
-- You are any **other agent** (Copilot, generic) → **Generic mode**: `<rules-file>` = `.agents/guidelines/project-rules.md`
+**Operating mode rule**
+- The mode is the identity of the agent running this skill, never a property of the repository: a Claude / Claude Code agent → **Claude mode** (`MODE` = `claude`); any other agent (Copilot, generic) → **Generic mode** (`MODE` = `generic`).
+- Claude mode: rules file `.claude/CLAUDE.md`, skills directory `.claude/skills/`. Generic mode: rules file `.agents/guidelines/project-rules.md`, skills directory `.agents/skills/`.
+- Never infer the mode from the presence of `.claude/` or `.agents/`: a dual-deployment repository contains both directories, so such a check always answers Claude.
+- The mode is never persisted (not in `.buildit/config.md` nor in any other file): every skill applies this rule for the agent that runs it.
+
+`<rules-file>` = the rules file of your mode.
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
 Then ask:
 > "Detected mode: **[mode]**. Confirm? (or type `claude` / `generic` to switch)"
 
-Use the confirmed mode for `<rules-file>` and `<guidelines-dir>` as shorthand in all steps below.
+Use the confirmed mode for `<rules-file>` and `<guidelines-dir>` as shorthand in all steps below. A switched answer applies only to the kit this run generates (e.g. a Generic kit for Copilot teammates); it is not persisted — every other skill applies the Operating mode rule for the agent that runs it.
 
 ---
 
 ### 1. Scan existing guidelines
 
-List all files present in `<guidelines-dir>` (not just the 2 expected by the template).
+List all files present in `<guidelines-dir>` (not just the 3 expected by the template).
 
 For each file found, note:
 - Its name and apparent role
-- Whether it belongs to the workflow templates (`team-practices.md`, `language-framework.md`) or is project-specific (e.g. `figma.md`, `jira.md`, `design-system.md`)
+- Whether it belongs to the workflow templates (`team-practices.md`, `language-framework.md`, `craft-principles.md`) or is project-specific (e.g. `figma.md`, `jira.md`, `design-system.md`)
 
 If `<guidelines-dir>` does not exist or is empty → note the absence and continue.
 
@@ -49,10 +53,11 @@ If `<guidelines-dir>` does not exist or is empty → note the absence and contin
 
 ### 2. Detect workflow configuration files
 
-Check for the existence of the 4 workflow files:
+Check for the existence of the 5 workflow files:
 - `<rules-file>`
 - `<guidelines-dir>/team-practices.md`
 - `<guidelines-dir>/language-framework.md`
+- `<guidelines-dir>/craft-principles.md`
 - `.scratch/shared-context.md`
 
 ---
@@ -77,7 +82,8 @@ Check whether `.claude/settings.json` exists in the project root.
 {
   "permissions": {
     "allow": [
-      "Bash(cd <project-root>*)",
+      "Bash(cd <project-root>)",
+      "Bash(cd <project-root>/*)",
       "Bash(cd ./*)",
       "Bash(cd */.worktrees/*)",
       "Bash(git *)",
@@ -97,13 +103,13 @@ Check whether `.claude/settings.json` exists in the project root.
 }
 ~~~
 
-  Note: three `cd` patterns work together — absolute paths scoped to the project root, `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. None allows `cd ..` or parent-directory escape. The broad `Bash(cd *)` pattern is intentionally excluded.
+  Note: the rationale for each pattern (the anchored `cd` patterns, the excluded `Bash(cd *)`, chained commands, why this allowlist is not a security boundary) is in the README section "settings.json permission file (Claude mode only)".
 
 - **Found** → Read the file and audit the `permissions.allow` array for these essential rules:
-  - `"Bash(cd <project-root>*)"` — covers `cd /abs/path && git ...` in the project and its worktrees
-  - `"Bash(cd ./*)"` — covers relative navigation
-  - `"Bash(cd */.worktrees/*)"` — covers subagents running inside git worktrees (required for worktree isolation)
-  - `"Bash(git *)"` — covers bare git commands
+  - `"Bash(cd <project-root>)"` and `"Bash(cd <project-root>/*)"`
+  - `"Bash(cd ./*)"`
+  - `"Bash(cd */.worktrees/*)"`
+  - `"Bash(git *)"`
 
   - **All present** → report: "Autonomy settings: complete (`.claude/settings.json`)." — do NOT modify.
   - **Some missing** → report which rules are absent, then ask:
@@ -125,7 +131,7 @@ Generate no file in Generic mode.
 
 **Fast path:** If `<guidelines-dir>` already contains `team-practices.md` and `language-framework.md`, and only `<rules-file>` is absent → ask:
 > "Guidelines already exist. Do you want to (1) just regenerate the rules file [fast], or (2) also re-scan the codebase for drift [full]?"
-- Fast → skip steps 3 and 4, go directly to step 5
+- Fast → skip steps 3 and 4a–4d, but still run 4e and 4f — when `.buildit/config.md` already holds a non-empty `## Test command` / `## Base branch` value (Config value rule), propose that existing value for confirmation instead of re-detecting, and preserve it as-is when confirmed; then go to step 5
 - Full → continue with all steps
 
 ---
@@ -208,7 +214,7 @@ Store the confirmed branch in `.buildit/config.md` under `## Base branch` (see s
 
 ---
 
-**Coring summary:** at the end of 4a–4f, write a short summary of detected practices, organised as:
+**Coring summary:** at the end of the coring steps actually run (full path: 4a–4f; fast path: 4e and 4f only, so the summary holds only the test command and base branch), write a short summary of detected practices, organised as:
 - Architecture / organisation
 - Naming conventions
 - Confirmed stack
@@ -293,6 +299,8 @@ Apply the actions announced in the diagnostic. All paths below use `<rules-file>
 - File absent → create from template
 - File present → update: preserve accumulated content, fill missing sections, fix identified drift
 
+**For `<guidelines-dir>/craft-principles.md` specifically:** create it from the template when absent — on the fast path too — and never overwrite an existing one (it accumulates project-specific violation signs).
+
 **For `shared-context.md` specifically:**
 - Do not touch the "Merge readiness" section if features are active (`IN_PROGRESS`)
 - Add the "Decisions & Conventions" section if it is absent (section introduced after workflow v1)
@@ -323,16 +331,18 @@ Apply the actions announced in the diagnostic. All paths below use `<rules-file>
 Project guidelines are shared across agents in `.buildit/guidelines/`:
 - `.buildit/guidelines/team-practices.md` — team conventions, test patterns, naming
 - `.buildit/guidelines/language-framework.md` — stack constraints, APIs, versions
+- `.buildit/guidelines/craft-principles.md` — DRY, KISS, YAGNI definitions used by build and validate
 
 ## Agent workflow
 - Development loop: plan → self-critic → failing tests → execute → review → acceptance → commit
 - Tracking files in .scratch/ — format: DD-MM-YYYY-feature-name.md
 - Status in each tracking file: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
+- Before setting status to to-validate, stage every file created or modified during the build (outside .scratch/) and confirm with git status --porcelain that no relevant untracked or unstaged file remains — the validate staging guard returns NO-GO otherwise
 
 ## Parallel coordination
 - shared-context.md structured in 4 sections (API & Contracts, Constraints, Decisions & Conventions, Merge readiness)
-- Cleaning shared-context.md mandatory in the closing commit
-- Durable constraints → migrate into the appropriate guideline at commit
+- shared-context.md is local, untracked state (gitignored) coordinating worktrees on a single machine — never committed
+- Durable constraints and decisions → migrate into the appropriate guideline at ship time (committed with the feature)
 
 ## Git
 - Branch convention: feature/YYYY-MM-DD-name, bugfix/..., chore/...
@@ -356,6 +366,7 @@ Mandatory evaluation dimensions:
 - Security: injection vectors, data exposure?
 - Style: project conventions respected?
 - Test coverage: edge cases tested?
+- Craft principles: DRY, KISS and YAGNI respected? (see craft-principles.md)
 
 ## Commits
 Format: type(scope): short description
@@ -371,9 +382,10 @@ The commit description explains the WHY, not the what.
 File name format: DD-MM-YYYY-feature-name.md
 Move to .scratch/done/ at the closing commit.
 
-Tracking file sections: Status · Goal · Acceptance Tests · Plan · Progress
+Tracking file sections: Status · Branch · Worktree path · Goal · Acceptance Tests · Plan · Progress · Problems to fix · Last error
 Status flow: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
-Progress: one entry per NO-GO cycle, added by feature-validate
+Progress: one entry per NO-GO cycle, added by feature-validate; the cycle count is the number of `### NO-GO cycle` headings in Progress (other Progress entries are ignored)
+Last error: a phase that stops deliberately records the reason as one line in a `## Last error` section through its Deliberate stop procedure — writers: build (unrelated-files stop, which restores the entry status), validate (status guard, base branch not found), ship (missing `## Branch`, base branch not found, subagent block); each writer replaces any existing section. Clearer: feature-run only, before launching each phase (a standalone phase run may leave a stale line). feature-run reports it instead of "possible subagent failure".
 ~~~
 
 `<guidelines-dir>/language-framework.md` (fill Stack with collected information):
@@ -396,6 +408,26 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 [automatically enriched via shared-context.md at merge]
 ~~~
 
+`<guidelines-dir>/craft-principles.md`:
+
+~~~markdown
+# Craft Principles
+
+Canonical definitions used by the build and validate phases. Skills reference this file instead of repeating the definitions.
+
+## DRY — Don't Repeat Yourself
+Each piece of knowledge or logic has one authoritative place.
+Violation signs: duplicated logic, copy-pasted blocks, the same rule encoded in several files.
+
+## KISS — Keep It Simple, Stupid
+Prefer the simplest solution that correctly solves the problem.
+Violation signs: needless abstractions, premature generalisation, indirection with no caller benefit.
+
+## YAGNI — You Aren't Gonna Need It
+Implement only what is required now.
+Violation signs: unused parameters, untested code paths, options with no consumer, speculative future-proofing.
+~~~
+
 `.scratch/shared-context.md`:
 
 ~~~markdown
@@ -412,11 +444,11 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 
 ## Merge readiness
 
-| Branch | Status | Main files touched | Waiting for |
-|--------|--------|--------------------|-------------|
+| Branch | Status | Main files touched |
+|--------|--------|--------------------|
 ~~~
 
-`.buildit/config.md` (create with the test command detected in step 4e, the base branch detected in step 4f, and the synchronization answers from step 6b):
+`.buildit/config.md` (create with the test command detected in step 4e, the base branch detected in step 4f, and the synchronization answers from step 6b). If `.buildit/config.md` already exists, update only the headings whose values changed and preserve every other heading and value:
 
 ~~~markdown
 # Project Configuration
@@ -442,7 +474,7 @@ Progress: one entry per NO-GO cycle, added by feature-validate
 [tag, or empty]
 ~~~
 
-The test command is the raw shell command on a single line after the `## Test command` heading. Convention: first non-empty, non-comment line after the heading is the command. The same convention applies to `## Base branch`, which defaults to `main` when absent or empty, and to the synchronization headings: an empty `## Task synchronization` is unconfigured, not disabled, and an empty `## Synchronization tag` means the default `technical`.
+The test command is the raw shell command on a single line after the `## Test command` heading. Convention: the command is the first non-empty, non-comment line after the heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`); an empty `## Test command` makes validate fall back to ecosystem detection. The same convention applies to `## Base branch`, which defaults to `main` when absent or empty, and to the synchronization headings: an empty `## Task synchronization` is unconfigured, not disabled, and an empty `## Synchronization tag` means the default `technical`.
 
 ---
 
@@ -450,15 +482,24 @@ The test command is the raw shell command on a single line after the `## Test co
 
 For Generic mode re-bootstrap: if `.agents/guidelines/team-practices.md` or `.agents/guidelines/language-framework.md` exist, remove them first (legacy format).
 
+Claude mode: if `.gitignore` does not already list `.claude/settings.local.json`, append it (personal permissions must never be committed).
+
+Both modes: if `.gitignore` does not already list `.scratch/shared-context.md`, append it — it is local coordination state, never committed. If a previous bootstrap committed it, untrack it with `git rm --cached --quiet --ignore-unmatch .scratch/shared-context.md` (the file stays on disk).
+
+Stage explicit paths only — never a whole directory, which would sweep in unrelated files. From the lists below, stage only the files this run created or modified:
+
 ```bash
 # Claude mode:
-git add .claude/ .buildit/ .scratch/
+git add .claude/CLAUDE.md .claude/settings.json .buildit/guidelines/team-practices.md .buildit/guidelines/language-framework.md .buildit/guidelines/craft-principles.md .buildit/config.md
 # Generic mode:
 git rm --ignore-unmatch .agents/guidelines/team-practices.md .agents/guidelines/language-framework.md
-git add .agents/guidelines/project-rules.md .buildit/ .scratch/
-git commit -m "chore(config): bootstrap project configuration from workflow v2"
+git add .agents/guidelines/project-rules.md .buildit/guidelines/team-practices.md .buildit/guidelines/language-framework.md .buildit/guidelines/craft-principles.md .buildit/config.md
+# Both modes:
+git rm --cached --quiet --ignore-unmatch .scratch/shared-context.md
+git add .gitignore
+git commit -m "chore(config): bootstrap buildit project configuration"
 ```
 
 ## End of skill
 
-> "Bootstrap complete. You can now run `/buildit-feature-start` for your first feature."
+> "Bootstrap complete. Run `/buildit-feature-run` for your first feature (full cycle), or `/buildit-feature-start` to drive the phases manually."

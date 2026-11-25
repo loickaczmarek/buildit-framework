@@ -1,6 +1,6 @@
 ---
 name: buildit-feature-start
-description: "Use when starting a new feature — creates the .scratch/ tracking file with plan and self-critique, initialises shared-context entry. Accepts optional feature name: /buildit-feature-start [feature-name]."
+description: "Use when starting a new feature — creates the .scratch/ tracking file with plan and self-critique, creates .scratch/shared-context.md if absent and initialises its entry. Accepts optional feature name: /buildit-feature-start [feature-name]."
 ---
 
 # Feature Start
@@ -13,19 +13,27 @@ At the start of each new feature, from the main branch or a dedicated branch, be
 
 ## Steps
 
-### 0. Worktree?
+### 0. Ensure shared-context.md exists
 
-Ask the user:
+If `.scratch/shared-context.md` does not exist, create it from the template below in the project root — no bootstrap needed. It is local, untracked state (gitignored) coordinating worktrees on a single machine; creating it is not a start artefact, so a failed start may leave the empty template behind.
 
-> "Do you want to work in an isolated worktree for this feature? (recommended for non-trivial features or parallel work)"
+~~~markdown
+# Shared Context
 
-- **Yes** → invoke `buildit-worktree [feature-name]` now. Capture the returned "Worktree created at: <path>" line and store the absolute path as `WORKTREE_PATH`. The `.scratch/` files written by the following steps (tracking file, `shared-context.md`) stay in the project root; only implementation work happens inside the worktree.
-- **No** → retrieve the current branch (`git branch --show-current`) and inform the user: "You will work directly on `[branch]`." Set `WORKTREE_PATH=none`. Then continue to step 1.
+## API & Contracts modified
+<!-- Fill when you change an interface, type, endpoint or signature -->
 
-### 0b. Prerequisite check
+## Constraints discovered
+<!-- Fill when you discover a technical limitation or unexpected behaviour -->
 
-If `.scratch/shared-context.md` does not exist, stop with:
-> "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
+## Decisions & Conventions
+<!-- Fill when you intentionally introduce a new practice: architecture, naming, code pattern -->
+
+## Merge readiness
+
+| Branch | Status | Main files touched |
+|--------|--------|--------------------|
+~~~
 
 ### 1. Read shared-context.md
 
@@ -38,12 +46,30 @@ Integrate this information into the plan where relevant.
 
 ### 2. Collect feature information
 
-If a `feature-name` was provided as argument (`/feature-start feature-name`), use it directly.
+If a non-empty `feature-name` was provided as argument (`/buildit-feature-start feature-name`), use it directly. An empty or whitespace-only argument counts as missing.
 
 Otherwise, ask:
 - Short feature name (kebab-case slug, will be the `.scratch/` file name)
 - Feature description
 - Acceptance tests (precise list of criteria — being exhaustive here determines the quality of all subsequent steps)
+
+Empty feature name → ask again: the slug must be non-empty, since it names both the tracking file and the worktree branch.
+
+**Existing tracking file:** once the name is known, if the top level of `.scratch/` already holds a file named `DD-MM-YYYY-<feature-name>.md` (any date, exact slug — never `.scratch/done/`, never a substring match), stop with:
+> "A tracking file for `<feature-name>` already exists: `.scratch/<file>` (status `<status>`). Resume it with the phase its status calls for (`/buildit-feature-build`, `/buildit-feature-validate` or `/buildit-feature-ship`), or choose another feature name."
+
+Nothing is created or overwritten: no worktree, no branch, no tracking file, no shared-context row.
+
+### 2b. Worktree?
+
+Runs only after the prerequisite check passed (step 0) and once the feature name is collected (step 2), so a failed or cancelled start never leaves an orphan worktree or a `feature/YYYY-MM-DD-` branch with an empty slug.
+
+Ask the user:
+
+> "Do you want to work in an isolated worktree for this feature? (recommended for non-trivial features or parallel work)"
+
+- **Yes** → invoke `buildit-worktree [feature-name]` now. Capture the returned "Worktree created at: <path>" line and store the absolute path as `WORKTREE_PATH`. Capture the returned `Branch: <BRANCH>` line and store the branch name as `BRANCH`. The `.scratch/` files written by the following steps (tracking file, `shared-context.md`) stay in the project root; only implementation work happens inside the worktree.
+- **No** → store the current branch as `BRANCH` (`git branch --show-current`) and inform the user: "You will work directly on `[BRANCH]`." Set `WORKTREE_PATH=none`. If `BRANCH` is empty (detached HEAD), stop with: "Detached HEAD — check out a branch first: the Merge readiness row and ship's overlap check need a branch name." Then continue to step 3.
 
 ### 3. Generate the tracking file
 
@@ -54,6 +80,9 @@ Create `.scratch/DD-MM-YYYY-[feature-name].md`:
 
 ## Status
 to-build
+
+## Branch
+[BRANCH — bare branch name, no backticks]
 
 ## Worktree path
 [WORKTREE_PATH — absolute path, or "none" if no worktree]
@@ -71,6 +100,8 @@ to-build
 [empty at start]
 ~~~
 
+**`## Branch` contract** — the value is the line below the `## Branch` heading: a bare branch name without backticks (e.g. `feature/2026-11-24-my-widget`). Start writes it once, here, from `BRANCH`; it is never rewritten by other phases. Readers: step 5 below (Merge readiness row key) and `buildit-feature-ship` (row removal, overlap self-skip). In worktree mode the project root is usually on another branch, so readers must use `## Branch`, never `git branch --show-current` in the project root.
+
 ### 4. Self-critic of the plan
 
 Re-read the plan and identify:
@@ -85,12 +116,12 @@ Update the "Plan" section with the corrections.
 
 > **Sequential access:** `shared-context.md` has no locking mechanism. When running parallel features, ensure only one skill session writes to this file at a time. Stagger phases that modify `shared-context.md` (start, build capture, ship cleanup) to avoid overwrites.
 
-Retrieve the current branch: `git branch --show-current`
+This step runs after the worktree exists (step 2b) and the tracking file exists (step 3), so a failed or cancelled start leaves no row behind.
 
-Add a line in the "Merge readiness" section of `.scratch/shared-context.md`:
+Read the `## Branch` value from the tracking file and add a line keyed by it in the "Merge readiness" section of `.scratch/shared-context.md`:
 
 ~~~markdown
-| [branch-name] | IN_PROGRESS | — | — |
+| [## Branch value] | IN_PROGRESS | — |
 ~~~
 
 ## End of skill

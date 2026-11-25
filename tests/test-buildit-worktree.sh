@@ -31,14 +31,26 @@ require_text "AT-5: buildit-feature-start template has ## Worktree path field" "
 # AT-6: buildit-feature-run mentions git -C in worktree context
 require_text "AT-6: buildit-feature-run mentions git -C" "$SKILL_RUN" 'git -C'
 
-# AT-7: buildit-feature-run mentions Bash(cd */.worktrees/*
-require_text "AT-7: buildit-feature-run mentions Bash(cd */.worktrees/* permission" "$SKILL_RUN" 'Bash(cd */.worktrees/*'
+# AT-7: the permission rule is a harness detail documented by bootstrap and the README, not by run
+require_absent "AT-7: buildit-feature-run names no Bash(cd */.worktrees/* permission" "$SKILL_RUN" 'Bash\(cd \*/\.worktrees/\*'
 
 # AT-8: buildit-project-bootstrap mentions Bash(cd */.worktrees/*)
 require_text "AT-8: buildit-project-bootstrap mentions Bash(cd */.worktrees/*)" "$SKILL_BOOTSTRAP" 'Bash(cd */.worktrees/*)'
 
 # AT-9: README mentions buildit-worktree as internal skill
 require_text "AT-9: README mentions buildit-worktree" "$README" 'buildit-worktree'
+
+# AT-BR-1: buildit-worktree returns a machine-readable Branch: line
+require_text "AT-BR-1: buildit-worktree outputs a Branch: <BRANCH> line" "skills/buildit-worktree/SKILL.md" 'Branch: <BRANCH>'
+require_text "AT-BR-1: caller records the branch in ## Branch" "skills/buildit-worktree/SKILL.md" '`## Branch`'
+
+# AT-EMPTY: refuses an empty feature name before creating anything
+require_regex "AT-EMPTY: refuses an empty feature name" "$SKILL" '[Ee]mpty feature name.*stop|stop.*[Ee]mpty feature name'
+require_regex "AT-EMPTY: nothing is created on refusal" "$SKILL" 'create nothing|creates nothing'
+
+# AT-COMMIT: the .gitignore commit is restricted to .gitignore by pathspec
+require_text "AT-COMMIT: .gitignore commit uses a pathspec" "$SKILL" 'git commit -m "chore(git): ignore .worktrees/ directory (worktree isolation)" -- .gitignore'
+require_absent "AT-COMMIT: no plain .gitignore commit without pathspec" "$SKILL" 'git commit -m "chore\(git\): ignore \.worktrees/ directory \(worktree isolation\)"$'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
