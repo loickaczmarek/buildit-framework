@@ -4,7 +4,7 @@
 
 Project guidelines are shared across agents in `.buildit/guidelines/`:
 - `.buildit/guidelines/team-practices.md` — team conventions, naming, dual-deployment, commits
-- `.buildit/guidelines/language-framework.md` — skill file format, Claude Code deployment, design specs
+- `.buildit/guidelines/language-framework.md` — skill file format, Claude Code deployment, config values
 - `.buildit/guidelines/craft-principles.md` — DRY, KISS, YAGNI definitions used by build and validate
 
 ## Agent workflow

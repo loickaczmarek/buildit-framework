@@ -128,17 +128,6 @@ else
   fail "AT-C8: .claude/skills/ copy missing"
 fi
 
-# AT-C9: Design spec exists
-SPEC="docs/buildit/specs/2026-10-19-audit-calibration.md"
-if [[ -f "$SPEC" ]]; then
-  ok "AT-C9: design spec exists"
-  require_regex "AT-C9: spec covers severity criteria" "$SPEC" '[Ss]everity.*criteria|criteria.*[Ss]everity'
-  require_regex "AT-C9: spec covers execution trace" "$SPEC" '[Ee]xecution [Tt]race'
-  require_regex "AT-C9: spec covers calibration" "$SPEC" '[Cc]alibration'
-else
-  fail "AT-C9: design spec missing — docs/buildit/specs/2026-10-19-audit-calibration.md"
-fi
-
 
 # --- Neutral subagent isolation (AT-I1 through AT-I5) ---
 

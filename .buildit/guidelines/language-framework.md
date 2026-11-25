@@ -49,11 +49,6 @@ Skills that need configuration (e.g. a test command) read from this file first a
 
 Task synchronization uses three headings: `## Task synchronization` (`enabled`/`disabled`; absent, empty or unrecognized means unconfigured, not disabled), `## Synchronization method` (plain-language description of tool, target and access method — never a shell command) and `## Synchronization tag` (default `technical` when absent or empty). Never store secrets in this file. Only `buildit-plan` and `buildit-project-bootstrap` prompt to configure synchronization; other skills treat unconfigured as disabled.
 
-## Design decisions
-
-Design specs live in `docs/<domain>/specs/YYYY-MM-DD-kebab-name.md`.
-They document the WHY behind non-obvious skill design choices.
-
 ## Parallel coordination
 
 Multi-feature parallelisation via git worktrees.

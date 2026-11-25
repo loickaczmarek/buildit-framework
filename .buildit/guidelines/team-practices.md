@@ -22,7 +22,7 @@ In worktree mode, `.scratch/` and `.buildit/config.md` live in the project root,
 
 ### Parallel category subagents
 
-When a skill evaluates independent dimensions or domains, group them into parallel category subagents rather than a single sequential pass. Launch all subagents in a single message with multiple Agent tool calls. Each category's findings should be critiqued independently by a dedicated critique subagent that receives only that category's findings — this ensures deeper, focused critique and prevents cross-category contamination. See `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md` for the full design rationale.
+When a skill evaluates independent dimensions or domains, group them into parallel category subagents rather than a single sequential pass. Launch all subagents in a single message with multiple Agent tool calls. Each category's findings should be critiqued independently by a dedicated critique subagent that receives only that category's findings — this ensures deeper, focused critique and prevents cross-category contamination.
 
 ### Subagent selection and workflow isolation
 
@@ -32,7 +32,7 @@ The same rule applies to any text a skill appends to several subagent prompts (e
 
 ### Restriction wording in delegated-subagent preambles
 
-When an orchestrator puts restriction text in front of a wrapped skill's prompt (e.g. "do not invoke any skill or agent"), the exemptions must cover every kind of delegation the wrapped skill itself requires. That means the skills it references *and* the subagents/agents it explicitly tells the agent to launch (e.g. a `general-purpose` config-update subagent). Before finalising the wording, read each wrapped skill and list every skill invocation and agent launch it requires. A ban that a strictly obedient subagent would read as forbidding one of those steps is a correctness bug, because the step gets skipped or done inline. Keep every restatement of the rule (README, `shared-context.md` decisions, design spec) worded exactly like the preamble.
+When an orchestrator puts restriction text in front of a wrapped skill's prompt (e.g. "do not invoke any skill or agent"), the exemptions must cover every kind of delegation the wrapped skill itself requires. That means the skills it references *and* the subagents/agents it explicitly tells the agent to launch (e.g. a `general-purpose` config-update subagent). Before finalising the wording, read each wrapped skill and list every skill invocation and agent launch it requires. A ban that a strictly obedient subagent would read as forbidding one of those steps is a correctness bug, because the step gets skipped or done inline. Keep every restatement of the rule (README, `shared-context.md` decisions) worded exactly like the preamble.
 
 Skills are markdown files defining agent workflows. Each skill lives in its own directory:
 - Canonical source: `skills/<skill-name>/SKILL.md`
@@ -74,14 +74,12 @@ Skills that do not reference any mode-specific paths (e.g. pure orchestrators th
 
 For each feature, the agent must derive documentation acceptance tests from the table below during `buildit-feature-start`.
 
-| Change type | README.md | Design spec (`docs/<domain>/specs/YYYY-MM-DD-name.md`) |
-|-------------|-----------|--------------------------------------------------------|
-| New skill | Required — add to overview diagram and skills list | Required if non-obvious design choices (isolation, state, signal-passing, workaround) |
-| Skill modification | Required if the interface or trigger changes | Required if a new non-obvious pattern is introduced |
-| Framework change (guidelines, test harness, hooks, scripts) | Required if the workflow or setup steps change | Not required |
-| Bugfix | Not required | Not required |
-
-When in doubt about whether a design spec is warranted, write it. A short spec is better than a missing one.
+| Change type | README.md |
+|-------------|-----------|
+| New skill | Required — add to overview diagram and skills list |
+| Skill modification | Required if the interface or trigger changes |
+| Framework change (guidelines, test harness, hooks, scripts) | Required if the workflow or setup steps change |
+| Bugfix | Not required |
 
 **README consistency on structural changes.** The "Skill modification" row above covers trigger/interface changes, but the README's "What it does" section also enumerates internal steps. When a feature modifies the step structure of a skill (adding, removing, reordering, or fundamentally changing steps), update the corresponding README section in the same commit — even if the trigger and external interface are unchanged. Treat the SKILL.md steps and their README summary as a coupled pair: never modify one without checking the other.
 
@@ -91,7 +89,6 @@ When in doubt about whether a design spec is warranted, write it. A short spec i
 
 - Skill directory names: kebab-case (e.g. `buildit-feature-start`)
 - Skill file: `SKILL.md` (uppercase, no variant)
-- Design spec docs: `docs/<domain>/specs/YYYY-MM-DD-kebab-name.md`
 - Tracking files: `.scratch/DD-MM-YYYY-feature-name.md`
 
 ## Setup

@@ -112,18 +112,15 @@ in_text "AT-R14b: the explanation is in the settings.json section" "$SETTINGS" '
 absent_in_text "AT-R14b: the README autonomy block carries no allow-rule explanation" "$README_BLOCK" 'subcommand|allow rules'
 in_text "AT-R14b: autonomy instruction points to the settings.json section" "$(section "$README" '### Subagent autonomy instruction')" 'settings.json permission file (Claude mode only)'
 # AT-FU-4: the full && / allow-rule explanation exists once across docs, guidelines and skills.
-FU_DOCS=("$README" .buildit/guidelines/*.md docs/buildit/specs/*.md skills/*/SKILL.md)
+FU_DOCS=("$README" .buildit/guidelines/*.md skills/*/SKILL.md)
 for phrase in 'subcommand' 'navigation hygiene'; do
-  same "AT-FU-4: '$phrase' appears once across README, guidelines, specs and skills" "$(cat "${FU_DOCS[@]}" | grep -c -- "$phrase" || true)" 1
+  same "AT-FU-4: '$phrase' appears once across README, guidelines and skills" "$(cat "${FU_DOCS[@]}" | grep -c -- "$phrase" || true)" 1
   in_text "AT-FU-4: '$phrase' lives in the README settings.json section" "$SETTINGS" "$phrase"
 done
 LF_BULLET=$(grep -F -- '**Claude Code permission matching**' .buildit/guidelines/language-framework.md || true)
 in_text "AT-FU-4: language-framework bullet points to the README section" "$LF_BULLET" '../../README.md#settingsjson-permission-file-claude-mode-only'
 in_text "AT-FU-4: language-framework bullet keeps the authoring rule" "$LF_BULLET" 'do not repeat it in skills'
 absent_in_text "AT-FU-4: language-framework bullet carries no explanation" "$LF_BULLET" 'subcommand|navigation hygiene|<root>/\.\./x'
-WT_PERM=$(section docs/buildit/specs/2026-11-24-worktree-mode-design.md '### Permissions (Claude mode)')
-in_text "AT-FU-4: worktree spec points to the README section" "$WT_PERM" '../../../README.md#settingsjson-permission-file-claude-mode-only'
-absent_in_text "AT-FU-4: worktree spec carries no explanation" "$WT_PERM" 'subcommand|chained command needs'
 # AT-FU-5: README audit and discover sections reflect that shared-context.md may be missing.
 absent_in_text "AT-FU-5: README audit section no longer checks for shared-context.md" "$(section "$README" '### `buildit-project-audit`')" 'shared-context'
 in_text "AT-FU-5: README discover section treats a missing shared-context.md as empty" "$(section "$README" '### `buildit-feature-discover`' | normalize)" 'Reads `shared-context.md` (a missing file is treated as empty)'
@@ -155,15 +152,10 @@ require_text "AT-R22: CI runs the full suite" "$CI" 'bash tests/run-all.sh'
 require_regex "AT-R22: CI push limited to main" "$CI" '^[[:space:]]*branches: \[main\]'
 require_regex "AT-R22: CI cancels superseded runs" "$CI" '^[[:space:]]*cancel-in-progress: true'
 require_regex "AT-R22: CI job has a timeout" "$CI" '^[[:space:]]*timeout-minutes: [0-9]+'
-HIST="docs/buildit/reviews/2026-10-14-skills-audit.md"
-require_absent "AT-R24: historical note does not name the short-lived branch" "$HIST" 'fix/audit'
-require_text "AT-R24: historical note cites the audit date and commits" "$HIST" 'the 24-11-2026 audit (commits `141d0ba^..fa5ec12`)'
-REFS=$(section "$README" '## References' '## ')
-for spec in buildit-feature-run-design worktree-mode-design subagent-isolation-design; do
-  f=$(find docs/buildit/specs -name "*-$spec.md" | head -1)
-  if [[ -n "$f" ]]; then ok "AT-R23: spec $spec exists"; else fail "AT-R23: spec *-$spec.md missing under docs/buildit/specs/"; fi
-  in_text "AT-R23: README References lists $spec" "$REFS" "$spec.md"
-done
+# Design specs and historical reviews were removed: .scratch/done/, guidelines and commits carry the WHY
+if [[ ! -e docs/buildit ]]; then ok "AT-R23: docs/buildit/ removed"; else fail "AT-R23: docs/buildit/ must not exist"; fi
+require_absent "AT-R23: README references no docs/buildit/ file" "$README" 'docs/buildit/'
+require_absent "AT-R23: README has no References section" "$README" '^## References'
 # Checks migrated from the deleted scripts/test_docs.sh
 require_regex "AT-R24: README title starts with '# buildit'" "$README" '^# buildit'
 in_text "AT-R24: --max-cycles default 3 documented" "$RUN_R" 'Default | `--max-cycles 3`'

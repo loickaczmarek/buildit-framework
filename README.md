@@ -366,8 +366,6 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 
 **Ends with:** the final report path and summary. This is a standalone assessment — no status transition. Use findings to plan fixes via `/buildit-feature-start` or `/buildit-feature-run`.
 
-**Design specs:** `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`, `docs/buildit/specs/2026-10-19-audit-calibration.md`
-
 ---
 
 ### `buildit-plan`
@@ -387,8 +385,6 @@ For `shared-context.md`, active features (`IN_PROGRESS`) are always preserved.
 8. On resume: reads existing plan, proposes human-readable titles for slug-only tasks, shows a read-only synchronization drift report, proposes cleanup of `.scratch/done/` files older than 7 days and completed epics, enters coaching mode for modifications, re-syncs progress counters
 
 **Ends with:** explicit handoff listing actionable tasks — prints the exact command with the bare task name — `/buildit-feature-discover {name}` for `needs-scoping` tasks and `/buildit-feature-run {name}` for `ready` tasks (the file is `task-{name}.md`; a `task-` prefix passed by mistake is stripped by discover and run).
-
-**Design specs:** `docs/buildit/specs/2026-10-22-buildit-plan-design.md`, `docs/buildit/specs/2026-11-24-plan-task-synchronization.md`
 
 ---
 
@@ -623,15 +619,3 @@ Guidelines are automatically enriched with each feature, without a dedicated ste
 
 Over time, `language-framework.md`, `team-practices.md` and `craft-principles.md` reflect the real constraints of the project — not anticipations, but accumulated real work.
 
----
-
-## References
-
-- buildit-plan design: `docs/buildit/specs/2026-10-22-buildit-plan-design.md`
-- Plan task synchronization: `docs/buildit/specs/2026-11-24-plan-task-synchronization.md`
-- Generic test runner detection: `docs/buildit/specs/2026-10-14-generic-test-runner-detection.md`
-- Audit parallel pipeline: `docs/buildit/specs/2026-10-19-audit-parallel-pipeline.md`
-- Audit calibration: `docs/buildit/specs/2026-10-19-audit-calibration.md`
-- buildit-feature-run design: `docs/buildit/specs/2026-11-24-buildit-feature-run-design.md`
-- Worktree mode: `docs/buildit/specs/2026-11-24-worktree-mode-design.md`
-- Subagent isolation: `docs/buildit/specs/2026-11-24-subagent-isolation-design.md`

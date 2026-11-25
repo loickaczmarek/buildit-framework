@@ -115,7 +115,7 @@ Receives `AUDIT_SCOPE`. Evaluates:
 
 Receives `AUDIT_SCOPE` and `<rules-file>`. Evaluates:
 
-8. **Documentation gaps** — missing or outdated docs, README sections, design specs for non-obvious choices
+8. **Documentation gaps** — missing or outdated docs and README sections
 9. **Config/setup health** — build configs, CI setup, dependency freshness, gitignore completeness
 
 **Error handling:** if a category subagent fails or returns no findings, report "No issues found in [Category X]" and continue — do not block the other categories.
@@ -233,8 +233,6 @@ After all category+critique pairs, execution trace, and calibration are complete
 |---------|------------------|-------------------|-----------|
 | Finding N | High | Medium | Lacks file:line evidence |
 ```
-
-This follows the pattern established by `docs/buildit/reviews/`.
 
 ---
 

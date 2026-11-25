@@ -66,7 +66,6 @@ require_text "AT-11: suggests buildit-feature-run" "$SKILL_SRC" 'buildit-feature
 README="README.md"
 TEAM=".buildit/guidelines/team-practices.md"
 LANG_FW=".buildit/guidelines/language-framework.md"
-SPEC="docs/buildit/specs/2026-11-24-plan-task-synchronization.md"
 
 # AT-SYNC-1: config headings and semantics
 require_text "AT-SYNC-1: task synchronization heading" "$SKILL_SRC" '## Task synchronization'
@@ -131,8 +130,6 @@ for sk in buildit-project-bootstrap buildit-plan buildit-feature-discover buildi
   RS=$(section "$README" "### \`$sk\`" '### `')
   if grep -qi 'synchroniz' <<<"$RS"; then ok "AT-SYNC-14: README $sk mentions synchronization"; else fail "AT-SYNC-14: README $sk section lacks synchronization"; fi
 done
-require_file "$SPEC"
-require_text "AT-SYNC-14: README references spec" "$README" '2026-11-24-plan-task-synchronization.md'
 
 # Handoff commands use the bare task name (audit #13)
 require_absent "AT-H1: no [task-name] placeholder" "$SKILL_SRC" '\[task-name\]'
