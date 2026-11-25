@@ -105,11 +105,14 @@ for f in "$SKILL" "$README"; do
   require_absent "AT-TB-3: $f has no unanchored Bash(cd <project-root>*)" "$f" 'Bash\(cd <project-root>\*\)'
   require_absent "AT-TB-3: $f does not claim the cd patterns block escape" "$f" 'None allows|parent-directory escape'
   require_regex "AT-TB-3: $f states the allowlist is not a security boundary" "$f" 'not a (security )?(boundary|sandbox)'
-  require_regex "AT-TB-3: $f says chained subcommands are matched separately" "$f" 'each (`&&`|&&) subcommand|each subcommand'
 done
+require_regex "AT-TB-3: README says chained subcommands are matched separately" "$README" 'each (`&&`|&&) subcommand|each subcommand'
+require_absent "AT-TB-3: bootstrap leaves the && rationale to the README" "$SKILL" 'each (`&&`|&&) subcommand|each subcommand'
+require_text "AT-TB-3: bootstrap points to the README settings section" "$SKILL" 'README section "settings.json permission file (Claude mode only)"'
+require_text "AT-TB-3: bootstrap keeps its guidelines migration logic" "$SKILL" 'remove them first (legacy format)'
 require_absent "AT-TB-3: run uses no '&& *' worktree permission variant" "$RUN_SKILL" 'Bash\(cd \*/\.worktrees/\* && \*\)'
-require_text "AT-TB-3: run uses Bash(cd */.worktrees/*)" "$RUN_SKILL" '`Bash(cd */.worktrees/*)`'
-require_regex "AT-TB-3: run says the chained command needs its own rule" "$RUN_SKILL" 'each (`&&`|&&) subcommand|each subcommand'
+require_absent "AT-TB-3: run names no permission rule (harness detail lives in the README)" "$RUN_SKILL" 'Bash\(cd '
+require_absent "AT-TB-3: run leaves the && rationale to the README" "$RUN_SKILL" 'each (`&&`|&&) subcommand|each subcommand'
 
 # AT-TB-4: explicit staging and gitignored settings.local.json
 absent_in_text "AT-TB-4: no directory-wide staging (Claude)" "$S9" 'git add \.claude/ \.buildit/ \.scratch/'

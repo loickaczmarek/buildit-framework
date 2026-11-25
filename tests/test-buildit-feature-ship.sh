@@ -29,9 +29,9 @@ require_absent "AT-6: no shared-context.md not found stop" "$SKILL" 'shared-cont
 require_absent "AT-6: no pointer to bootstrap for a missing shared-context" "$SKILL" 'Shared context file not found'
 in_text "AT-6: step 1 treats an absent shared-context.md as empty" "$(section "$SKILL" '### 1. ' | normalize)" 'If `.scratch/shared-context.md` does not exist, treat it as empty'
 in_text "AT-6: step 2 has nothing to clean when shared-context.md is absent" "$(section "$SKILL" '### 2. ' | normalize)" 'If `.scratch/shared-context.md` does not exist, treat it as empty'
-DS=$(grep -F -- '**Deliberate stops:**' "$SKILL" || true)
-absent_in_text "AT-6: Deliberate stops no longer lists the prerequisite check" "$DS" 'prerequisite check'
-in_text "AT-6: Deliberate stops lists the migration note (0a)" "$DS" 'the migration note (0a)'
+absent_in_text "AT-6: Deliberate stops no longer lists the prerequisite check" "$(section "$SKILL" '## Deliberate stops')" 'prerequisite check'
+absent_in_text "AT-6: Deliberate stops no longer lists the migration note" "$(section "$SKILL" '## Deliberate stops')" 'migration note'
+require_absent "AT-6: no guidelines migration note in ship" "$SKILL" 'Migration note|migration required|instead of `\.buildit/guidelines/`'
 require_text "AT-6: environment paths step renumbered 0a" "$SKILL" '### 0a. Detect environment paths'
 require_absent "AT-6: no dangling 0b step" "$SKILL" '^### 0b\.'
 
@@ -44,6 +44,7 @@ require_text "AT-BASE-1: feature file list covers staged work vs base branch" "$
 require_regex "AT-BASE-2: documents commits-only limitation of the overlap check" "$SKILL" 'only (sees|compares) commit|commits only|committed work only'
 require_text "AT-BASE-3: git < 2.30 fallback" "$SKILL" 'git merge-base <base-branch>'
 require_text "AT-BASE-3: fallback names git 2.30" "$SKILL" '2.30'
+require_text "AT-BASE-3: git < 2.30 fallback line kept" "$SKILL" 'Fallback for git < 2.30 (no `--merge-base` option): `git diff --cached --name-only $(git merge-base <base-branch> HEAD)` for this feature'
 require_absent "AT-BASE-4: no hardcoded main..." "$SKILL" 'main\.\.'
 require_text "AT-BASE-5: reads ## Base branch" "$SKILL" '## Base branch'
 require_regex "AT-BASE-5: defaults to main" "$SKILL" 'defaults? to `main`|falls? back to `main`'
@@ -57,20 +58,27 @@ require_regex "AT-WT-5: removes root copy of the archived tracking file after co
 
 # --- Blocked signal as a subagent (AT-SV-*) ---
 require_text "AT-SV-2a: Running as a subagent section" "$SKILL" '## Running as a subagent'
-require_text "AT-SV-2b: SHIP BLOCKED final message" "$SKILL" 'SHIP BLOCKED: <precise reason>'
-require_text "AT-SV-2c: Last error line format" "$SKILL" 'buildit-feature-ship: blocked — <precise reason>'
-require_text "AT-SV-2c: writes ## Last error" "$SKILL" '## Last error'
+require_absent "AT-SV-2b: no SHIP BLOCKED final message" "$SKILL" 'SHIP BLOCKED'
+SUB=$(section "$SKILL" '## Running as a subagent' | normalize)
+in_text "AT-SV-2c: subagent block reason" "$SUB" 'reason `blocked — <precise reason>`'
+in_text "AT-SV-2c: subagent block applies the Deliberate stop procedure" "$SUB" 'apply the Deliberate stop procedure'
+in_text_re "AT-SV-2c: subagent rule — do not commit" "$SUB" '[Dd]o not commit'
+in_text "AT-SV-2c: subagent rule — do not move the tracking file" "$SUB" 'do not move the tracking file'
+in_text "AT-SV-2c: subagent rule — status stays to-ship" "$SUB" 'status stays `to-ship`'
 require_regex "AT-SV-2d: blocking verdict references the subagent rule" "$SKILL" 'If blocking.*subagent'
 require_regex "AT-SV-2e: blocked path does not commit" "$SKILL" '[Dd]o not commit'
-require_regex "AT-SV-2f: stale ## Last error removed at start" "$SKILL" 'remove.*## Last error|## Last error.*remove'
-in_text "AT-SV-README: README ship section documents the blocked signal" "$(section README.md '### `buildit-feature-ship`')" 'SHIP BLOCKED'
+require_absent "AT-SV-2f: ship does not clear a stale ## Last error" "$SKILL" 'remove.*## Last error|## Last error.*remove'
+SHIP_README=$(section README.md '### `buildit-feature-ship`')
+in_text "AT-SV-README: README ship section records the block in ## Last error" "$SHIP_README" '`## Last error`'
+absent_in_text "AT-SV-README: README ship section has no SHIP BLOCKED" "$SHIP_README" 'SHIP BLOCKED'
 
 # --- ## Branch contract (AT-BR-*) ---
 SH0=$(section_body "$SKILL" '### 0. ')
 SH1=$(section_body "$SKILL" '### 1. ')
 SH2=$(section_body "$SKILL" '### 2. ')
 if grep -qF -- '`## Branch`' <<<"$SH0" && grep -qF -- '<feature-branch>' <<<"$SH0"; then ok "AT-BR-4: step 0 reads ## Branch as <feature-branch>"; else fail "AT-BR-4: step 0 must read ## Branch as <feature-branch>"; fi
-if grep -qiE -- 'legacy|fall back|falls back' <<<"$SH0" && grep -qF -- 'branch --show-current' <<<"$SH0"; then ok "AT-BR-4: legacy fallback when ## Branch is missing"; else fail "AT-BR-4: step 0 must define a legacy fallback when ## Branch is missing"; fi
+absent_in_text "AT-BR-4: no legacy fallback when ## Branch is missing" "$SH0" '[Ll]egacy|fall back|falls back|branch --show-current'
+in_text "AT-BR-4: missing ## Branch is a deliberate stop" "$(normalize <<<"$SH0")" 'reason `no ## Branch in the tracking file`'
 if grep -qE -- 'other than `<feature-branch>`|skip.*<feature-branch>|<feature-branch>.*skip' <<<"$SH1"; then ok "AT-BR-4: overlap loop skips this feature's own branch"; else fail "AT-BR-4: overlap loop must skip <feature-branch>"; fi
 if grep -qE -- 'Merge readiness.*remove.*<feature-branch>' <<<"$SH2"; then ok "AT-BR-4: step 2 removes the row for <feature-branch>"; else fail "AT-BR-4: step 2 must remove the Merge readiness row for <feature-branch>"; fi
 

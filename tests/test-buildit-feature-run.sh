@@ -237,6 +237,11 @@ require_absent "AT-WD-2b: no unqualified root-relative script instruction" "$SKI
 REF_COUNT=$(grep -cF -- '[Autonomy block — see "Subagent autonomy block"]' "$SKILL" || true)
 if [[ "$REF_COUNT" -ge 4 ]]; then ok "AT-AB-2: start, build, validate and ship prompts reference the autonomy block"; else fail "AT-AB-2: expected >=4 autonomy block references, found $REF_COUNT"; fi
 require_text "AT-AB-3: named autonomy block section" "$SKILL" '## Subagent autonomy block'
+AB=$(section "$SKILL" '## Subagent autonomy block' | normalize)
+absent_in_text "AT-AB-4: autonomy block carries no allow-rule explanation" "$AB" 'subcommand|allow rules'
+in_text "AT-AB-4: autonomy block keeps the worktree working directory" "$AB" 'Run test and script commands with the worktree as working directory'
+in_text "AT-AB-4: autonomy block keeps git -C" "$AB" 'use `git -C <worktree-path>` instead of cd'
+absent_in_text "AT-AB-5: ship verification reports only ## Last error" "$(section "$SKILL" '**Verify ship before closing the task**' '**Update plan task on completion**')" 'SHIP BLOCKED'
 
 # --- Plan line match rule (AT-PLM-*): run ticks the task line with the shared anchored rule ---
 PLAN_UPDATE=$(section "$SKILL" '**Update plan task on completion**' 'Once the ship verification has passed' | normalize)

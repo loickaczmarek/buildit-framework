@@ -133,7 +133,7 @@ to-build | building | to-validate | validating | to-fix | to-ship
 [filled by feature-validate on NO-GO/FAIL — cleared by `buildit-feature-build` when it sets `to-validate`]
 
 ## Last error
-[optional — one line written by a phase that stops deliberately (build, validate, ship), replacing any previous one; cleared when build or validate starts, at ship step 0 and by feature-run before each phase; reported by feature-run]
+[optional — one line written by a phase that stops deliberately (build, validate, ship), replacing any previous one; cleared only by `buildit-feature-run` before each phase (a standalone phase run may leave a stale line); reported by feature-run]
 ```
 
 **Status lifecycle:**
@@ -149,7 +149,7 @@ to-build | building | to-validate | validating | to-fix | to-ship
 | `buildit-feature-validate` deliberate stop (base branch not found) | `validating` → `to-validate`, reason in `## Last error` |
 | `buildit-feature-validate` GO + PASS | → `to-ship` |
 | `buildit-feature-validate` NO-GO or FAIL | → `to-fix` |
-| `buildit-feature-ship` deliberate stop or block (prerequisite, migration note, base branch not found, subagent block) | status stays `to-ship`, reason in `## Last error`; `SHIP BLOCKED:` as a subagent |
+| `buildit-feature-ship` deliberate stop or block (no `## Branch`, base branch not found, subagent block) | status stays `to-ship`, reason in `## Last error` |
 | `buildit-feature-ship` | file moved to `.scratch/done/` |
 
 ---
@@ -181,8 +181,10 @@ The skill defines this block once (section "Subagent autonomy block") and every 
 
 ```
 Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
-[If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. Claude Code checks each `&&` subcommand against the allow rules separately: `Bash(cd */.worktrees/*)` in settings.json covers the `cd` part, and the chained command needs its own rule (e.g. `Bash(bash *)`).
+[If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd.
 ```
+
+Why `cd <worktree-path> && …` needs an allow rule for the chained command too: see [settings.json permission file (Claude mode only)](#settingsjson-permission-file-claude-mode-only).
 
 - **`PROJECT_ROOT`** — absolute path detected via `pwd` at orchestrator start
 - **`MODE`** — agent identity (Operating mode rule): `claude` when the running agent is Claude / Claude Code, `generic` for any other agent — never inferred from the presence of `.claude/`
@@ -564,7 +566,7 @@ Automatically detects the mode based on the tracking file status. At the end of 
 - APIs modified by other branches not yet accounted for
 - Discovered constraints not addressed in this scope
 
-Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, waits for human confirmation — or, when running as a subagent, commits nothing, records the reason in `## Last error` and returns `SHIP BLOCKED: <reason>`.
+Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, waits for human confirmation — or, when running as a subagent, commits nothing and records the reason in `## Last error`.
 
 **2. Shared-context.md cleanup** (root file):
 - "Merge readiness" → removes the line for this branch (`## Branch`)
@@ -606,7 +608,7 @@ Verdict: **✓ OK to ship** or **⚠ Blocking: [precise reason]**. If blocking, 
 4. Resolves and returns the absolute worktree path (`WORKTREE_PATH`)
 5. Instructs the calling agent to use `git -C <WORKTREE_PATH>` for all git commands inside the worktree
 
-**Working directory in worktree mode:** `.scratch/` and `.buildit/config.md` stay in the project root; build, validate and ship run git commands on feature code with `git -C <WORKTREE_PATH>` (each worktree has its own index), and build and validate run the test command with the worktree as working directory (`cd <WORKTREE_PATH> && <test command>`) — the project root holds base-branch code. In Claude mode, that chained command needs an allow rule of its own (e.g. `Bash(bash *)`), which the settings template does not include — see [Autonomy configuration](#autonomy-configuration). Ship copies only the archived tracking file into the worktree; `shared-context.md` is never committed (gitignored local state), so the feature commit never carries other features' rows.
+**Working directory in worktree mode:** `.scratch/` and `.buildit/config.md` stay in the project root; build, validate and ship run git commands on feature code with `git -C <WORKTREE_PATH>` (each worktree has its own index), and build and validate run the test command with the worktree as working directory (`cd <WORKTREE_PATH> && <test command>`) — the project root holds base-branch code. For the Claude mode allow rules behind that chained command, see [settings.json permission file (Claude mode only)](#settingsjson-permission-file-claude-mode-only). Ship copies only the archived tracking file into the worktree; `shared-context.md` is never committed (gitignored local state), so the feature commit never carries other features' rows.
 
 **Design rationale:** replaces the external dependency on `superpowers:using-git-worktrees`. Worktree management is now fully internal to the buildit framework, ensuring consistent behaviour regardless of which superpowers skills are installed.
 

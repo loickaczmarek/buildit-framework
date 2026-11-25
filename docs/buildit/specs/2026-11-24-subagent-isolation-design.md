@@ -28,7 +28,7 @@ A phase subagent receives the skill name, the feature name and the two blocks; i
 
 ### No human behind a subagent
 
-A phase running as a subagent never waits for an answer. Ambiguous tracking-file discovery stops and lists the candidates; ship returns `SHIP BLOCKED: <reason>` with a `## Last error` line instead of waiting for confirmation; decisions taken without a human are recorded in the tracking file. External writes (plan task synchronization) happen only in the orchestrator, after one explicit confirmation.
+A phase running as a subagent never waits for an answer. Ambiguous tracking-file discovery stops and lists the candidates; ship records the reason in a `## Last error` line (its only block signal) instead of waiting for confirmation; decisions taken without a human are recorded in the tracking file. External writes (plan task synchronization) happen only in the orchestrator, after one explicit confirmation.
 
 ### Category subagents (audit)
 

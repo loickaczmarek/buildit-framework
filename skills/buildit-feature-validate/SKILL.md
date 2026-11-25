@@ -11,6 +11,15 @@ Code review and acceptance test validation. Routes to the build/fix loop or open
 
 After `buildit-feature-build` has completed its cycle (status `to-validate` in the tracking file).
 
+## Deliberate stops
+
+**Deliberate stop procedure**
+1. Write a `## Last error` section to the tracking file with the single line `buildit-feature-validate: <reason>`, replacing any existing `## Last error` section.
+2. Set the status the stop specifies; when it specifies none, leave the status unchanged.
+3. Stop with the stop's message.
+
+Each stop below gives only its reason, its status and its message. A stale `## Last error` is never cleared here: `buildit-feature-run` clears it before launching each phase.
+
 ## Steps
 
 ### 0. Detect environment paths
@@ -25,10 +34,6 @@ After `buildit-feature-build` has completed its cycle (status `to-validate` in t
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
-**Migration note:** If `.buildit/guidelines/` does not exist but `.claude/guidelines/` or `.agents/guidelines/` does, warn the user:
-> "Guidelines found at [old-path] instead of `.buildit/guidelines/`. Run `/buildit-project-bootstrap` to migrate them before continuing."
-Then stop.
-
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 
 ---
@@ -42,10 +47,10 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
 5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
 
-**Status guard:** read the current status before modifying anything. If it is not `to-validate`, do not change it: write a `## Last error` section to the tracking file with the single line `buildit-feature-validate: status is <status>, expected to-validate`, replacing any existing `## Last error` section, and stop with:
+**Status guard:** read the current status before modifying anything. If it is not `to-validate`, apply the Deliberate stop procedure with reason `status is <status>, expected to-validate` (status unchanged) and the message:
 > "Current status is `[status]` — buildit-feature-validate expects `to-validate`. Run `/buildit-feature-build [feature-name]` first; to re-run an interrupted validation (status `validating`), set the status back to `to-validate`."
 
-Set the status to `validating`. If the tracking file has a `## Last error` section, remove it (it describes a previous run).
+Set the status to `validating`.
 
 **Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there. Run the test command with the worktree as working directory (`cd <worktree-path> && <test command>`) — the project root holds base-branch code, so tests run there never see this feature's changes. Step 5a's `<rules-file>` and `<guidelines-dir>` edits also go inside the worktree.
 
@@ -85,7 +90,7 @@ If all tests pass: proceed to step 3 (review phase).
 
 Read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`.
 
-Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, restore the status to `to-validate`, write a `## Last error` section to the tracking file with the single line `buildit-feature-validate: base branch <base-branch> not found locally`, replacing any existing `## Last error` section, and stop with:
+Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, apply the Deliberate stop procedure with reason `base branch <base-branch> not found locally` (status: restore the status to `to-validate`) and the message:
 > "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch, then re-run `/buildit-feature-validate`."
 
 ### 3. Review phase

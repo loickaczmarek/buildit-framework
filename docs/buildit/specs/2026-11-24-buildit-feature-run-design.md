@@ -32,7 +32,7 @@ After each phase the orchestrator re-reads `## Status` from the tracking file (T
 | build | `to-validate` | `## Last error` present → report it; else stop: unchanged or unexpected status |
 | validate | `to-ship` (GO) or `to-fix` (loop) | `## Last error` present → report it; else stop |
 
-An unchanged status is treated as a failure, never retried silently. A phase that stops on purpose records one line in `## Last error`, so run can report the cause instead of "possible subagent failure".
+An unchanged status is treated as a failure, never retried silently. A phase that stops on purpose records one line in `## Last error` through its Deliberate stop procedure (defined once per writer skill), so run can report the cause instead of "possible subagent failure". Run is the only clearer: it removes a stale `## Last error` right before launching build, validate and ship; phases only write it. A standalone phase run may therefore leave a stale line, which the next run clears.
 
 ### Bounded build/fix loop (`--max-cycles N`, default 3)
 
@@ -40,7 +40,7 @@ The default mirrors validate's warning on the 3rd NO-GO: beyond it, accumulated 
 
 ### Ship is verified, not trusted (step 6)
 
-Before ship, run records `SHIP_REF` (the `## Branch` value), `PRE_SHIP_HEAD` and the tracking file name. After ship it checks three facts: `SHIP_REF` moved, the archived tracking file exists in that commit (`git cat-file -e`), and no copy remains outside `.scratch/done/`. Any failure stops with "Unexpected state after ship", quoting ship's `SHIP BLOCKED:` line or `## Last error`. The plan task and external ticket are updated only after the three checks pass, so a blocked ship never marks a task `done`.
+Before ship, run records `SHIP_REF` (the `## Branch` value), `PRE_SHIP_HEAD` and the tracking file name. After ship it checks three facts: `SHIP_REF` moved, the archived tracking file exists in that commit (`git cat-file -e`), and no copy remains outside `.scratch/done/`. Any failure stops with "Unexpected state after ship", quoting ship's `## Last error` line when present. A ship stop before a tracking file is selected writes nothing, and the failed checks are the report. Run reads `SHIP_REF` from `## Branch` only and stops before ship when it is missing. The plan task and external ticket are updated only after the three checks pass, so a blocked ship never marks a task `done`.
 
 ### Plan task ownership
 

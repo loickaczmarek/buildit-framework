@@ -13,12 +13,16 @@ After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in
 
 ## Running as a subagent
 
-When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer. Any step below that says to wait for confirmation returns the blocked signal instead:
-- Do not commit, do not move the tracking file, and leave the status `to-ship`.
-- Write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: blocked — <precise reason>`, replacing any existing `## Last error` section.
-- End with a final message starting with `SHIP BLOCKED: <precise reason>`.
+When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer. Any step below that says to wait for confirmation blocks instead: do not commit, do not move the tracking file — the status stays `to-ship` — and apply the Deliberate stop procedure with reason `blocked — <precise reason>`.
 
-**Deliberate stops:** every stop after a tracking file is selected — the migration note (0a) and the base branch not found (step 1) — keeps the status `to-ship`, commits nothing, writes its own `## Last error` line (given at each stop) and, as a subagent, ends with a final message starting with `SHIP BLOCKED: <same reason>`. Step 0 clears a stale `## Last error` before these stops run, so the line always describes this run.
+## Deliberate stops
+
+**Deliberate stop procedure**
+1. Write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: <reason>`, replacing any existing `## Last error` section.
+2. Never change the status: ship leaves it as found (`to-ship` for a validated feature) whenever it stops; commit nothing and do not move the tracking file.
+3. Stop with the stop's message (the reason itself when the stop gives none).
+
+Every stop after a tracking file is selected applies it — the missing `## Branch` (step 0), the base branch not found (step 1) and the subagent block (above) — giving only its reason and message. A stale `## Last error` is never cleared here: `buildit-feature-run` clears it before launching each phase.
 
 ## Steps
 
@@ -31,17 +35,15 @@ When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer
 4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
 5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
 
-As a subagent, a stop from this rule ends with a final message starting with `SHIP BLOCKED: <precise reason>` (no tracking file is selected, so there is no `## Last error` to write).
+As a subagent, a stop from this rule writes nothing — no tracking file is selected, so there is no `## Last error` to write; its stop message is the final message and buildit-feature-run reports its failed checks.
 
-If the selected file does not have status `to-ship`, warn: "The selected file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing (as a subagent: return the blocked signal — see "Running as a subagent").
-
-If the tracking file has a `## Last error` section, remove it: it describes a previous run.
+If the selected file does not have status `to-ship`, warn: "The selected file does not have status `to-ship` — is this the feature you want to ship?" and wait for confirmation before continuing (as a subagent: block — see "Running as a subagent").
 
 **Worktree path:** read the `## Worktree path` value from the tracking file once and store it as `WORKTREE_PATH` (`none` = no worktree). `<worktree-path>` below stands for this value. Step 6 reuses it — never re-read it from the tracking file, which step 4 moves to `.scratch/done/`.
 
 **Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. If `WORKTREE_PATH` is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`, `commit`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there.
 
-**Feature branch:** read the `## Branch` value from the tracking file (the line below the heading, a bare branch name — contract in `buildit-feature-start` step 3) and store it as `<feature-branch>`. Legacy tracking file without `## Branch`: fall back to `git -C <worktree-path> branch --show-current` in worktree mode, `git branch --show-current` otherwise, and warn once: "No `## Branch` in the tracking file — using the checked-out branch `<feature-branch>`."
+**Feature branch:** read the `## Branch` value from the tracking file (the line below the heading, a bare branch name — contract in `buildit-feature-start` step 3) and store it as `<feature-branch>`. If the heading is absent or empty, apply the Deliberate stop procedure with reason `no ## Branch in the tracking file` and the message: "The tracking file has no `## Branch` — add the feature branch under `## Branch` (contract in `buildit-feature-start` step 3), then re-run `/buildit-feature-ship [feature-name]`."
 
 ### 0a. Detect environment paths
 
@@ -55,10 +57,6 @@ If the tracking file has a `## Last error` section, remove it: it describes a pr
 
 In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
-**Migration note:** If `.buildit/guidelines/` does not exist but `.claude/guidelines/` or `.agents/guidelines/` does, warn the user:
-> "Guidelines found at [old-path] instead of `.buildit/guidelines/`. Run `/buildit-project-bootstrap` to migrate them before continuing."
-Then write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: guidelines found at <old-path>, migration required`, replacing any existing `## Last error` section (as a subagent, end with `SHIP BLOCKED: guidelines found at <old-path>, migration required`), and stop.
-
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 
 ---
@@ -67,7 +65,7 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 Read `.scratch/shared-context.md` in full. If `.scratch/shared-context.md` does not exist, treat it as empty: no other branch rows, APIs or constraints to check.
 
-**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: base branch <base-branch> not found locally`, replacing any existing `## Last error` section (as a subagent, end with `SHIP BLOCKED: base branch <base-branch> not found locally`), and stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
+**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, apply the Deliberate stop procedure with reason `base branch <base-branch> not found locally` and the message: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
 
 Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 5).
 
@@ -88,7 +86,7 @@ Are there entries in "Constraints discovered" that apply to this feature's scope
 - **✓ OK to ship** — no blocking point
 - **⚠ Blocking: [precise reason]** — if a point blocks
 
-If blocking: explain the issue and wait for human confirmation before continuing. As a subagent, return the blocked signal instead (see "Running as a subagent") — do not commit.
+If blocking: explain the issue and wait for human confirmation before continuing. As a subagent, block instead (see "Running as a subagent") — do not commit.
 
 ### 2. Clean shared-context.md
 
@@ -196,4 +194,4 @@ If the removal fails (e.g. uncommitted changes or worktree already removed), war
 Commit done, shared-context cleaned.
 Push and PR creation are yours to do.
 
-If blocked as a subagent: nothing committed, `SHIP BLOCKED: <precise reason>` reported.
+If blocked or stopped deliberately: nothing committed, the reason recorded in `## Last error`.

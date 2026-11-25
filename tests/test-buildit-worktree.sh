@@ -31,8 +31,8 @@ require_text "AT-5: buildit-feature-start template has ## Worktree path field" "
 # AT-6: buildit-feature-run mentions git -C in worktree context
 require_text "AT-6: buildit-feature-run mentions git -C" "$SKILL_RUN" 'git -C'
 
-# AT-7: buildit-feature-run mentions Bash(cd */.worktrees/*
-require_text "AT-7: buildit-feature-run mentions Bash(cd */.worktrees/* permission" "$SKILL_RUN" 'Bash(cd */.worktrees/*'
+# AT-7: the permission rule is a harness detail documented by bootstrap and the README, not by run
+require_absent "AT-7: buildit-feature-run names no Bash(cd */.worktrees/* permission" "$SKILL_RUN" 'Bash\(cd \*/\.worktrees/\*'
 
 # AT-8: buildit-project-bootstrap mentions Bash(cd */.worktrees/*)
 require_text "AT-8: buildit-project-bootstrap mentions Bash(cd */.worktrees/*)" "$SKILL_BOOTSTRAP" 'Bash(cd */.worktrees/*)'

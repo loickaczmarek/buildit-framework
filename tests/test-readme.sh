@@ -104,6 +104,16 @@ require_absent "AT-R13: no Waiting for column or dependency check in README" "$R
 RUN_BLOCK=$(section "$RUN_SKILL" '## Subagent autonomy block' | grep -E '^> ' | sed -E 's/^> "?//; s/"$//' | normalize)
 README_BLOCK=$(fenced_block "$README" 'Autonomy: you are operating' | normalize)
 if [[ -n "$RUN_BLOCK" && "$RUN_BLOCK" == "$README_BLOCK" ]]; then ok "AT-R14: README autonomy block matches run's Subagent autonomy block"; else fail "AT-R14: README autonomy block differs from run's Subagent autonomy block"; fi
+# The && / allow-rule explanation lives once, in the settings.json section; other places point to it.
+same "AT-R14b: README explains && subcommand matching once" "$(grep -cF -- 'each `&&` subcommand' "$README" || true)" 1
+same "AT-R14b: README states the chained-command rule once" "$(grep -cF -- 'chained command needs' "$README" || true)" 1
+SETTINGS=$(section "$README" '### settings.json permission file (Claude mode only)')
+in_text "AT-R14b: the explanation is in the settings.json section" "$SETTINGS" 'each `&&` subcommand'
+absent_in_text "AT-R14b: the README autonomy block carries no allow-rule explanation" "$README_BLOCK" 'subcommand|allow rules'
+in_text "AT-R14b: autonomy instruction points to the settings.json section" "$(section "$README" '### Subagent autonomy instruction')" 'settings.json permission file (Claude mode only)'
+LE_TPL=$(grep -F -- '[optional — one line written by a phase that stops deliberately' <<<"$TRACKING" || true)
+in_text "AT-R12b: Last error is cleared only by feature-run" "$LE_TPL" 'cleared only by `buildit-feature-run` before each phase'
+absent_in_text "AT-R12b: Last error is no longer cleared by phases" "$LE_TPL" 'when build or validate starts|ship step 0'
 
 BOOT=$(section "$README" '### `buildit-project-bootstrap`' '---')
 in_text "AT-R15: bootstrap section documents base branch detection (4f)" "$BOOT" 'origin/HEAD'

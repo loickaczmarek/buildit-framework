@@ -103,13 +103,13 @@ Check whether `.claude/settings.json` exists in the project root.
 }
 ~~~
 
-  Note: the `cd` patterns reduce permission prompts — `Bash(cd <project-root>)` and `Bash(cd <project-root>/*)` for absolute paths anchored on the project root (siblings such as `<project-root>-old` do not match), `Bash(cd ./*)` for relative subdirectory navigation, and `Bash(cd */.worktrees/*)` for subagents running inside git worktrees. The broad `Bash(cd *)` pattern is intentionally excluded. Claude Code checks each `&&` subcommand against the allow rules separately: a `cd` rule covers only the `cd` part of `cd <path> && <command>`, and the chained command needs its own rule (e.g. `Bash(npm *)` above, or add `Bash(bash *)` when the test command is `bash tests/run-all.sh`). This allowlist is navigation hygiene, not a security boundary: the patterns match text, so `<project-root>/*` still matches `<project-root>/../elsewhere`, and rules such as `Bash(git *)`, `Bash(python3 *)` or `Bash(docker *)` already allow arbitrary execution.
+  Note: the rationale for each pattern (the anchored `cd` patterns, the excluded `Bash(cd *)`, chained commands, why this allowlist is not a security boundary) is in the README section "settings.json permission file (Claude mode only)".
 
 - **Found** → Read the file and audit the `permissions.allow` array for these essential rules:
-  - `"Bash(cd <project-root>)"` and `"Bash(cd <project-root>/*)"` — cover the `cd` part of `cd /abs/path && ...` in the project and its worktrees
-  - `"Bash(cd ./*)"` — covers relative navigation
-  - `"Bash(cd */.worktrees/*)"` — covers subagents running inside git worktrees (required for worktree isolation)
-  - `"Bash(git *)"` — covers bare git commands
+  - `"Bash(cd <project-root>)"` and `"Bash(cd <project-root>/*)"`
+  - `"Bash(cd ./*)"`
+  - `"Bash(cd */.worktrees/*)"`
+  - `"Bash(git *)"`
 
   - **All present** → report: "Autonomy settings: complete (`.claude/settings.json`)." — do NOT modify.
   - **Some missing** → report which rules are absent, then ask:
@@ -385,7 +385,7 @@ Move to .scratch/done/ at the closing commit.
 Tracking file sections: Status · Branch · Worktree path · Goal · Acceptance Tests · Plan · Progress · Problems to fix · Last error
 Status flow: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
 Progress: one entry per NO-GO cycle, added by feature-validate; the cycle count is the number of `### NO-GO cycle` headings in Progress (other Progress entries are ignored)
-Last error: a phase that stops deliberately records the reason as one line in a `## Last error` section — writers: build (unrelated-files stop, which restores the entry status), validate (status guard, base branch not found), ship (prerequisite, migration note, base branch not found, subagent block); each writer replaces any existing section. Clearers: build and validate when they start, ship step 0, and feature-run before launching each phase. feature-run reports it instead of "possible subagent failure".
+Last error: a phase that stops deliberately records the reason as one line in a `## Last error` section through its Deliberate stop procedure — writers: build (unrelated-files stop, which restores the entry status), validate (status guard, base branch not found), ship (missing `## Branch`, base branch not found, subagent block); each writer replaces any existing section. Clearer: feature-run only, before launching each phase (a standalone phase run may leave a stale line). feature-run reports it instead of "possible subagent failure".
 ~~~
 
 `<guidelines-dir>/language-framework.md` (fill Stack with collected information):

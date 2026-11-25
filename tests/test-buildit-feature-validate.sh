@@ -129,8 +129,11 @@ in_text_re "AT-SC-4: 5a issue list includes failing tests" "$SECTION_5A" 'issues
 in_text "AT-SC-4: 5c counts only NO-GO cycle headings" "$C5_SEC" '`### NO-GO cycle`'
 require_absent "AT-SC-4: 5c no longer counts every Progress entry" "$SKILL" 'Count the number of existing entries in the "Progress" section'
 in_text_re "AT-SC-4: Progress entry records tests" "$C5_SEC" '^- Tests:'
-require_regex "AT-SC-5: base-branch failure writes ## Last error" "$SKILL" '`## Last error`.*base branch|base branch.*`## Last error`|Base branch.*`## Last error`'
-require_regex "AT-SC-5: step 1 clears a stale ## Last error" "$SKILL" '`## Last error` section.*remove'
+require_text "AT-SC-5: base-branch failure writes ## Last error through the procedure" "$SKILL" 'apply the Deliberate stop procedure with reason `base branch <base-branch> not found locally`'
+require_absent "AT-SC-5: step 1 no longer clears a stale ## Last error" "$SKILL" '`## Last error` section.*remove'
+V0=$(section "$SKILL" '### 0. ')
+absent_in_text "AT-LEG-1: no guidelines migration note in step 0" "$V0" 'Migration note|\.claude/guidelines/|instead of `\.buildit/guidelines/`'
+require_text "AT-LEG-2: git < 2.30 fallback kept" "$SKILL" 'Fallback for git < 2.30 (no `--merge-base` option): `git diff --cached $(git merge-base <base-branch> HEAD)`'
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

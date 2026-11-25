@@ -43,6 +43,10 @@ in_text "AT-9: capture step creates it from start's template before writing" "$(
 
 # --- Worktree working directory (AT-WT-*) ---
 require_text "AT-WT-1: git commands target the worktree" "$SKILL" 'git -C <worktree-path>'
+
+# --- Last error: build only writes it, through its Deliberate stop procedure ---
+absent_in_text "AT-LE-1: step 1 no longer clears a stale ## Last error" "$(section "$SKILL" '### 1. ')" 'Last error'
+in_text "AT-LE-2: unrelated-files stop references the procedure" "$(section "$SKILL" '### 5. ' | normalize)" 'apply the Deliberate stop procedure with reason `unrelated files block validation — <paths>`'
 require_regex "AT-WT-2: .scratch/ and config.md are read from the project root" "$SKILL" '`\.scratch/` and `\.buildit/config\.md`.*project root'
 
 # --- Worktree working directory (AT-WD-*) ---

@@ -40,7 +40,7 @@ The ban does not block the buildit skills and subagents a phase skill explicitly
 Defined once here; steps 3, 5.2, 5.4 and 6 reference it as `[Autonomy block — see "Subagent autonomy block"]`. Append it to every phase subagent prompt with `[PROJECT_ROOT]`, `[MODE]` and `<worktree-path>` substituted; include the worktree paragraph only when `use-worktree` is yes.
 
 > "Autonomy: you are operating within the project directory `[PROJECT_ROOT]` (mode: [MODE]). Execute bash, python3, and cd commands freely within this directory and its subdirectories (including `.worktrees/`). Use relative paths for script invocations (relative to the worktree in worktree mode). Do not cd outside the project root — paths outside require explicit user permission.
-> [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd. Claude Code checks each `&&` subcommand against the allow rules separately: `Bash(cd */.worktrees/*)` in settings.json covers the `cd` part, and the chained command needs its own rule (e.g. `Bash(bash *)`)."
+> [If use-worktree=yes]: Run test and script commands with the worktree as working directory (`cd <worktree-path> && bash tests/…`), never from the project root — it holds base-branch code. For git commands inside the worktree, use `git -C <worktree-path>` instead of cd."
 
 ## Steps
 
@@ -238,7 +238,7 @@ Initialise: `cycle = 0`.
 **Record the pre-ship state**
 
 Before launching the ship subagent, record:
-- `SHIP_REF` — the feature branch: the `## Branch` value of the tracking file found at step 4 (bare branch name — the branch ship commits on). Legacy tracking file without `## Branch`: `git branch --show-current`, or `git -C <worktree-path> branch --show-current` in worktree mode; if empty (detached HEAD, no worktree), use `HEAD`. A branch ref stays resolvable after ship removes the worktree.
+- `SHIP_REF` — the feature branch: the `## Branch` value of the tracking file found at step 4 (bare branch name — the branch ship commits on). A branch ref stays resolvable after ship removes the worktree. If `## Branch` is absent or empty, stop before launching ship with: "Tracking file has no `## Branch` — add the feature branch under `## Branch` (contract in `buildit-feature-start` step 3), then run `/buildit-feature-ship [feature-name]`."
 - `PRE_SHIP_HEAD` — `git rev-parse <SHIP_REF>`.
 - `TRACKING_FILE` — the file name (without directory) of the tracking file found at step 4.
 
@@ -250,7 +250,7 @@ Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent sel
 
 > "[Isolation preamble — see "Subagent selection and workflow isolation"]
 > Run /buildit-feature-ship [feature-name].
-> You are running as a subagent: no human can answer. If ship blocks, follow its "Running as a subagent" rule (blocked signal) instead of waiting."
+> You are running as a subagent: no human can answer. If ship blocks, follow its "Running as a subagent" rule instead of waiting."
 > (Include worktree path if applicable.)
 > "[Autonomy block — see "Subagent autonomy block"]"
 
@@ -264,7 +264,7 @@ Do not trust the subagent's prose; check git and `.scratch/`:
 3. `.scratch/<TRACKING_FILE>` no longer exists outside `done/`.
 
 If any check fails, stop with:
-> "Unexpected state after ship: [failed check(s)][ — ship reported: [`## Last error` line of the tracking file, or the subagent's `SHIP BLOCKED:` line]]. The plan task and external ticket were left unchanged. Inspect `.scratch/` and `git log`, then re-run `/buildit-feature-ship [feature-name]` manually."
+> "Unexpected state after ship: [failed check(s)][ — ship reported: [`## Last error` line of the tracking file]]. The plan task and external ticket were left unchanged. Inspect `.scratch/` and `git log`, then re-run `/buildit-feature-ship [feature-name]` manually."
 
 On this path, do not update the task file, `plan.md` or the external ticket, and write no `Pending:` entry (no `done` transition happened). Continue below only when all three checks pass.
 

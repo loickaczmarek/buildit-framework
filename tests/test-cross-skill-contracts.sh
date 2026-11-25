@@ -238,46 +238,55 @@ for f in "$BUILD" "$VALIDATE" "$SHIP" "$RUN"; do
   require_absent "AT-7: $f never writes ## Branch" "$f" '([Ww]rite|[Uu]pdate|[Rr]ewrite|[Aa]dd)s? (the |a )?`## Branch`'
 done
 
-# ## Last error: phases write it when they stop (each writer replaces any existing section);
-# run reports it and clears it before each phase; build 1, validate 1 and ship 0 clear it.
-WRITER_RE='`## Last error` section to the tracking file with the single line `[^`]+`'
+# ## Last error: each writer skill (build, validate, ship) defines its Deliberate stop
+# procedure once — the only place that states the write instruction — and every stop
+# references it with its reason. No phase clears a stale line: feature-run is the only clearer.
+PROC_HEAD='**Deliberate stop procedure**'
+WRITE_INSTR='`## Last error` section to the tracking file with the single line'
 REPLACE='replacing any existing `## Last error` section'
-WRITER_SKILLS=""
-for f in "$S"/buildit-feature-*/SKILL.md; do
+for f in "$BUILD" "$VALIDATE" "$SHIP"; do
   sk=$(basename "$(dirname "$f")")
-  body=$(lines_outside_fences "$f" '.' | normalize)
-  writers=$(grep -oE -- "$WRITER_RE" <<<"$body" | sed 's/.*single line `//; s/`$//' || true)
-  [[ -z "$writers" ]] && continue
-  WRITER_SKILLS+="$sk "
-  while IFS= read -r w; do
-    [[ "$w" == "$sk: "* ]] && ok "AT-7: Last error line starts with '$sk: ' ($w)" || fail "AT-7: Last error line must start with '$sk: ' — got '$w'"
-  done <<<"$writers"
-  same "AT-7: every $sk Last error writer replaces any existing section" \
-    "$(grep -oE -- "${WRITER_RE}, $REPLACE" <<<"$body" | wc -l | tr -d ' ')" "$(grep -oE -- "$WRITER_RE" <<<"$body" | wc -l | tr -d ' ')"
+  same "AT-7: $sk defines the Deliberate stop procedure once" "$(count_outside_fences "$f" "$PROC_HEAD")" 1
+  PROC=$(named_block "$f" "$PROC_HEAD" | normalize)
+  in_text "AT-7: $sk procedure writes its Last error line" "$PROC" "$WRITE_INSTR \`$sk: <reason>\`"
+  in_text "AT-7: $sk procedure replaces any existing section" "$PROC" "$REPLACE"
+  in_text_re "AT-7: $sk procedure states the status rule" "$PROC" '[Ss]tatus'
+  same "AT-7: $sk states the Last error write instruction only in its procedure" \
+    "$(lines_outside_fences "$f" '.' | normalize | grep -oF -- "$WRITE_INSTR" | wc -l | tr -d ' ')" 1
+  require_absent "AT-7: $sk no longer clears a stale ## Last error" "$f" 'If the tracking file has a `## Last error` section, remove it|describes a previous run'
 done
-for sk in buildit-feature-build buildit-feature-validate buildit-feature-ship; do
-  in_text "AT-7: $sk writes ## Last error" "$WRITER_SKILLS" "$sk "
+for f in "$S"/buildit-feature-*/SKILL.md; do
+  case "$f" in "$BUILD"|"$VALIDATE"|"$SHIP") continue ;; esac
+  require_absent "AT-7: $f is not a Last error writer" "$f" "$PROC_HEAD"
 done
-require_text "AT-7: validate status-guard Last error line" "$VALIDATE" 'with the single line `buildit-feature-validate: status is <status>, expected to-validate`'
-CLEAR='If the tracking file has a `## Last error` section, remove it'
-in_text "AT-7: ship step 0 clears a stale ## Last error" "$SH0" "$CLEAR"
-in_text "AT-7: validate step 1 clears a stale ## Last error" "$V1" "$CLEAR"
-in_text "AT-7: build step 1 clears a stale ## Last error" "$B1" "$CLEAR"
-before_in "AT-7: validate's status guard runs before the clear" "$V1" '**Status guard:**' "$CLEAR"
-# Build: the unrelated-files stop restores the entry status recorded in step 1 and writes its line.
+# stop_ref LABEL TEXT REASON — the stop applies the procedure with its reason.
+stop_ref() {
+  in_text "$1 references the procedure" "$2" 'apply the Deliberate stop procedure'
+  in_text "$1 gives its reason" "$2" "reason \`$3\`"
+}
+V1N=$(normalize <<<"$V1")
+stop_ref "AT-7: validate status guard" "$V1N" 'status is <status>, expected to-validate'
+before_in "AT-7: validate's status guard runs before setting validating" "$V1" '**Status guard:**' 'Set the status to `validating`'
+V2C=$(section "$VALIDATE" '### 2c.' | normalize)
+stop_ref "AT-7: validate base-branch stop" "$V2C" 'base branch <base-branch> not found locally'
+in_text "AT-7: validate base-branch stop restores to-validate" "$V2C" 'restore the status to `to-validate`'
+# Build: the unrelated-files stop restores the entry status recorded in step 1.
 in_text "AT-7: build step 1 records the entry status" "$B1" '**entry status**'
 B52=$(normalize <<<"$B5")
 in_text "AT-7: build step 5 restores the entry status" "$B52" 'restore the entry status recorded in step 1'
-in_text "AT-7: build step 5 Last error line" "$B52" 'with the single line `buildit-feature-build: unrelated files block validation — <paths>`'
+stop_ref "AT-7: build unrelated-files stop" "$B52" 'unrelated files block validation — <paths>'
 absent_in_text "AT-7: build step 5 no longer leaves the status at building" "$B52" 'leave the status at `building`'
-# Ship: each deliberate stop after selection writes its line and signals SHIP BLOCKED.
-SH0A=$(section "$SHIP" '### 0a.' | normalize)
+# Ship: every stop after selection uses the procedure; no SHIP BLOCKED signal anywhere.
+SH0N=$(normalize <<<"$SH0")
 SH1=$(section "$SHIP" '### 1. ' | normalize)
-in_text "AT-7: ship 0a writes Last error" "$SH0A" 'single line `buildit-feature-ship: guidelines found at <old-path>, migration required`'
-in_text "AT-7: ship 0a signals SHIP BLOCKED" "$SH0A" '`SHIP BLOCKED: guidelines found at <old-path>, migration required`'
-in_text "AT-7: ship base-branch stop writes Last error" "$SH1" 'single line `buildit-feature-ship: base branch <base-branch> not found locally`'
-in_text "AT-7: ship base-branch stop signals SHIP BLOCKED" "$SH1" '`SHIP BLOCKED: base branch <base-branch> not found locally`'
-in_text "AT-7: ship states the deliberate-stops rule" "$(section "$SHIP" '## Running as a subagent' | normalize)" '**Deliberate stops:**'
+SH_SUB=$(section "$SHIP" '## Running as a subagent' | normalize)
+stop_ref "AT-7: ship base-branch stop" "$SH1" 'base branch <base-branch> not found locally'
+stop_ref "AT-7: ship subagent block" "$SH_SUB" 'blocked — <precise reason>'
+stop_ref "AT-7: ship missing ## Branch stop" "$SH0N" 'no ## Branch in the tracking file'
+for f in "$S"/*/SKILL.md README.md "$TEAM" "$BOOTSTRAP"; do
+  require_absent "AT-7: no SHIP BLOCKED signal in $f" "$f" 'SHIP BLOCKED'
+done
+require_absent "AT-7: ship has no guidelines migration note" "$SHIP" 'Migration note|migration required'
 # Run: reports build's and validate's Last error; recovery points at the phase, never at run.
 R53=$(section "$RUN" '3. **Check status after build**' '4. **Subagent: buildit-feature-validate**')
 in_text "AT-7: run step 5.3 reports build's ## Last error" "$R53" 'If the tracking file has a `## Last error` section, build stopped deliberately — stop and report its content'
@@ -297,27 +306,35 @@ for pair in '2. **Subagent: buildit-feature-build**|3. **Check status after buil
   sec=$(section "$RUN" "${pair%%|*}" "${pair##*|}")
   before_in "AT-7: run clears Last error before launching ${pair%%|*}" "$sec" "$RUN_CLEAR" 'Launch a fresh'
 done
-# Docs: the contract text lists every writer and clearer, and the replace rule.
+# Docs: the contract text lists every writer, the replace rule and feature-run as the only clearer.
 TP_TPL_LE=$(grep -F -- 'Last error: ' "$BOOTSTRAP" || true); TEAM_LE=$(grep -F -- 'Last error: ' "$TEAM" || true)
 for doc in TP_TPL_LE TEAM_LE; do
-  for w in build validate ship feature-run replaces; do in_text "AT-7: $doc Last error text mentions $w" "${!doc}" "$w"; done
+  for w in build validate ship feature-run replaces 'Clearer: feature-run only'; do in_text "AT-7: $doc Last error text mentions $w" "${!doc}" "$w"; done
+  for gone in 'when they start' 'ship step 0' 'migration note' 'prerequisite'; do absent_in_text "AT-7: $doc Last error text drops '$gone'" "${!doc}" "$gone"; done
 done
 same "AT-7: bootstrap template Last error line matches team-practices" "$TP_TPL_LE" "$TEAM_LE"
 README_TBL=$(section README.md '**Status lifecycle:**' '---')
 in_text_re "AT-7: README lifecycle has build's deliberate stop" "$README_TBL" 'buildit-feature-build` deliberate stop.*`## Last error`'
 in_text_re "AT-7: README lifecycle has validate's status guard" "$README_TBL" 'buildit-feature-validate` status guard.*`## Last error`'
-in_text_re "AT-7: README lifecycle has ship's block" "$README_TBL" 'buildit-feature-ship` deliberate stop or block.*`## Last error`.*SHIP BLOCKED'
+SHIP_ROW=$(grep -F -- 'buildit-feature-ship` deliberate stop' <<<"$README_TBL" || true)
+in_text "AT-7: README lifecycle ship row records ## Last error" "$SHIP_ROW" '`## Last error`'
+in_text "AT-7: README lifecycle ship row lists the missing ## Branch stop" "$SHIP_ROW" 'no `## Branch`'
+absent_in_text "AT-7: README lifecycle ship row has no migration note" "$SHIP_ROW" 'migration note|prerequisite'
 R6=$(section "$RUN" '### 6. ')
 VERIFY=$(section "$RUN" '**Verify ship before closing the task**' '**Update plan task on completion**')
 in_text "AT-7: run step 6 failure reports ship's ## Last error" "$VERIFY" '`## Last error` line of the tracking file'
 
-# Ship's discovery stop as a subagent: SHIP BLOCKED, no ## Last error (no file selected).
+# Ship's discovery stop as a subagent: no file selected, so nothing is written; run's failed checks report it.
 SH_RULE_END=$(( $(line_of <(echo "$SH0") '**Tracking file discovery rule**') + $(named_block "$SHIP" '**Tracking file discovery rule**' | wc -l) ))
-SH_BLOCKED=$(line_of <(echo "$SH0") 'a stop from this rule ends with a final message starting with `SHIP BLOCKED: <precise reason>`')
-if [[ -n "$SH_BLOCKED" && "$SH_BLOCKED" -gt "$SH_RULE_END" ]]; then ok "AT-7: ship step 0 states SHIP BLOCKED for a discovery stop, after the rule"; else fail "AT-7: ship step 0 must state SHIP BLOCKED for a discovery stop after the rule block"; fi
-in_text "AT-7: ship discovery stop writes no ## Last error" "$SH0" 'there is no `## Last error` to write'
-in_text "AT-7: run step 6 failure quotes SHIP BLOCKED" "$VERIFY" '`SHIP BLOCKED:` line'
+SH_NOWRITE=$(line_of <(echo "$SH0") 'there is no `## Last error` to write')
+if [[ -n "$SH_NOWRITE" && "$SH_NOWRITE" -gt "$SH_RULE_END" ]]; then ok "AT-7: ship step 0 states a discovery stop writes no ## Last error, after the rule"; else fail "AT-7: ship step 0 must state a discovery stop writes no ## Last error, after the rule block"; fi
+in_text "AT-7: ship discovery stop defers to run's failed checks" "$SH0N" 'buildit-feature-run reports its failed checks'
 
+# ## Branch legacy fallback removed: ship stops, run reads SHIP_REF from ## Branch only.
+absent_in_text "AT-7: ship step 0 has no legacy ## Branch fallback" "$SH0" '[Ll]egacy|branch --show-current'
+PRESHIP=$(section "$RUN" '**Record the pre-ship state**' '**Subagent: buildit-feature-ship**')
+absent_in_text "AT-7: run SHIP_REF has no legacy fallback" "$PRESHIP" '[Ll]egacy|branch --show-current|use `HEAD`'
+in_text "AT-7: run stops before ship when ## Branch is missing" "$(normalize <<<"$PRESHIP")" 'Tracking file has no `## Branch`'
 # Worktree ship copy: team-practices matches ship step 4 — only the archived tracking file
 # is copied; shared-context.md is gitignored local state, never staged.
 TEAM_WT=$(section "$TEAM" '### Worktree management' | normalize)
