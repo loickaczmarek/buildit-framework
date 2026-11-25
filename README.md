@@ -133,7 +133,7 @@ to-build | building | to-validate | validating | to-fix | to-ship
 [filled by feature-validate on NO-GO/FAIL — cleared by `buildit-feature-build` when it sets `to-validate`]
 
 ## Last error
-[optional — one line written by a phase that stops deliberately without changing the status; reported by feature-run]
+[optional — one line written by a phase that stops deliberately (build, validate, ship), replacing any previous one; cleared when build or validate starts, at ship step 0 and by feature-run before each phase; reported by feature-run]
 ```
 
 **Status lifecycle:**
@@ -142,11 +142,14 @@ to-build | building | to-validate | validating | to-fix | to-ship
 |-------|-----------|
 | `buildit-feature-start` (end) | → `to-build` |
 | `buildit-feature-build` (start) | `to-build` or `to-fix` → `building` |
+| `buildit-feature-build` deliberate stop (unrelated files block validation) | `building` → entry status (`to-build` or `to-fix`), reason in `## Last error` |
 | `buildit-feature-build` (end) | → `to-validate` |
+| `buildit-feature-validate` status guard (status is not `to-validate`) | status unchanged, reason in `## Last error` |
 | `buildit-feature-validate` (start) | → `validating` |
 | `buildit-feature-validate` deliberate stop (base branch not found) | `validating` → `to-validate`, reason in `## Last error` |
 | `buildit-feature-validate` GO + PASS | → `to-ship` |
 | `buildit-feature-validate` NO-GO or FAIL | → `to-fix` |
+| `buildit-feature-ship` deliberate stop or block (prerequisite, migration note, base branch not found, subagent block) | status stays `to-ship`, reason in `## Last error`; `SHIP BLOCKED:` as a subagent |
 | `buildit-feature-ship` | file moved to `.scratch/done/` |
 
 ---

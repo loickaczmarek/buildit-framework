@@ -19,14 +19,6 @@ TEAM=".buildit/guidelines/team-practices.md"
 LANG_FW=".buildit/guidelines/language-framework.md"
 PHASES=("$START" "$BUILD" "$VALIDATE" "$SHIP" "$RUN")
 
-same() { # label, actual, expected
-  if [[ "$2" == "$3" ]]; then ok "$1"; else fail "$1 — got '$2', expected '$3'"; fi
-}
-before_in() { # label, text, first, second — both present, first line before second
-  local a b
-  a=$(line_of <(echo "$2") "$3"); b=$(line_of <(echo "$2") "$4")
-  if [[ -n "$a" && -n "$b" && "$a" -lt "$b" ]]; then ok "$1"; else fail "$1 — '$3' (line ${a:-none}) must precede '$4' (line ${b:-none})"; fi
-}
 sorted_words() { tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' | sed 's/ $//'; }
 
 # --- Helper self-check: a heading inside a fence never ends a section ---------------
@@ -48,6 +40,17 @@ in_text "SELF: section continues past a heading inside a ~~~ fence" "$FIX_SEC" '
 absent_in_text "SELF: section stops at the next same-level heading" "$FIX_SEC" '^### 2\.'
 same "SELF: fenced_block returns the fence content" "$(fenced_block "$FIX" '## Status' | head -1)" '## Status'
 same "SELF: count_outside_fences ignores fenced lines" "$(count_outside_fences "$FIX" '## Status')" '0'
+# absent_in_text must fail (not pass vacuously) on an empty or whitespace-only section.
+self_absent() { # text — prints the helper output and its FAIL count, counters isolated
+  ( PASS=0 FAIL=0; absent_in_text "x" "$1" 'foo'; echo "FAIL=$FAIL" )
+}
+OUT_EMPTY=$(self_absent "")
+in_text "SELF: absent_in_text fails on empty text" "$OUT_EMPTY" 'FAIL=1'
+in_text "SELF: absent_in_text names the empty-section cause" "$OUT_EMPTY" 'section empty or marker missing'
+OUT_WS=$(self_absent $'  \n ')
+in_text "SELF: absent_in_text fails on whitespace-only text" "$OUT_WS" 'FAIL=1'
+OUT_OK=$(self_absent "bar")
+in_text "SELF: absent_in_text passes on non-empty text without the pattern" "$OUT_OK" 'FAIL=0'
 
 # --- AT-6: named shared blocks are identical in every carrier -------------------------
 # Carriers are discovered by the exact heading line; MIN lists the carriers that must
@@ -75,6 +78,8 @@ check_named_block '**Operating mode rule**' "$TEAM" "$TEAM" \
   "$S/buildit-project-audit/SKILL.md" "$BOOTSTRAP"
 check_named_block '**Tracking file discovery rule**' "$BUILD" "$BUILD" "$VALIDATE" "$SHIP" "$RUN"
 check_named_block '**Plan task lookup rule**' "$RUN" "$RUN" "$S/buildit-feature-discover/SKILL.md"
+check_named_block '**Plan line match rule**' "$RUN" "$RUN" "$S/buildit-feature-discover/SKILL.md"
+in_text "AT-6: Plan line match rule anchors the task name with a trailing space" "$(named_block "$RUN" '**Plan line match rule**')" '`task-auth` must not match `task-auth-oauth`'
 
 # Config value rule: an inline rule, restated (whitespace-normalised) by every consumer.
 CVR='read only within that heading (stop at the next heading); a line starting with `#` is never a value'
@@ -206,23 +211,77 @@ for f in "$BUILD" "$VALIDATE" "$SHIP" "$RUN"; do
   require_absent "AT-7: $f never writes ## Branch" "$f" '([Ww]rite|[Uu]pdate|[Rr]ewrite|[Aa]dd)s? (the |a )?`## Branch`'
 done
 
-# ## Last error: phases write it when they stop; run reports it; ship 0 and validate 1 clear it.
-for f in "$VALIDATE" "$SHIP"; do
+# ## Last error: phases write it when they stop (each writer replaces any existing section);
+# run reports it and clears it before each phase; build 1, validate 1 and ship 0 clear it.
+WRITER_RE='`## Last error` section to the tracking file with the single line `[^`]+`'
+REPLACE='replacing any existing `## Last error` section'
+WRITER_SKILLS=""
+for f in "$S"/buildit-feature-*/SKILL.md; do
   sk=$(basename "$(dirname "$f")")
-  writers=$(grep -oE '`## Last error` section to the tracking file with the single line `[^`]+`' "$f" | sed 's/.*single line `//; s/`$//')
-  [[ -n "$writers" ]] && ok "AT-7: $sk writes ## Last error" || fail "AT-7: $sk writes no ## Last error line"
+  body=$(lines_outside_fences "$f" '.' | normalize)
+  writers=$(grep -oE -- "$WRITER_RE" <<<"$body" | sed 's/.*single line `//; s/`$//' || true)
+  [[ -z "$writers" ]] && continue
+  WRITER_SKILLS+="$sk "
   while IFS= read -r w; do
-    [[ -z "$w" ]] && continue
     [[ "$w" == "$sk: "* ]] && ok "AT-7: Last error line starts with '$sk: ' ($w)" || fail "AT-7: Last error line must start with '$sk: ' — got '$w'"
   done <<<"$writers"
+  same "AT-7: every $sk Last error writer replaces any existing section" \
+    "$(grep -oE -- "${WRITER_RE}, $REPLACE" <<<"$body" | wc -l | tr -d ' ')" "$(grep -oE -- "$WRITER_RE" <<<"$body" | wc -l | tr -d ' ')"
+done
+for sk in buildit-feature-build buildit-feature-validate buildit-feature-ship; do
+  in_text "AT-7: $sk writes ## Last error" "$WRITER_SKILLS" "$sk "
 done
 require_text "AT-7: validate status-guard Last error line" "$VALIDATE" 'with the single line `buildit-feature-validate: status is <status>, expected to-validate`'
 CLEAR='If the tracking file has a `## Last error` section, remove it'
 in_text "AT-7: ship step 0 clears a stale ## Last error" "$SH0" "$CLEAR"
 in_text "AT-7: validate step 1 clears a stale ## Last error" "$V1" "$CLEAR"
+in_text "AT-7: build step 1 clears a stale ## Last error" "$B1" "$CLEAR"
 before_in "AT-7: validate's status guard runs before the clear" "$V1" '**Status guard:**' "$CLEAR"
+# Build: the unrelated-files stop restores the entry status recorded in step 1 and writes its line.
+in_text "AT-7: build step 1 records the entry status" "$B1" '**entry status**'
+B52=$(normalize <<<"$B5")
+in_text "AT-7: build step 5 restores the entry status" "$B52" 'restore the entry status recorded in step 1'
+in_text "AT-7: build step 5 Last error line" "$B52" 'with the single line `buildit-feature-build: unrelated files block validation — <paths>`'
+absent_in_text "AT-7: build step 5 no longer leaves the status at building" "$B52" 'leave the status at `building`'
+# Ship: each deliberate stop after selection writes its line and signals SHIP BLOCKED.
+SH0A=$(section "$SHIP" '### 0a.' | normalize); SH0B=$(section "$SHIP" '### 0b.' | normalize)
+SH1=$(section "$SHIP" '### 1. ' | normalize)
+in_text "AT-7: ship 0a writes Last error" "$SH0A" 'single line `buildit-feature-ship: shared-context.md not found`'
+in_text "AT-7: ship 0a signals SHIP BLOCKED" "$SH0A" '`SHIP BLOCKED: shared-context.md not found`'
+in_text "AT-7: ship 0b writes Last error" "$SH0B" 'single line `buildit-feature-ship: guidelines found at <old-path>, migration required`'
+in_text "AT-7: ship 0b signals SHIP BLOCKED" "$SH0B" '`SHIP BLOCKED: guidelines found at <old-path>, migration required`'
+in_text "AT-7: ship base-branch stop writes Last error" "$SH1" 'single line `buildit-feature-ship: base branch <base-branch> not found locally`'
+in_text "AT-7: ship base-branch stop signals SHIP BLOCKED" "$SH1" '`SHIP BLOCKED: base branch <base-branch> not found locally`'
+in_text "AT-7: ship states the deliberate-stops rule" "$(section "$SHIP" '## Running as a subagent' | normalize)" '**Deliberate stops:**'
+# Run: reports build's and validate's Last error; recovery points at the phase, never at run.
+R53=$(section "$RUN" '3. **Check status after build**' '4. **Subagent: buildit-feature-validate**')
+in_text "AT-7: run step 5.3 reports build's ## Last error" "$R53" 'If the tracking file has a `## Last error` section, build stopped deliberately — stop and report its content'
+in_text "AT-7: run step 5.3 recovery runs build" "$R53" 'Fix it, then run `/buildit-feature-build [feature-name]`.'
+before_in "AT-7: run 5.3 checks Last error before the subagent-failure message" "$R53" '`## Last error` section, build stopped deliberately' 'possible subagent failure'
 R55=$(section "$RUN" '5. **Check status after validate**' '### 6.')
 in_text "AT-7: run step 5.5 reports validate's ## Last error" "$R55" 'If the tracking file has a `## Last error` section, validate stopped deliberately — stop and report its content'
+in_text "AT-7: run step 5.5 recovery runs validate" "$R55" 'Fix it, then run `/buildit-feature-validate [feature-name]`.'
+absent_in_text "AT-7: run step 5.5 never recommends re-running run" "$R55" '/buildit-feature-run'
+# Run clears a stale Last error before each phase launch (build, validate, ship).
+RUN_CLEAR='[Clear a stale Last error — see "Subagent selection and workflow isolation"]'
+in_text "AT-7: run defines the stale Last error clear once" "$(section "$RUN" '## Subagent selection and workflow isolation')" '**Clear a stale Last error:** before launching the subagent, if the tracking file has a `## Last error` section, remove it'
+same "AT-7: run applies the stale Last error clear at build, validate and ship" "$(grep -cF -- "$RUN_CLEAR" "$RUN")" 4
+for pair in '2. **Subagent: buildit-feature-build**|3. **Check status after build**' \
+            '4. **Subagent: buildit-feature-validate**|5. **Check status after validate**' \
+            '**Subagent: buildit-feature-ship**|**Verify ship before closing the task**'; do
+  sec=$(section "$RUN" "${pair%%|*}" "${pair##*|}")
+  before_in "AT-7: run clears Last error before launching ${pair%%|*}" "$sec" "$RUN_CLEAR" 'Launch a fresh'
+done
+# Docs: the contract text lists every writer and clearer, and the replace rule.
+TP_TPL_LE=$(grep -F -- 'Last error: ' "$BOOTSTRAP" || true); TEAM_LE=$(grep -F -- 'Last error: ' "$TEAM" || true)
+for doc in TP_TPL_LE TEAM_LE; do
+  for w in build validate ship feature-run replaces; do in_text "AT-7: $doc Last error text mentions $w" "${!doc}" "$w"; done
+done
+same "AT-7: bootstrap template Last error line matches team-practices" "$TP_TPL_LE" "$TEAM_LE"
+README_TBL=$(section README.md '**Status lifecycle:**' '---')
+in_text_re "AT-7: README lifecycle has build's deliberate stop" "$README_TBL" 'buildit-feature-build` deliberate stop.*`## Last error`'
+in_text_re "AT-7: README lifecycle has validate's status guard" "$README_TBL" 'buildit-feature-validate` status guard.*`## Last error`'
+in_text_re "AT-7: README lifecycle has ship's block" "$README_TBL" 'buildit-feature-ship` deliberate stop or block.*`## Last error`.*SHIP BLOCKED'
 R6=$(section "$RUN" '### 6. ')
 VERIFY=$(section "$RUN" '**Verify ship before closing the task**' '**Update plan task on completion**')
 in_text "AT-7: run step 6 failure reports ship's ## Last error" "$VERIFY" '`## Last error` line of the tracking file'
@@ -233,6 +292,17 @@ SH_BLOCKED=$(line_of <(echo "$SH0") 'a stop from this rule ends with a final mes
 if [[ -n "$SH_BLOCKED" && "$SH_BLOCKED" -gt "$SH_RULE_END" ]]; then ok "AT-7: ship step 0 states SHIP BLOCKED for a discovery stop, after the rule"; else fail "AT-7: ship step 0 must state SHIP BLOCKED for a discovery stop after the rule block"; fi
 in_text "AT-7: ship discovery stop writes no ## Last error" "$SH0" 'there is no `## Last error` to write'
 in_text "AT-7: run step 6 failure quotes SHIP BLOCKED" "$VERIFY" '`SHIP BLOCKED:` line'
+
+# Worktree ship copy: team-practices matches ship step 4 — only the archived tracking file
+# is copied; shared-context removals are applied to the worktree copy; root never copied.
+TEAM_WT=$(section "$TEAM" '### Worktree management' | normalize)
+in_text "AT-7: team-practices — only the archived tracking file is copied" "$TEAM_WT" 'only the archived tracking file is copied from the project root into the worktree'
+in_text "AT-7: team-practices — removals applied to the worktree copy" "$TEAM_WT" "shared-context removals are applied to the worktree's own \`shared-context.md\`"
+in_text "AT-7: team-practices — root shared-context never copied" "$TEAM_WT" 'the root `shared-context.md` is never copied'
+absent_in_text "AT-7: team-practices no longer says shared-context is copied or made" "$TEAM_WT" 'copied or made'
+SH4=$(section "$SHIP" '### 4. ' | normalize)
+in_text "AT-7: ship step 4 copies only the archived tracking file" "$SH4" 'copy only `.scratch/done/'
+in_text "AT-7: ship step 4 never replaces the worktree shared-context with the root file" "$SH4" 'never replace it with the root file'
 
 # Run step 6 ship verification: exactly three checks, then the stop.
 same "AT-7: run step 6 verification has exactly 3 checks" "$(grep -cE '^[0-9]+\. ' <<<"$VERIFY" || true)" 3

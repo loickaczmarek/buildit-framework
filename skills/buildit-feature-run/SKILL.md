@@ -33,6 +33,8 @@ For every phase (start, build/fix, validate, and ship), explicitly select the ne
 
 The ban does not block the buildit skills and subagents a phase skill explicitly references or instructs the subagent to launch (e.g. `buildit-feature-start` → `buildit-worktree`, `buildit-feature-validate` §5a → config-update subagent); everything else stays forbidden. Repository project rules and guidelines still apply.
 
+**Clear a stale Last error:** before launching the subagent, if the tracking file has a `## Last error` section, remove it — a stale line must never be reported as this phase's result. Steps 5.2, 5.4 and 6 apply it right before their launch, referenced as `[Clear a stale Last error — see "Subagent selection and workflow isolation"]` (start, step 3, has no tracking file yet).
+
 ## Subagent autonomy block
 
 Defined once here; steps 3, 5.2, 5.4 and 6 reference it as `[Autonomy block — see "Subagent autonomy block"]`. Append it to every phase subagent prompt with `[PROJECT_ROOT]`, `[MODE]` and `<worktree-path>` substituted; include the worktree paragraph only when `use-worktree` is yes.
@@ -75,6 +77,11 @@ If `feature-name` was provided as argument, apply the **Plan task lookup rule**.
 - If it is missing, `feature-name` starts with `task-` and the remainder is non-empty, strip that prefix once and retry the lookup.
 - If the stripped lookup finds the task, use the bare name as `feature-name` from then on and tell the user: "Stripped the `task-` prefix: using feature name `{feature-name}`."
 - If neither lookup finds a task file, there is no plan task.
+
+**Plan line match rule**
+- The task's line in `.scratch/plan/plan.md` starts with `- [ ] task-{feature-name} ` or `- [x] task-{feature-name} ` — the task name followed by a space.
+- Never match on a prefix without the trailing space: `task-auth` must not match `task-auth-oauth`.
+- Preserve the rest of the line (priority and readiness tags).
 
 - If the task file exists:
   - Read the task file. Extract `## Description`, `## Acceptance tests`, `## Readiness`, and `## Status`.
@@ -171,6 +178,8 @@ Initialise: `cycle = 0`.
 
 2. **Subagent: buildit-feature-build**
 
+   [Clear a stale Last error — see "Subagent selection and workflow isolation"]
+
    Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
 
    > "[Isolation preamble — see "Subagent selection and workflow isolation"]
@@ -184,15 +193,19 @@ Initialise: `cycle = 0`.
 
    Read the tracking file status.
 
-   If status has not changed from before the subagent ran: stop with message:
-
-   > "Tracking file status unchanged after buildit-feature-build — possible subagent failure. Manual inspection required."
+   If status has not changed from before the subagent ran:
+   - If the tracking file has a `## Last error` section, build stopped deliberately — stop and report its content:
+     > "buildit-feature-build stopped: [Last error line]. Fix it, then run `/buildit-feature-build [feature-name]`."
+   - Otherwise (no `## Last error` section), stop with message:
+     > "Tracking file status unchanged after buildit-feature-build — possible subagent failure. Manual inspection required."
 
    If status ≠ `to-validate`: stop with message:
 
    > "Unexpected status '[status]' after buildit-feature-build — manual inspection required."
 
 4. **Subagent: buildit-feature-validate**
+
+   [Clear a stale Last error — see "Subagent selection and workflow isolation"]
 
    Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
 
@@ -209,7 +222,7 @@ Initialise: `cycle = 0`.
 
    If status has not changed from `to-validate`:
    - If the tracking file has a `## Last error` section, validate stopped deliberately — stop and report its content:
-     > "buildit-feature-validate stopped: [Last error line]. Fix it, then re-run `/buildit-feature-run [feature-name]` or `/buildit-feature-validate [feature-name]`."
+     > "buildit-feature-validate stopped: [Last error line]. Fix it, then run `/buildit-feature-validate [feature-name]`."
    - Otherwise (no `## Last error` section), stop with message:
      > "Tracking file status unchanged after buildit-feature-validate — possible subagent failure. Manual inspection required."
 
@@ -230,6 +243,8 @@ Before launching the ship subagent, record:
 - `TRACKING_FILE` — the file name (without directory) of the tracking file found at step 4.
 
 **Subagent: buildit-feature-ship**
+
+[Clear a stale Last error — see "Subagent selection and workflow isolation"]
 
 Launch a fresh `general-purpose` subagent (or the fallback — see "Subagent selection and workflow isolation"):
 
@@ -259,7 +274,7 @@ If `PLAN_TASK_FILE` is set (not `none`):
 
 - Update `## Status` in the task file from `in-progress` to `done`.
 - If `.scratch/plan/plan.md` exists:
-  - Find the line matching `- [ ] task-{feature-name}` and change it to `- [x] task-{feature-name}` (preserve the rest of the line — priority and readiness tags).
+  - Find the task line with the Plan line match rule (step 0) and change `- [ ]` to `- [x]`.
   - Re-sync the progress counters by re-reading all task file statuses and recomputing `X/Y done` for each epic or flat list.
 - If `.scratch/plan/plan.md` does not exist: update task file only — no error.
 - If `SYNC=on`, push the `done` status the same way as at step 0 (orchestrator, verify). On failure — or if `SYNC=off-refused` — write `Pending: status → done (DD-MM-YYYY)`, replacing the previous status line. If `SYNC=off` (disabled, unconfigured or unlinked), do nothing.

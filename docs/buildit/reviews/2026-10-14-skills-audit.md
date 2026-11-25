@@ -1,6 +1,6 @@
 # Skills Audit — 2026-10-14
 
-> Historical record: this review predates the fixes from the 24-11-2026 audit on `fix/audit`. Line numbers and findings describe the skills as of 2026-10-14; check the current skills before acting on them.
+> Historical record: this review predates the fixes from the 24-11-2026 audit (commits `141d0ba^..fa5ec12`). Line numbers and findings describe the skills as of 2026-10-14; check the current skills before acting on them.
 
 Full review of the 8 buildit skills, 3 guidelines, and 164 tests. Review produced by Claude, then independently critiqued by a second agent that re-read all files. This document consolidates both passes.
 

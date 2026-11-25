@@ -29,7 +29,7 @@ After each phase the orchestrator re-reads `## Status` from the tracking file (T
 | After | Expected | Otherwise |
 |-------|----------|-----------|
 | start | tracking file exists | stop: possible subagent failure |
-| build | `to-validate` | stop: unchanged or unexpected status |
+| build | `to-validate` | `## Last error` present → report it; else stop: unchanged or unexpected status |
 | validate | `to-ship` (GO) or `to-fix` (loop) | `## Last error` present → report it; else stop |
 
 An unchanged status is treated as a failure, never retried silently. A phase that stops on purpose records one line in `## Last error`, so run can report the cause instead of "possible subagent failure".

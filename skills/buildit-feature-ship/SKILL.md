@@ -15,8 +15,10 @@ After `buildit-feature-validate` returned GO + PASS overall (status `to-ship` in
 
 When launched as a subagent (e.g. by `buildit-feature-run`), no human can answer. Any step below that says to wait for confirmation returns the blocked signal instead:
 - Do not commit, do not move the tracking file, and leave the status `to-ship`.
-- Add a `## Last error` section to the tracking file with the single line `buildit-feature-ship: blocked — <precise reason>`.
+- Write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: blocked — <precise reason>`, replacing any existing `## Last error` section.
 - End with a final message starting with `SHIP BLOCKED: <precise reason>`.
+
+**Deliberate stops:** every stop after a tracking file is selected — the prerequisite check (0a), the migration note (0b) and the base branch not found (step 1) — keeps the status `to-ship`, commits nothing, writes its own `## Last error` line (given at each stop) and, as a subagent, ends with a final message starting with `SHIP BLOCKED: <same reason>`. Step 0 clears a stale `## Last error` before these stops run, so the line always describes this run.
 
 ## Steps
 
@@ -46,6 +48,8 @@ If the tracking file has a `## Last error` section, remove it: it describes a pr
 If `.scratch/shared-context.md` does not exist, stop with:
 > "Shared context file not found — run `/buildit-project-bootstrap` to initialize the project."
 
+Before stopping, write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: shared-context.md not found`, replacing any existing `## Last error` section (as a subagent, end with `SHIP BLOCKED: shared-context.md not found`).
+
 ### 0b. Detect environment paths
 
 **Operating mode rule**
@@ -60,7 +64,7 @@ In all cases: `<guidelines-dir>` = `.buildit/guidelines/`
 
 **Migration note:** If `.buildit/guidelines/` does not exist but `.claude/guidelines/` or `.agents/guidelines/` does, warn the user:
 > "Guidelines found at [old-path] instead of `.buildit/guidelines/`. Run `/buildit-project-bootstrap` to migrate them before continuing."
-Then stop.
+Then write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: guidelines found at <old-path>, migration required`, replacing any existing `## Last error` section (as a subagent, end with `SHIP BLOCKED: guidelines found at <old-path>, migration required`), and stop.
 
 Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all steps below.
 
@@ -70,7 +74,7 @@ Use `<rules-file>` and `<guidelines-dir>` as shorthand for these paths in all st
 
 Read `.scratch/shared-context.md` in full.
 
-**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
+**Base branch:** read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`. If `git rev-parse --verify <base-branch>` fails, write a `## Last error` section to the tracking file with the single line `buildit-feature-ship: base branch <base-branch> not found locally`, replacing any existing `## Last error` section (as a subagent, end with `SHIP BLOCKED: base branch <base-branch> not found locally`), and stop with: "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch."
 
 Retrieve the files touched by this feature: `git diff --cached --merge-base <base-branch> --name-only`. This covers the branch commits and the staged changes — the work is still staged at this point (the commit happens in step 5).
 

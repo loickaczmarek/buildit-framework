@@ -47,7 +47,7 @@ If `.scratch/shared-context.md` does not exist, stop with:
 4. Without a `feature-name`: consider every candidate. Never pick a file by modification date.
 5. Exactly one match → use it. No match → stop with: "No tracking file found — expected `.scratch/DD-MM-YYYY-<feature-name>.md` with a `## Status` heading and a feature status." Several matches → list each file with its status and ask which one to use; as a subagent (no human can answer), stop instead of guessing and list the matching files in the final message.
 
-**Status guard:** read the current status before modifying anything. If it is not `to-validate`, do not change it: add a `## Last error` section to the tracking file with the single line `buildit-feature-validate: status is <status>, expected to-validate`, and stop with:
+**Status guard:** read the current status before modifying anything. If it is not `to-validate`, do not change it: write a `## Last error` section to the tracking file with the single line `buildit-feature-validate: status is <status>, expected to-validate`, replacing any existing `## Last error` section, and stop with:
 > "Current status is `[status]` — buildit-feature-validate expects `to-validate`. Run `/buildit-feature-build [feature-name]` first; to re-run an interrupted validation (status `validating`), set the status back to `to-validate`."
 
 Set the status to `validating`. If the tracking file has a `## Last error` section, remove it (it describes a previous run).
@@ -90,7 +90,7 @@ If all tests pass: proceed to step 3 (review phase).
 
 Read `.buildit/config.md` and take the first non-empty, non-comment line after the `## Base branch` heading, read only within that heading (stop at the next heading); a line starting with `#` is never a value (Config value rule, `.buildit/guidelines/language-framework.md`), as `<base-branch>`. If the file or the heading is absent, or the heading is empty, `<base-branch>` defaults to `main`.
 
-Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, restore the status to `to-validate`, add a `## Last error` section to the tracking file with the single line `buildit-feature-validate: base branch <base-branch> not found locally`, and stop with:
+Check that it resolves locally: `git rev-parse --verify <base-branch>`. If it does not, restore the status to `to-validate`, write a `## Last error` section to the tracking file with the single line `buildit-feature-validate: base branch <base-branch> not found locally`, replacing any existing `## Last error` section, and stop with:
 > "Base branch `<base-branch>` not found locally — set `## Base branch` in `.buildit/config.md` or fetch the branch, then re-run `/buildit-feature-validate`."
 
 ### 3. Review phase

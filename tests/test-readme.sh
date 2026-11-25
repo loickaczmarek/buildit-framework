@@ -126,6 +126,12 @@ require_file "$CI"
 require_regex "AT-R22: CI runs on push" "$CI" '^[[:space:]]*push:'
 require_regex "AT-R22: CI runs on pull_request" "$CI" '^[[:space:]]*pull_request:'
 require_text "AT-R22: CI runs the full suite" "$CI" 'bash tests/run-all.sh'
+require_regex "AT-R22: CI push limited to main" "$CI" '^[[:space:]]*branches: \[main\]'
+require_regex "AT-R22: CI cancels superseded runs" "$CI" '^[[:space:]]*cancel-in-progress: true'
+require_regex "AT-R22: CI job has a timeout" "$CI" '^[[:space:]]*timeout-minutes: [0-9]+'
+HIST="docs/buildit/reviews/2026-10-14-skills-audit.md"
+require_absent "AT-R24: historical note does not name the short-lived branch" "$HIST" 'fix/audit'
+require_text "AT-R24: historical note cites the audit date and commits" "$HIST" 'the 24-11-2026 audit (commits `141d0ba^..fa5ec12`)'
 REFS=$(section "$README" '## References' '## ')
 for spec in buildit-feature-run-design worktree-mode-design subagent-isolation-design; do
   f=$(find docs/buildit/specs -name "*-$spec.md" | head -1)

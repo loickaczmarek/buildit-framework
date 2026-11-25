@@ -93,7 +93,8 @@ require_text "AT-TB-1: this repo's rules file indexes craft-principles.md" ".cla
 
 # AT-TB-2: 6 review dimensions and the full tracking-file section list
 in_text "AT-TB-2: team-practices template has the Craft principles dimension" "$TP_TPL" '- Craft principles:'
-DIMS=$(awk '/^Mandatory evaluation dimensions:/{f=1;next} f&&/^- /{n++;next} f{exit} END{print n+0}' <<<"$TP_TPL")
+# The template body is fenced: unwrap it with fenced_block, then scope the list with section_body.
+DIMS=$(section_body <(fenced_block "$SKILL" '# Team Practices') 'Mandatory evaluation dimensions:' | grep -c '^- ' || true)
 if [[ "$DIMS" -eq 6 ]]; then ok "AT-TB-2: 6 review dimensions"; else fail "AT-TB-2: expected 6 review dimensions, found $DIMS"; fi
 in_text "AT-TB-2: full tracking-file section list" "$TP_TPL" 'Tracking file sections: Status · Branch · Worktree path · Goal · Acceptance Tests · Plan · Progress · Problems to fix · Last error'
 

@@ -211,19 +211,15 @@ else
 fi
 
 # --- Ship verification (AT-SV-*) ---
-before() {
-  local label="$1" a b; a=$(line_of "$SKILL" "$2"); b=$(line_of "$SKILL" "$3")
-  if [[ -n "$a" && -n "$b" && "$a" -lt "$b" ]]; then ok "$label"; else fail "$label — '$2' (line ${a:-none}) must precede '$3' (line ${b:-none})"; fi
-}
 require_text "AT-SV-1a: records PRE_SHIP_HEAD" "$SKILL" 'PRE_SHIP_HEAD'
 require_text "AT-SV-1a: uses git rev-parse" "$SKILL" 'git rev-parse <SHIP_REF>'
-before "AT-SV-1a: pre-ship state recorded before launching ship" 'PRE_SHIP_HEAD' 'Run /buildit-feature-ship'
+before "AT-SV-1a: pre-ship state recorded before launching ship" "$SKILL" 'PRE_SHIP_HEAD' 'Run /buildit-feature-ship'
 in_text "AT-SV-1b: step 6 checks .scratch/done/" "$S6" '.scratch/done/'
 in_text "AT-SV-1b: step 6 checks the committed archived file" "$S6" 'git cat-file -e <SHIP_REF>:.scratch/done/'
 in_text "AT-SV-1c: unexpected state message" "$S6" 'Unexpected state after ship'
 in_text "AT-SV-1d: plan task and external ticket left unchanged" "$S6" 'The plan task and external ticket were left unchanged'
-before "AT-SV-1e: verification precedes plan task update" 'Unexpected state after ship' '**Update plan task on completion**'
-before "AT-SV-1e: verification precedes success message" 'Unexpected state after ship' 'shipped successfully'
+before "AT-SV-1e: verification precedes plan task update" "$SKILL" 'Unexpected state after ship' '**Update plan task on completion**'
+before "AT-SV-1e: verification precedes success message" "$SKILL" 'Unexpected state after ship' 'shipped successfully'
 in_text "AT-SV-1f: ship prompt states it runs as a subagent" "$S6" 'You are running as a subagent'
 in_text "AT-SV-1g: no Pending entry on failed verification" "$S6" 'write no `Pending:` entry'
 if grep -E -- '^- `SHIP_REF`' <<<"$S6" | grep -qF -- '`## Branch`'; then ok "AT-SV-1h: SHIP_REF comes from the tracking file's ## Branch"; else fail "AT-SV-1h: SHIP_REF must be read from the tracking file's ## Branch"; fi
@@ -237,11 +233,15 @@ if [[ "$WD_COUNT" -eq 1 ]]; then ok "AT-WD-2: autonomy block runs tests in the w
 require_absent "AT-WD-2b: no unqualified root-relative script instruction" "$SKILL" 'Use relative paths for script invocations\. Do not cd outside the project root'
 
 # --- Autonomy block defined once (AT-AB-*) ---
-AB_COUNT=$(grep -cF -- 'Autonomy: you are operating within the project directory' "$SKILL" || true)
-if [[ "$AB_COUNT" -eq 1 ]]; then ok "AT-AB-1: autonomy text defined exactly once"; else fail "AT-AB-1: expected 1 autonomy text, found $AB_COUNT"; fi
+# Defined exactly once across skills: test-cross-skill-contracts.sh (AT-6 autonomy block).
 REF_COUNT=$(grep -cF -- '[Autonomy block — see "Subagent autonomy block"]' "$SKILL" || true)
 if [[ "$REF_COUNT" -ge 4 ]]; then ok "AT-AB-2: start, build, validate and ship prompts reference the autonomy block"; else fail "AT-AB-2: expected >=4 autonomy block references, found $REF_COUNT"; fi
 require_text "AT-AB-3: named autonomy block section" "$SKILL" '## Subagent autonomy block'
+
+# --- Plan line match rule (AT-PLM-*): run ticks the task line with the shared anchored rule ---
+PLAN_UPDATE=$(section "$SKILL" '**Update plan task on completion**' 'Once the ship verification has passed' | normalize)
+in_text "AT-PLM-1: plan update uses the Plan line match rule" "$PLAN_UPDATE" 'Find the task line with the Plan line match rule'
+require_absent "AT-PLM-2: no unanchored checkbox match" "$SKILL" 'Find the line matching `- \[ \] task-\{feature-name\}` and change it'
 
 # --- Plan task lookup rule shared with discover (AT-PL-*) ---
 # Presence and identity across run and discover: test-cross-skill-contracts.sh (named blocks).

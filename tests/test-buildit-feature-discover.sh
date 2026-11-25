@@ -85,6 +85,8 @@ require_regex "AT-D7: Readiness set to ready" "$SKILL_SRC" 'Set `## Readiness` t
 require_regex "AT-D8: needs-scoping tag replaced by ready" "$SKILL_SRC" '`\[needs-scoping\]`.*`\[ready\]`'
 require_regex "AT-D8: checkbox and priority preserved" "$SKILL_SRC" '[Pp]reserve.*checkbox.*priority'
 
+require_text "AT-D8: plan.md line found with the Plan line match rule" "$SKILL_SRC" 'Find the task line with the Plan line match rule'
+
 # AT-D9: graceful handling of missing plan.md / missing line
 require_regex "AT-D9: plan.md missing -> task file only" "$SKILL_SRC" 'plan\.md` does not exist.*task file only'
 require_regex "AT-D9: line not found -> warning" "$SKILL_SRC" '[Tt]ask line not found.*task file updated only'

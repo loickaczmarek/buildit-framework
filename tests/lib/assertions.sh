@@ -132,5 +132,19 @@ in_text_re() {
 }
 absent_in_text() {
   local label="$1" text="$2" pattern="$3"
+  # An empty section means a missing marker: absence would pass vacuously.
+  if [[ -z "${text//[[:space:]]/}" ]]; then fail "$label — section empty or marker missing"; return; fi
   if grep -qE -- "$pattern" <<<"$text"; then fail "$label — must be absent from section: '$pattern'"; else ok "$label"; fi
 }
+same() { # label, actual, expected
+  if [[ "$2" == "$3" ]]; then ok "$1"; else fail "$1 — got '$2', expected '$3'"; fi
+}
+
+# --- Ordering assertions -------------------------------------------------------------
+_before_lines() { # label, first line, second line, first, second
+  if [[ -n "$2" && -n "$3" && "$2" -lt "$3" ]]; then ok "$1"; else fail "$1 — '$4' (line ${2:-none}) must precede '$5' (line ${3:-none})"; fi
+}
+# before LABEL FILE FIRST SECOND — both present in FILE, first occurrence of FIRST before SECOND.
+before() { _before_lines "$1" "$(line_of "$2" "$3")" "$(line_of "$2" "$4")" "$3" "$4"; }
+# before_in LABEL TEXT FIRST SECOND — same, on captured text.
+before_in() { _before_lines "$1" "$(line_of <(echo "$2") "$3")" "$(line_of <(echo "$2") "$4")" "$3" "$4"; }

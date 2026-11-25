@@ -23,6 +23,11 @@ If a `feature-name` was provided as argument, apply the **Plan task lookup rule*
 - If the stripped lookup finds the task, use the bare name as `feature-name` from then on and tell the user: "Stripped the `task-` prefix: using feature name `{feature-name}`."
 - If neither lookup finds a task file, there is no plan task.
 
+**Plan line match rule**
+- The task's line in `.scratch/plan/plan.md` starts with `- [ ] task-{feature-name} ` or `- [x] task-{feature-name} ` — the task name followed by a space.
+- Never match on a prefix without the trailing space: `task-auth` must not match `task-auth-oauth`.
+- Preserve the rest of the line (priority and readiness tags).
+
 - If the task file exists:
   - Read it and extract the `## Description`, `## Acceptance tests`, `## Readiness` and `## Status` sections.
   - Store as `PLAN_TASK_FILE` (the path), `PLAN_DESCRIPTION`, `PLAN_ACCEPTANCE_TESTS`, `PLAN_READINESS`, `PLAN_STATUS`.
@@ -145,7 +150,7 @@ In `PLAN_TASK_FILE`:
 - Set `## Readiness` to `ready` — a validated brief means the task is ready.
 
 In `.scratch/plan/plan.md`:
-- Find the line for this task (`- [ ] task-{feature-name} ` or `- [x] task-{feature-name} ` — the task name followed by a space) and replace `[needs-scoping]` with `[ready]`. Preserve the checkbox and the priority. If the line already shows `[ready]`, leave it as is.
+- Find the task line with the Plan line match rule (step 0a) and replace `[needs-scoping]` with `[ready]`. Preserve the checkbox and the priority. If the line already shows `[ready]`, leave it as is.
 - If the line is not found → warn: "Task line not found in plan.md — task file updated only." No error.
 - If `.scratch/plan/plan.md` does not exist → update the task file only — no error.
 

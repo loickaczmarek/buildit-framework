@@ -38,6 +38,11 @@ Otherwise, ask:
 
 Empty feature name → ask again: the slug must be non-empty, since it names both the tracking file and the worktree branch.
 
+**Existing tracking file:** once the name is known, if the top level of `.scratch/` already holds a file named `DD-MM-YYYY-<feature-name>.md` (any date, exact slug — never `.scratch/done/`, never a substring match), stop with:
+> "A tracking file for `<feature-name>` already exists: `.scratch/<file>` (status `<status>`). Resume it with the phase its status calls for (`/buildit-feature-build`, `/buildit-feature-validate` or `/buildit-feature-ship`), or choose another feature name."
+
+Nothing is created or overwritten: no worktree, no branch, no tracking file, no shared-context row.
+
 ### 2b. Worktree?
 
 Runs only after the prerequisite check passed (step 0) and once the feature name is collected (step 2), so a failed or cancelled start never leaves an orphan worktree or a `feature/YYYY-MM-DD-` branch with an empty slug.

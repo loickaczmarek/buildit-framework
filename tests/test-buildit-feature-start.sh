@@ -67,6 +67,15 @@ fi
 require_regex "AT-ORD-2: worktree step runs once the feature name is collected" "$SKILL" 'feature name is (already )?(collected|known)'
 require_regex "AT-ORD-2: empty feature name is re-asked" "$SKILL" '[Ee]mpty.*(ask again|re-ask)'
 
+# AT-EX: an existing tracking file for the same name stops start before anything is created
+S2=$(section "$SKILL" '### 2. Collect feature information' | normalize)
+in_text "AT-EX-1: step 2 guards against an existing tracking file" "$S2" '**Existing tracking file:**'
+in_text "AT-EX-2: guard uses the exact-slug file pattern at top level" "$S2" 'the top level of `.scratch/` already holds a file named `DD-MM-YYYY-<feature-name>.md`'
+in_text "AT-EX-3: guard never looks into done/ nor matches substrings" "$S2" 'never `.scratch/done/`, never a substring match'
+in_text "AT-EX-4: guard stops with an already-exists message" "$S2" 'already exists'
+in_text "AT-EX-5: guard never overwrites" "$S2" 'Nothing is created or overwritten'
+before "AT-EX-6: guard precedes the worktree step" "$SKILL" '**Existing tracking file:**' '### 2b. Worktree?'
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

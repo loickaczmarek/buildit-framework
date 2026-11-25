@@ -385,7 +385,7 @@ Move to .scratch/done/ at the closing commit.
 Tracking file sections: Status · Branch · Worktree path · Goal · Acceptance Tests · Plan · Progress · Problems to fix · Last error
 Status flow: to-build → building → to-validate → validating → to-ship (to-fix on NO-GO, loops back to building)
 Progress: one entry per NO-GO cycle, added by feature-validate; the cycle count is the number of `### NO-GO cycle` headings in Progress (other Progress entries are ignored)
-Last error: a phase that stops deliberately without changing the status records the reason as one line in a `## Last error` section; feature-run reports it, and validate removes a stale one when it sets validating
+Last error: a phase that stops deliberately records the reason as one line in a `## Last error` section — writers: build (unrelated-files stop, which restores the entry status), validate (status guard, base branch not found), ship (prerequisite, migration note, base branch not found, subagent block); each writer replaces any existing section. Clearers: build and validate when they start, ship step 0, and feature-run before launching each phase. feature-run reports it instead of "possible subagent failure".
 ~~~
 
 `<guidelines-dir>/language-framework.md` (fill Stack with collected information):

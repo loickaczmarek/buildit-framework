@@ -37,7 +37,7 @@ Then detect the mode:
 - Presence of a "Problems to fix" section → **fix mode**
 - Absence of this section → **normal TDD mode**
 
-Then set the status to `building` in that file.
+Then record the current status as the **entry status** (`to-build`, `to-fix`, or the status you were confirmed to continue from) and set the status to `building` in that file. If the tracking file has a `## Last error` section, remove it (it describes a previous run).
 
 **Working directory:** `.scratch/` and `.buildit/config.md` are always read and written in the project root, even in worktree mode. Read `## Worktree path` from the tracking file: if it is not `none`, edit code files inside the worktree and run every git command on feature code (`add`, `status`, `diff`) with `git -C <worktree-path>` — each worktree has its own index, so staged work is only visible there. Run the test command with the worktree as working directory (`cd <worktree-path> && <test command>`) — the project root holds base-branch code, so tests run there never see this feature's changes.
 
@@ -113,7 +113,7 @@ If no, move to the next step without modifying `shared-context.md`.
 `buildit-feature-validate` starts with a staging guard that returns NO-GO on any untracked or unstaged file outside `.scratch/`. Hand over staged work:
 
 1. **Stage** every file created or modified during this build: `git [-C <worktree-path>] add <path>...` with explicit paths — never `git add -A` or `git add .`, which would sweep in unrelated files. Files under `.scratch/` are workflow state committed by ship; do not stage them here.
-2. **Check** with `git [-C <worktree-path>] status --porcelain`, ignoring paths under `.scratch/`: no line may be untracked (`??`) or have unstaged changes (second status column non-blank) — the same criteria as validate's guard. Stage any remaining entry that belongs to the feature. If an entry is unrelated to the feature, do not stage it: leave the status at `building` and stop with:
+2. **Check** with `git [-C <worktree-path>] status --porcelain`, ignoring paths under `.scratch/`: no line may be untracked (`??`) or have unstaged changes (second status column non-blank) — the same criteria as validate's guard. Stage any remaining entry that belongs to the feature. If an entry is unrelated to the feature, do not stage it: restore the entry status recorded in step 1, write a `## Last error` section to the tracking file with the single line `buildit-feature-build: unrelated files block validation — <paths>`, replacing any existing `## Last error` section, and stop with:
    > "Unrelated untracked or unstaged files block validation: [paths]. Stage, ignore, or remove them, then re-run `/buildit-feature-build [feature-name]`."
 3. Set the status to `to-validate` and clear the "Problems to fix" section if it existed.
 
